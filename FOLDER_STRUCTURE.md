@@ -68,8 +68,13 @@ graph TD
 /
 ├── AGENTS.md                 # প্রজেক্ট রুলস ও অটো-আপডেট প্রোটোকল
 ├── FOLDER_STRUCTURE.md       # প্রজেক্টের সম্পূর্ণ ফাইল স্ট্রাকচার ও ওয়ার্কফ্লো গাইড
+├── vercel.json               # Vercel ডিপ্লয়মেন্ট রিউরাইট কনফিগারেশন (404 Page Refresh Issue Fix)
 ├── index.html                # মূল এইচটিএমএল টেমপ্লেট ও গুগল অ্যাডসেন্স (Google AdSense: ca-pub-7837194709908029) ইন্টিগ্রেশন
 ├── server.ts                 # Express Backend Server (Gemini AI Endpoint /api/ai/optimize)
+├── api/                      # Vercel Serverless Function ডিরেক্টরি
+│   └── index.ts              # Express Serverless Handler for Vercel (/api/*)
+├── public/                   # স্ট্যাটিক অ্যাসেটস ও ডিরেক্টরি
+│   └── _redirects            # Netlify/Static Host SPA Routing Rewrite Rules
 ├── metadata.json             # অ্যাপ্লিকেশনের নাম ও মেটাডেটা
 ├── package.json              # প্রজেক্টের ডিপেন্ডেন্সি ও নোড প্যাকেজসমূহ
 ├── vite.config.ts            # Vite বিল্ড ও সার্ভার কনফিগারেশন
