@@ -68,6 +68,7 @@ graph TD
 /
 ├── AGENTS.md                 # প্রজেক্ট রুলস ও অটো-আপডেট প্রোটোকল
 ├── FOLDER_STRUCTURE.md       # প্রজেক্টের সম্পূর্ণ ফাইল স্ট্রাকচার ও ওয়ার্কফ্লো গাইড
+├── index.html                # মূল এইচটিএমএল টেমপ্লেট ও গুগল অ্যাডসেন্স (Google AdSense: ca-pub-7837194709908029) ইন্টিগ্রেশন
 ├── server.ts                 # Express Backend Server (Gemini AI Endpoint /api/ai/optimize)
 ├── metadata.json             # অ্যাপ্লিকেশনের নাম ও মেটাডেটা
 ├── package.json              # প্রজেক্টের ডিপেন্ডেন্সি ও নোড প্যাকেজসমূহ
