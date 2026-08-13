@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <linearGradient id="naxxivoGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6366F1" />
+      <stop offset="50%" stop-color="#8B5CF6" />
+      <stop offset="100%" stop-color="#EC4899" />
+    </linearGradient>
+    <linearGradient id="naxxivoGlow" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" />
+      <stop offset="100%" stop-color="#818CF8" />
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#6366F1" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Outer background container -->
+  <rect width="512" height="512" rx="128" fill="#0F172A" />
+  <rect x="16" y="16" width="480" height="480" rx="112" fill="url(#naxxivoGrad)" opacity="0.15" />
+
+  <!-- Geometric N Symbol -->
+  <g filter="url(#shadow)">
+    <!-- Left Pillar -->
+    <rect x="112" y="120" width="68" height="272" rx="34" fill="url(#naxxivoGrad)" />
+    
+    <!-- Diagonal Bridge -->
+    <path d="M 160 144 L 352 368 C 368 386 396 374 396 350 L 396 144 C 396 125 380 110 361 110 C 342 110 328 125 328 144 L 328 250 L 200 100 C 182 80 152 92 152 118 Z" fill="url(#naxxivoGlow)" opacity="0.9" />
+
+    <!-- Right Pillar -->
+    <rect x="332" y="120" width="68" height="272" rx="34" fill="url(#naxxivoGrad)" />
+
+    <!-- Accent Dot -->
+    <circle cx="256" cy="380" r="22" fill="#F43F5E" />
+  </g>
+</svg>
