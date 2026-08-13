@@ -14,6 +14,9 @@ import VideoAnalyzer from '@/pages/VideoAnalyzer';
 import ImageConverter from '@/pages/ImageConverter';
 import TextTools from '@/pages/TextTools';
 import FaviconGenerator from '@/pages/FaviconGenerator';
+import AboutUs from '@/pages/AboutUs';
+import ContactUs from '@/pages/ContactUs';
+import PrivacyPolicy from '@/pages/PrivacyPolicy';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +32,9 @@ function Router() {
         <Route path="/image-converter" component={ImageConverter} />
         <Route path="/text-tools" component={TextTools} />
         <Route path="/favicon-generator" component={FaviconGenerator} />
+        <Route path="/about-us" component={AboutUs} />
+        <Route path="/contact-us" component={ContactUs} />
+        <Route path="/privacy-policy" component={PrivacyPolicy} />
         <Route component={NotFound} />
       </Switch>
     </AppLayout>

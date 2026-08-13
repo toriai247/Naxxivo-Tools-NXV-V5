@@ -1,2 +1,5 @@
 User-agent: *
 Allow: /
+
+Sitemap: https://www.naxxivo.online/sitemap.xml
+Sitemap: https://nax4in-tools-ten.vercel.app/sitemap.xml

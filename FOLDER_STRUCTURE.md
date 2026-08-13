@@ -74,6 +74,9 @@ graph TD
 ├── api/                      # Vercel Serverless Function ডিরেক্টরি
 │   └── index.ts              # Express Serverless Handler for Vercel (/api/*)
 ├── public/                   # স্ট্যাটিক অ্যাসেটস ও ডিরেক্টরি
+│   ├── sitemap.xml           # সমস্ত টুলস ও পেজসমূহের সার্চ ইঞ্জিন সাইটম্যাপ Index
+│   ├── robots.txt            # Search Engine Crawler নির্দেশিকা ও সাইটম্যাপ লিংক
+│   ├── google5e581e8123c0b2a5.html # Google Search Console সাইট ভেরিফিকেশন ফাইল
 │   └── _redirects            # Netlify/Static Host SPA Routing Rewrite Rules
 ├── metadata.json             # অ্যাপ্লিকেশনের নাম ও মেটাডেটা
 ├── package.json              # প্রজেক্টের ডিপেন্ডেন্সি ও নোড প্যাকেজসমূহ
@@ -97,6 +100,9 @@ graph TD
 │   │   ├── ImageConverter.tsx    # ইমেজ কনভার্টার পেজ (JPG, PNG, WEBP, AVIF)
 │   │   ├── TextTools.tsx         # টেক্সট কেস কনভার্টার ও স্ট্রিং ইউটিলিটি পেজ
 │   │   ├── FaviconGenerator.tsx  # ফেভিকন জেনারেটর পেজ (Multi-resolution)
+│   │   ├── AboutUs.tsx           # 'About Us' ইনফরমেশন পেজ (মিশন, ভিশন ও প্লাটফর্ম পরিচিতি)
+│   │   ├── ContactUs.tsx         # 'Contact Us' কন্টাক্ট ফর্ম ও মেসেজ পেজ
+│   │   ├── PrivacyPolicy.tsx     # 'Privacy Policy' গুগল এডসেন্স ও ডাটা প্রাইভেসি পলিসি পেজ
 │   │   └── not-found.tsx         # ৪০৪ এরর পেজ (404 Page)
 │   │
 │   ├── components/           # পুনর্ব্যবহারযোগ্য UI উপাদানসমূহ (Reusable UI)

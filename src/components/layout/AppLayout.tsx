@@ -200,10 +200,21 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </section>
 
             {/* Footer */}
-            <footer className="shrink-0 py-6 border-t flex flex-col items-center gap-3">
-              <p className="text-sm font-semibold text-foreground tracking-tight">
-                Naxxivo — Free Web Tools
-              </p>
+            <footer className="shrink-0 py-6 border-t flex flex-col items-center gap-4">
+              <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 text-xs md:text-sm font-medium text-muted-foreground">
+                <Link href="/about-us" className="hover:text-primary transition-colors">
+                  About Us
+                </Link>
+                <span className="text-border">•</span>
+                <Link href="/contact-us" className="hover:text-primary transition-colors">
+                  Contact Us
+                </Link>
+                <span className="text-border">•</span>
+                <Link href="/privacy-policy" className="hover:text-primary transition-colors">
+                  Privacy Policy
+                </Link>
+              </div>
+
               <div className="flex flex-wrap justify-center gap-2">
                 {[
                   "#Naxxivo",
@@ -221,8 +232,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </span>
                 ))}
               </div>
-              <p className="text-xs text-muted-foreground">
-                &copy; {new Date().getFullYear()} Naxxivo. All tools run locally in your browser.
+
+              <p className="text-xs text-muted-foreground text-center">
+                &copy; {new Date().getFullYear()} Naxxivo. All rights reserved. All tools run locally in your browser.
               </p>
             </footer>
           </div>
