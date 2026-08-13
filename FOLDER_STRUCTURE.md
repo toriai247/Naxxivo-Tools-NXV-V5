@@ -74,6 +74,7 @@ graph TD
 ├── api/                      # Vercel Serverless Function ডিরেক্টরি
 │   └── index.ts              # Express Serverless Handler for Vercel (/api/*)
 ├── public/                   # স্ট্যাটিক অ্যাসেটস ও ডিরেক্টরি
+│   ├── sw.js                 # Service Worker for handling background Push Notification clicks
 │   ├── sitemap.xml           # সমস্ত টুলস ও পেজসমূহের সার্চ ইঞ্জিন সাইটম্যাপ Index
 │   ├── robots.txt            # Search Engine Crawler নির্দেশিকা ও সাইটম্যাপ লিংক
 │   ├── google5e581e8123c0b2a5.html # Google Search Console সাইট ভেরিফিকেশন ফাইল
@@ -106,7 +107,9 @@ graph TD
 │   │   └── not-found.tsx         # ৪০৪ এরর পেজ (404 Page)
 │   │
 │   ├── components/           # পুনর্ব্যবহারযোগ্য UI উপাদানসমূহ (Reusable UI)
+│   │   ├── NotificationBanner.tsx # ইউজারের থেকে নোটিফিকেশন পারমিশন নেয়ার ফ্লোটিং ব্যানার
 │   │   ├── AiOptimizerCard.tsx # জেমিনি এআই চালিত ভিডিও ও চ্যানেল অ্যানালাইসিস ও অটো-জেনারেটর কম্পোনেন্ট
+│   │   ├── WorkflowScanner.tsx # ইউটিউব চ্যানেল ও ভিডিও অ্যানালাইসিসের লাইভ স্টেপ-বাই-স্টেপ এনিমেশন ও প্রোগ্রেস স্ক্যানার
 │   │   ├── layout/           # লেআউট, হেডার ও ফুটার
 │   │   │   └── AppLayout.tsx # নেভিগেশন সাইডবার, হেডার ও ফুটার শেল
 │   │   ├── seo/              # SEO আর্টিকেলের কনটেন্ট, ব্যানার ও FAQ সেকশন
@@ -126,6 +129,7 @@ graph TD
 │   │
 │   ├── hooks/                # কাস্টম রিয়েক্ট হুকস (React Hooks)
 │   └── lib/                  # হেল্পার ইউটিলিটি ফাংশন
+│       ├── notifications.ts  # Auto-Push Notification API logic ও 25 টি ফানি টেমপ্লেট
 │       └── utils.ts          # Tailwind Class merger (cn utility)
 ```
 

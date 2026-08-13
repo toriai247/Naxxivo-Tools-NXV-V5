@@ -8,6 +8,7 @@ import { analyzeYouTubeVideo } from '@/api/youtubeApi';
 import { VideoAnalysisData } from '@/types';
 import { FaqSection } from '@/components/seo/FaqSection';
 import { AiOptimizerCard } from '@/components/AiOptimizerCard';
+import { WorkflowScanner } from '@/components/WorkflowScanner';
 
 export default function VideoAnalyzer() {
   const [videoUrl, setVideoUrl] = useState('');
@@ -126,6 +127,8 @@ export default function VideoAnalyzer() {
           </div>
         )}
       </div>
+
+      <WorkflowScanner isLoading={loading} targetName={videoUrl} type="video" />
 
       {/* Results Section */}
       {data && (

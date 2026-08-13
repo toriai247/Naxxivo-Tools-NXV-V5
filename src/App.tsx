@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -5,6 +6,8 @@ import NotFound from '@/pages/not-found';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AppLayout } from '@/components/layout/AppLayout';
+import { NotificationBanner } from '@/components/NotificationBanner';
+import { initNotifications } from '@/lib/notifications';
 
 import YouTubeDownloader from '@/pages/YouTubeDownloader';
 import TitleGenerator from '@/pages/TitleGenerator';
@@ -42,12 +45,17 @@ function Router() {
 }
 
 function App() {
+  useEffect(() => {
+    initNotifications();
+  }, []);
+
   return (
     <ThemeProvider defaultTheme="dark">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
           <WouterRouter base={(import.meta.env.BASE_URL || '/').replace(/\/$/, '')}>
             <Router />
+            <NotificationBanner />
           </WouterRouter>
           <Toaster />
         </TooltipProvider>

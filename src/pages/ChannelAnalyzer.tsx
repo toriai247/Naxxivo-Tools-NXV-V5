@@ -9,6 +9,8 @@ import { ChannelAnalysisData } from '@/types';
 import { FaqSection } from '@/components/seo/FaqSection';
 import { AiOptimizerCard } from '@/components/AiOptimizerCard';
 
+import { WorkflowScanner } from '@/components/WorkflowScanner';
+
 export default function ChannelAnalyzer() {
   const [inputUrl, setInputUrl] = useState('');
   const [loading, setLoading] = useState(false);
@@ -112,6 +114,8 @@ export default function ChannelAnalyzer() {
           </div>
         )}
       </div>
+
+      <WorkflowScanner isLoading={loading} targetName={inputUrl} type="channel" />
 
       {/* Channel Analysis Results */}
       {data && (
