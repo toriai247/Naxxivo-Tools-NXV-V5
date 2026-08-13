@@ -5,6 +5,7 @@ import {
   Tag, Hash, BookOpen, Layers, CheckCircle2, Share2, CornerDownRight
 } from "lucide-react";
 import { generateDescriptionIdeas, DescriptionGeneratorResult } from "@/api/aiService";
+import { useHistory } from "@/hooks/useHistory";
 
 const presetIdeas = [
   { label: "iPhone 16 Pro Review & Unboxing", type: "video" as const, tone: "Clicky & Energetic" },
@@ -23,6 +24,7 @@ export default function DescriptionGenerator() {
   const [timestamps, setTimestamps] = useState(true);
   const [socialLinks, setSocialLinks] = useState(true);
   const [extraPrompt, setExtraPrompt] = useState("");
+  const { addHistoryItem } = useHistory();
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +76,12 @@ export default function DescriptionGenerator() {
         cached: res.cached,
         tokensSaved: res.tokensSaved,
         tokensUsed: res.tokensUsed,
+      });
+      
+      addHistoryItem({
+        type: 'desc_gen',
+        title: title || topic || 'Generated Description',
+        description: `Type: ${descType}, Tone: ${tone}`
       });
     } catch (err: any) {
       setError(err?.message || "Failed to generate description. Please try again.");

@@ -2,6 +2,7 @@ import { useState, useMemo, useRef } from "react";
 import { SeoContentText } from "@/components/seo/SeoContentText";
 import { Copy, Trash2, Undo, CheckCircle2, Download, ChevronDown, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useHistory } from "@/hooks/useHistory";
 
 type HistoryState = { text: string };
 
@@ -56,12 +57,20 @@ export default function TextTools() {
 
   const clear = () => updateText("");
 
+  const { addHistoryItem } = useHistory();
+  
   const copy = async () => {
     if (!text) return;
     try {
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
+      
+      addHistoryItem({
+        type: 'text_tool',
+        title: 'Copied Text',
+        description: `${text.substring(0, 30)}...`
+      });
     } catch (err) {
       console.error("Failed to copy", err);
     }
@@ -71,6 +80,12 @@ export default function TextTools() {
   const downloadAs = (format: "txt" | "pdf" | "csv" | "png" | "md" | "html") => {
     if (!text) return;
     setDownloadOpen(false);
+    
+    addHistoryItem({
+      type: 'text_tool',
+      title: `Downloaded Text as ${format.toUpperCase()}`,
+      description: `${text.substring(0, 30)}...`
+    });
 
     if (format === "txt") {
       saveBlob(new Blob([text], { type: "text/plain" }), "naxxivo-text.txt");

@@ -9,12 +9,14 @@ import { VideoAnalysisData } from '@/types';
 import { FaqSection } from '@/components/seo/FaqSection';
 import { AiOptimizerCard } from '@/components/AiOptimizerCard';
 import { WorkflowScanner } from '@/components/WorkflowScanner';
+import { useHistory } from '@/hooks/useHistory';
 
 export default function VideoAnalyzer() {
   const [videoUrl, setVideoUrl] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<VideoAnalysisData | null>(null);
+  const { addHistoryItem } = useHistory();
 
   // Copy feedback state
   const [copiedType, setCopiedType] = useState<string | null>(null);
@@ -29,6 +31,13 @@ export default function VideoAnalyzer() {
     try {
       const result = await analyzeYouTubeVideo(videoUrl);
       setData(result);
+      
+      addHistoryItem({
+        type: 'video_analysis',
+        title: `Analyzed Video: ${result.title}`,
+        description: `Views: ${result.stats.viewCount}`,
+        url: videoUrl
+      });
     } catch (err: any) {
       setError(err?.message || 'Failed to analyze video. Please verify the URL and try again.');
     } finally {

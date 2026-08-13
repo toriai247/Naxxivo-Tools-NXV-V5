@@ -2,6 +2,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { Upload, FileImage, Settings2, Download, RefreshCw, X, ArrowRight } from "lucide-react";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { motion, AnimatePresence } from "framer-motion";
+import { useHistory } from "@/hooks/useHistory";
 
 type ImageFormat = "image/webp" | "image/jpeg" | "image/png";
 
@@ -24,6 +25,7 @@ export default function ImageConverter() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ProcessedImage | null>(null);
   const [processError, setProcessError] = useState<string | null>(null);
+  const { addHistoryItem } = useHistory();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -76,12 +78,20 @@ export default function ImageConverter() {
         });
 
         const newSize = blob ? blob.size : Math.round((dataUrl.length * 3) / 4);
+        
+        const finalFormat = targetFormat.split("/")[1].toUpperCase();
 
         setResult({
           originalSize: sourceFile.size,
           newSize,
           url: dataUrl,
-          format: targetFormat.split("/")[1].toUpperCase(),
+          format: finalFormat,
+        });
+        
+        addHistoryItem({
+          type: 'image_conv',
+          title: `Converted ${sourceFile.name}`,
+          description: `Format: ${finalFormat}, Quality: ${targetQuality}%`
         });
       } catch (error) {
         console.error("Image processing error:", error);
@@ -90,7 +100,7 @@ export default function ImageConverter() {
         setIsProcessing(false);
       }
     },
-    []
+    [addHistoryItem]
   );
 
   const handleFile = (selectedFile: File) => {

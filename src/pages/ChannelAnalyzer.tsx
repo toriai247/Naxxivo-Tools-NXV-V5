@@ -8,6 +8,7 @@ import { analyzeYouTubeChannel } from '@/api/youtubeApi';
 import { ChannelAnalysisData } from '@/types';
 import { FaqSection } from '@/components/seo/FaqSection';
 import { AiOptimizerCard } from '@/components/AiOptimizerCard';
+import { useHistory } from '@/hooks/useHistory';
 
 import { WorkflowScanner } from '@/components/WorkflowScanner';
 
@@ -16,6 +17,7 @@ export default function ChannelAnalyzer() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<ChannelAnalysisData | null>(null);
+  const { addHistoryItem } = useHistory();
 
   // Copy feedback state
   const [copiedType, setCopiedType] = useState<string | null>(null);
@@ -30,6 +32,13 @@ export default function ChannelAnalyzer() {
     try {
       const result = await analyzeYouTubeChannel(inputUrl);
       setData(result);
+      
+      addHistoryItem({
+        type: 'channel_analysis',
+        title: `Analyzed Channel: ${result.title}`,
+        description: `Subscribers: ${result.stats.subscriberCount}`,
+        url: inputUrl
+      });
     } catch (err: any) {
       setError(err?.message || 'Failed to analyze channel. Please check the channel handle/URL and try again.');
     } finally {

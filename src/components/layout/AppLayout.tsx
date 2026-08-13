@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Youtube, Image, Type, Moon, Sun, Github, Palette, BarChart3, Video, Sparkles, FileText } from "lucide-react";
+import { Youtube, Image, Type, Moon, Sun, Github, Palette, BarChart3, Video, Sparkles, FileText, Menu, X, History } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookmarkBanner } from "@/components/seo/BookmarkBanner";
@@ -14,25 +14,36 @@ const navItems = [
   { href: "/image-converter", label: "Image Converter", icon: Image },
   { href: "/text-tools", label: "Text Tools", icon: Type },
   { href: "/favicon-generator", label: "Favicon Generator", icon: Palette },
+  { href: "/history", label: "History", icon: History },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
       {/* Mobile Top Header */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b bg-card z-10 shrink-0">
-        <Link href="/" className="flex items-center gap-2.5">
-          <img
-            src="/favicon.svg"
-            alt="Naxxivo Logo"
-            className="w-7 h-7 rounded-lg shadow-sm"
-            referrerPolicy="no-referrer"
-          />
-          <span className="font-bold text-lg tracking-tight">Naxxivo</span>
-        </Link>
+      <header className="md:hidden flex items-center justify-between p-4 border-b bg-card z-20 shrink-0">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setMobileMenuOpen(true)}
+            className="p-2 -ml-2 rounded-md hover:bg-muted transition-colors text-foreground"
+            aria-label="Open menu"
+          >
+            <Menu className="w-6 h-6" />
+          </button>
+          <Link href="/" className="flex items-center gap-2.5">
+            <img
+              src="/favicon.svg"
+              alt="Naxxivo Logo"
+              className="w-7 h-7 rounded-lg shadow-sm"
+              referrerPolicy="no-referrer"
+            />
+            <span className="font-bold text-lg tracking-tight">Naxxivo</span>
+          </Link>
+        </div>
         <button
           onClick={() => setTheme(theme === "light" ? "dark" : "light")}
           className="p-2 rounded-md hover:bg-muted transition-colors"
@@ -42,29 +53,73 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </button>
       </header>
 
-      {/* Mobile Nav Scrollable */}
-      <nav className="md:hidden flex overflow-x-auto border-b bg-card shrink-0 scrollbar-hide hide-scrollbar relative">
-        {navItems.map((item) => (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex-shrink-0 flex items-center justify-center gap-1.5 px-3 py-3 text-xs font-medium whitespace-nowrap relative ${
-              location === item.href ? "text-primary" : "text-muted-foreground hover:text-foreground"
-            }`}
-          >
-            <item.icon className="w-3.5 h-3.5" />
-            {item.label}
-            {location === item.href && (
-              <motion.div
-                layoutId="mobile-indicator"
-                className="absolute bottom-0 left-0 right-0 h-[2px] bg-primary"
-                initial={false}
-                transition={{ type: "spring", stiffness: 500, damping: 30 }}
-              />
-            )}
-          </Link>
-        ))}
-      </nav>
+      {/* Mobile Sidebar Overlay */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setMobileMenuOpen(false)}
+              className="fixed inset-0 bg-background/80 backdrop-blur-sm z-30 md:hidden"
+            />
+            <motion.aside
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="fixed top-0 left-0 bottom-0 w-3/4 max-w-sm bg-card border-r z-40 md:hidden flex flex-col"
+            >
+              <div className="p-4 flex items-center justify-between border-b">
+                <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-3">
+                  <img
+                    src="/favicon.svg"
+                    alt="Naxxivo Logo"
+                    className="w-8 h-8 rounded-lg shadow-sm"
+                    referrerPolicy="no-referrer"
+                  />
+                  <span className="font-bold text-xl tracking-tight">Naxxivo</span>
+                </Link>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-2 rounded-md hover:bg-muted transition-colors text-muted-foreground"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <nav className="flex-1 overflow-y-auto p-4 flex flex-col gap-2">
+                {navItems.map((item) => (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className={`flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${
+                      location === item.href
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+                    }`}
+                  >
+                    <item.icon className="w-5 h-5 shrink-0" />
+                    <span>{item.label}</span>
+                  </Link>
+                ))}
+              </nav>
+              <div className="p-4 border-t">
+                <a
+                  href="https://github.com"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-center gap-2 w-full h-10 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors font-medium text-sm"
+                >
+                  <Github className="w-4 h-4" />
+                  Star on GitHub
+                </a>
+              </div>
+            </motion.aside>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Desktop Sidebar */}
       <aside className="hidden md:flex w-64 flex-col border-r bg-card/50 z-10 shrink-0">

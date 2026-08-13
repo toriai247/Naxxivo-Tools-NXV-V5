@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { generateTitleIdeas, GeneratedTitleItem, TitleGeneratorApiResponse } from "@/api/aiService";
 import { useToast } from "@/hooks/use-toast";
+import { useHistory } from "@/hooks/useHistory";
 
 const PRESET_TEMPLATES = [
   { topic: "iPhone 16 Pro Review after 30 Days", category: "Tech & Gadgets", tone: "High CTR & Viral" },
@@ -74,6 +75,7 @@ export default function TitleGenerator() {
   const [tone, setTone] = useState("High CTR & Viral");
   const [language, setLanguage] = useState("English");
   const [extraPrompt, setExtraPrompt] = useState("");
+  const { addHistoryItem } = useHistory();
 
   const [loading, setLoading] = useState(false);
   const [apiResponse, setApiResponse] = useState<TitleGeneratorApiResponse | null>(null);
@@ -123,6 +125,12 @@ export default function TitleGenerator() {
       toast({
         title: "Titles Generated!",
         description: `Created ${response.data.titles.length} high-CTR title variations.`,
+      });
+
+      addHistoryItem({
+        type: 'title_gen',
+        title: topic || currentTitle || 'Generated Title',
+        description: `Generated ${response.data.titles.length} titles in ${tone}`
       });
     } catch (err: any) {
       toast({

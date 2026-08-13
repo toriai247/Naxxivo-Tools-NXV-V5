@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Download, Palette, Upload, RefreshCw, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useHistory } from "@/hooks/useHistory";
 
 const SIZES = [16, 32, 48, 64, 128, 180, 192, 512];
 
@@ -125,6 +126,7 @@ function saveBlob(blob: Blob, name: string) {
 // ─── Main Component ──────────────────────────────────────────────────────────
 export default function FaviconGenerator() {
   const [tab, setTab] = useState<"text" | "image">("text");
+  const { addHistoryItem } = useHistory();
 
   // Text favicon state
   const [faviconText, setFaviconText] = useState("N");
@@ -218,6 +220,12 @@ export default function FaviconGenerator() {
       }, "image/png");
     });
     await downloadIco();
+    
+    addHistoryItem({
+      type: 'favicon',
+      title: tab === "text" ? `Favicon (Text: ${faviconText})` : `Favicon (Image)`,
+      description: 'Downloaded all favicon formats and sizes'
+    });
   };
 
   const isReady = tab === "text" ? faviconText.trim().length > 0 : uploadedImage !== null;

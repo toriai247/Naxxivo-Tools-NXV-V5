@@ -20,6 +20,7 @@ import FaviconGenerator from '@/pages/FaviconGenerator';
 import AboutUs from '@/pages/AboutUs';
 import ContactUs from '@/pages/ContactUs';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
+import History from '@/pages/History';
 
 const queryClient = new QueryClient();
 
@@ -35,6 +36,7 @@ function Router() {
         <Route path="/image-converter" component={ImageConverter} />
         <Route path="/text-tools" component={TextTools} />
         <Route path="/favicon-generator" component={FaviconGenerator} />
+        <Route path="/history" component={History} />
         <Route path="/about-us" component={AboutUs} />
         <Route path="/contact-us" component={ContactUs} />
         <Route path="/privacy-policy" component={PrivacyPolicy} />

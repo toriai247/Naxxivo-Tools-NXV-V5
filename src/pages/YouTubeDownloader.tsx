@@ -3,6 +3,7 @@ import { Download, AlertCircle, Image as ImageIcon, Check } from "lucide-react";
 import { SeoContentYouTube } from "@/components/seo/SeoContentYouTube";
 import { FaqSection } from "@/components/seo/FaqSection";
 import { motion } from "framer-motion";
+import { useHistory } from "@/hooks/useHistory";
 
 interface Thumbnail {
   quality: string;
@@ -16,6 +17,7 @@ export default function YouTubeDownloader() {
   const [videoId, setVideoId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const { addHistoryItem } = useHistory();
 
   const extractVideoId = (input: string) => {
     // Matches youtu.be/ID, youtube.com/watch?v=ID, youtube.com/shorts/ID, youtube.com/embed/ID
@@ -57,6 +59,13 @@ export default function YouTubeDownloader() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
+
+      addHistoryItem({
+        type: 'thumbnail',
+        title: `Thumbnail Downloaded (${thumbnail.quality})`,
+        description: `Video ID: ${videoId}`,
+        url: url
+      });
     } catch (err) {
       console.error(err);
       alert("Failed to download image. It might not be available in this resolution or there's a cross-origin restriction.");
