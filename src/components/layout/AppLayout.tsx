@@ -1,12 +1,13 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { Youtube, Image, Type, Moon, Sun, Github, Palette, BarChart3, Video, Sparkles, FileText, Menu, X, History } from "lucide-react";
+import { Youtube, Image, Type, Moon, Sun, Github, Palette, BarChart3, Video, Sparkles, FileText, Menu, X, History, Image as ImageIcon, User } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookmarkBanner } from "@/components/seo/BookmarkBanner";
 
 const navItems = [
   { href: "/", label: "Thumbnail Downloader", icon: Youtube },
+  { href: "/prompts", label: "AI Image Prompts", icon: ImageIcon },
   { href: "/title-generator", label: "Title Generator", icon: Sparkles },
   { href: "/description-generator", label: "Description Generator", icon: FileText },
   { href: "/channel-analyzer", label: "Channel Analyzer", icon: BarChart3 },
@@ -15,6 +16,7 @@ const navItems = [
   { href: "/text-tools", label: "Text Tools", icon: Type },
   { href: "/favicon-generator", label: "Favicon Generator", icon: Palette },
   { href: "/history", label: "History", icon: History },
+  { href: "/profile", label: "User Profile", icon: User },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {

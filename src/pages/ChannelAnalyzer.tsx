@@ -36,7 +36,7 @@ export default function ChannelAnalyzer() {
       addHistoryItem({
         type: 'channel_analysis',
         title: `Analyzed Channel: ${result.title}`,
-        description: `Subscribers: ${result.stats.subscriberCount}`,
+        description: `Subscribers: ${result.subscribersCount.toLocaleString()}`,
         url: inputUrl
       });
     } catch (err: any) {

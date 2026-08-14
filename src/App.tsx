@@ -21,6 +21,10 @@ import AboutUs from '@/pages/AboutUs';
 import ContactUs from '@/pages/ContactUs';
 import PrivacyPolicy from '@/pages/PrivacyPolicy';
 import History from '@/pages/History';
+import PromptsHome from '@/pages/PromptsHome';
+import PromptDetail from '@/pages/PromptDetail';
+import AuthPage from '@/pages/Auth';
+import ProfilePage from '@/pages/Profile';
 
 const queryClient = new QueryClient();
 
@@ -29,6 +33,10 @@ function Router() {
     <AppLayout>
       <Switch>
         <Route path="/" component={YouTubeDownloader} />
+        <Route path="/prompts" component={PromptsHome} />
+        <Route path="/prompts/:id" component={PromptDetail} />
+        <Route path="/auth" component={AuthPage} />
+        <Route path="/profile" component={ProfilePage} />
         <Route path="/title-generator" component={TitleGenerator} />
         <Route path="/description-generator" component={DescriptionGenerator} />
         <Route path="/channel-analyzer" component={ChannelAnalyzer} />

@@ -101,6 +101,11 @@ graph TD
 │   │   ├── ImageConverter.tsx    # ইমেজ কনভার্টার পেজ (JPG, PNG, WEBP, AVIF)
 │   │   ├── TextTools.tsx         # টেক্সট কেস কনভার্টার ও স্ট্রিং ইউটিলিটি পেজ
 │   │   ├── FaviconGenerator.tsx  # ফেভিকন জেনারেটর পেজ (Multi-resolution)
+│   │   ├── PromptsHome.tsx       # AI Image Prompts Hub পেজ (Browse, Categories, 1-Click Copy & Share)
+│   │   ├── PromptDetail.tsx      # AI Image Prompt Detail পেজ (Full Prompt, Negative Prompt, Model, Ratio)
+│   │   ├── Auth.tsx              # Supabase Login & Signup পেজ
+│   │   ├── Profile.tsx           # User Profile পেজ (Name, Address, Email, Phone, Social Links, Avatar)
+│   │   ├── History.tsx           # ইউজার অ্যাকশন ও ডাউনলোড হিস্ট্রি ট্র্যাক করার পেজ
 │   │   ├── AboutUs.tsx           # 'About Us' ইনফরমেশন পেজ (মিশন, ভিশন ও প্লাটফর্ম পরিচিতি)
 │   │   ├── ContactUs.tsx         # 'Contact Us' কন্টাক্ট ফর্ম ও মেসেজ পেজ
 │   │   ├── PrivacyPolicy.tsx     # 'Privacy Policy' গুগল এডসেন্স ও ডাটা প্রাইভেসি পলিসি পেজ
@@ -129,6 +134,8 @@ graph TD
 │   │
 │   ├── hooks/                # কাস্টম রিয়েক্ট হুকস (React Hooks)
 │   └── lib/                  # হেল্পার ইউটিলিটি ফাংশন
+│       ├── supabase.ts       # Supabase Direct Client & Types (Direct API URLs & Real Database Connection)
+│       ├── supabaseSchema.sql# Database SQL Schema for Prompts & Profiles
 │       ├── notifications.ts  # Auto-Push Notification API logic ও 25 টি ফানি টেমপ্লেট
 │       └── utils.ts          # Tailwind Class merger (cn utility)
 ```
@@ -140,6 +147,10 @@ graph TD
 | ফোল্ডার / ফাইল | কাজের বিবরণ (Description) |
 | :--- | :--- |
 | **`server.ts`** | Express পূর্ণাঙ্গ ব্যাকএন্ড সার্ভার। জেমিনি এআই এপিআই (`AIzaSyAE9TerFp7AyHlSd7q1bab6ne0G09LVQAc`) এর মাধ্যমে `/api/ai/optimize` রুট পরিচালনা করে। |
+| **`src/lib/supabase.ts`** | Supabase ক্লায়েন্ট ইনিশিয়ালাইজেশন ফাইল। ডিরেক্ট API URL ও পাবলিশেবল কি সরাসরি সংজ্ঞায়িত এবং কোনো ডেমো ডেটা ছাড়া রিয়েল ডেটাবেস অপারেশন নিশ্চিত করে। |
+| **`src/pages/PromptsHome.tsx`** | এআই প্রম্পট হাব - সরাসরি Supabase `prompts` টেবিল থেকে রিয়েল প্রম্পট ডেটা ফেচ ও পাবলিশ করে। |
+| **`src/pages/PromptDetail.tsx`** | নির্দিষ্ট প্রম্পটের ফুল রেজুলেশন প্রিভিউ, পজিটিভ/নেগেটিভ প্রম্পট কপি এবং রিয়েল লাইক কাউন্টার। |
+| **`src/pages/Profile.tsx`** | ইউজার প্রোফাইল পেজ - Supabase Auth সেশনের সাথে সংযুক্ত এবং `profiles` টেবিলে আসল নাম, ইমেইল, ফোন, ঠিকানা ও সোশ্যাল লিংক সংরক্ষণ করে। |
 | **`src/components/AiOptimizerCard.tsx`** | Gemini AI Powered Optimizer Component - চ্যানেল ও ভিডিও কনটেন্টের খুঁত শনাক্তকরণ এবং ৫টি হাই-সিটিআর টাইটেল, এসইও ডেসক্রিপশন, ট্যাগ, কিওয়ার্ড ও হ্যাশট্যাগ জেনারেটর। |
 | **`src/api/aiService.ts`** | ক্লায়েন্ট-সাইড এআই সার্ভিস। ব্যাকএন্ড এনপয়েন্ট চেষ্টা করার পাশাপাশি স্ট্যাটিক ডিপ্লয়ে সরাসরি ব্রাউজার থেকে জেমিনি এআই এপিআই কল সাপোর্ট করে। |
 | **`src/pages/ChannelAnalyzer.tsx`** | ইউটিউব চ্যানেল অ্যানালাইসিস পেজ - প্রফেশনাল চ্যানেলের যাবতীয় তথ্য ও জেমিনি এআই চ্যানেল অপটিমাইজার অন্তর্ভুক্ত। |

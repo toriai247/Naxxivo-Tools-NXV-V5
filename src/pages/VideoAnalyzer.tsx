@@ -35,7 +35,7 @@ export default function VideoAnalyzer() {
       addHistoryItem({
         type: 'video_analysis',
         title: `Analyzed Video: ${result.title}`,
-        description: `Views: ${result.stats.viewCount}`,
+        description: `Views: ${result.viewCount.toLocaleString()}`,
         url: videoUrl
       });
     } catch (err: any) {
