@@ -9,6 +9,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { NotificationBanner } from '@/components/NotificationBanner';
 import { initNotifications } from '@/lib/notifications';
 
+import HomePage from '@/pages/Home';
 import YouTubeDownloader from '@/pages/YouTubeDownloader';
 import TitleGenerator from '@/pages/TitleGenerator';
 import DescriptionGenerator from '@/pages/DescriptionGenerator';
@@ -32,7 +33,9 @@ function Router() {
   return (
     <AppLayout>
       <Switch>
-        <Route path="/" component={YouTubeDownloader} />
+        <Route path="/" component={HomePage} />
+        <Route path="/thumbnail-downloader" component={YouTubeDownloader} />
+        <Route path="/youtube-thumbnail-downloader" component={YouTubeDownloader} />
         <Route path="/prompts" component={PromptsHome} />
         <Route path="/prompts/:id" component={PromptDetail} />
         <Route path="/auth" component={AuthPage} />

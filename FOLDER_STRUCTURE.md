@@ -93,7 +93,8 @@ graph TD
 │   │   └── youtubeApi.ts     # ইউটিউব চ্যানেল এবং ভিডিও অ্যানালাইসিসের ডেটা ফেচিং লজিক
 │   │
 │   ├── pages/                # ওয়েবসাইটের প্রতিটি একক পেজ/ভিউ
-│   │   ├── YouTubeDownloader.tsx # ইউটিউব থাম্বনেইল ডাউনলোড পেজ (Home)
+│   │   ├── Home.tsx              # মূল হোমপেজ / ক্রিয়েটর স্টুডিও হাব (All-in-One Creator & AI Hub)
+│   │   ├── YouTubeDownloader.tsx # ইউটিউব থাম্বনেইল ডাউনলোড পেজ (/thumbnail-downloader)
 │   │   ├── TitleGenerator.tsx    # এআই ইউটিউব টাইটেল জেনারেটর পেজ (High CTR, Viral Hooks, Token Saver)
 │   │   ├── DescriptionGenerator.tsx # এআই ইউটিউব ডেসক্রিপশন জেনারেটর পেজ (SEO Hook, Timestamps, Hashtags)
 │   │   ├── ChannelAnalyzer.tsx   # চ্যানেল অ্যানালাইজার পেজ + AI Channel Optimizer Mode
@@ -147,6 +148,7 @@ graph TD
 | ফোল্ডার / ফাইল | কাজের বিবরণ (Description) |
 | :--- | :--- |
 | **`server.ts`** | Express পূর্ণাঙ্গ ব্যাকএন্ড সার্ভার। জেমিনি এআই এপিআই (`AIzaSyAE9TerFp7AyHlSd7q1bab6ne0G09LVQAc`) এর মাধ্যমে `/api/ai/optimize` রুট পরিচালনা করে। |
+| **`src/pages/Home.tsx`** | মূল ড্যাশবোর্ড ও ক্রিয়েটর হাব হোমপেজ। সব ১০+ ক্রিয়েটর টুলস, রিয়েলটাইম সার্চ বার, ক্যাটাগরি ফিল্টার ও হাইলাইটস প্রদর্শন করে। |
 | **`src/lib/supabase.ts`** | Supabase ক্লায়েন্ট ইনিশিয়ালাইজেশন ফাইল। ডিরেক্ট API URL ও পাবলিশেবল কি সরাসরি সংজ্ঞায়িত এবং কোনো ডেমো ডেটা ছাড়া রিয়েল ডেটাবেস অপারেশন নিশ্চিত করে। |
 | **`src/pages/PromptsHome.tsx`** | এআই প্রম্পট হাব - সরাসরি Supabase `prompts` টেবিল থেকে রিয়েল প্রম্পট ডেটা ফেচ ও পাবলিশ করে। |
 | **`src/pages/PromptDetail.tsx`** | নির্দিষ্ট প্রম্পটের ফুল রেজুলেশন প্রিভিউ, পজিটিভ/নেগেটিভ প্রম্পট কপি এবং রিয়েল লাইক কাউন্টার। |
