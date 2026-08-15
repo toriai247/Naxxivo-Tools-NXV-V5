@@ -59,6 +59,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <img
               src="/favicon.svg"
               alt="Naxxivo Logo"
+              width="28"
+              height="28"
               className="w-7 h-7 rounded-lg shadow-sm"
               referrerPolicy="no-referrer"
             />
@@ -97,6 +99,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   <img
                     src="/favicon.svg"
                     alt="Naxxivo Logo"
+                    width="32"
+                    height="32"
                     className="w-8 h-8 rounded-lg shadow-sm"
                     referrerPolicy="no-referrer"
                   />
@@ -150,6 +154,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <img
               src="/favicon.svg"
               alt="Naxxivo Logo"
+              width="36"
+              height="36"
               className="w-9 h-9 rounded-xl shadow-md transition-transform group-hover:scale-105"
               referrerPolicy="no-referrer"
             />
