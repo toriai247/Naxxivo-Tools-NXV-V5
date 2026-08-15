@@ -1,0 +1,17 @@
+{
+  "name": "Naxxivo Creator & AI Studio",
+  "short_name": "Naxxivo",
+  "description": "Free All-in-One Creator & AI Studio for YouTube, Image Prompts, and Design Utilities",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0f172a",
+  "theme_color": "#8b5cf6",
+  "icons": [
+    {
+      "src": "/favicon.svg",
+      "sizes": "48x48 72x72 96x96 128x128 192x192 256x256 512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

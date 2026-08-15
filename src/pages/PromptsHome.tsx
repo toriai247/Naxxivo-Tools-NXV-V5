@@ -5,6 +5,7 @@ import { Search, Sparkles, Copy, Check, Heart, Plus, Filter, Tag, Layers, Extern
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ImageUploadInput } from '@/components/ImageUploadInput';
 import { useToast } from '@/hooks/use-toast';
 import { useHistory } from '@/hooks/useHistory';
 
@@ -400,13 +401,13 @@ export default function PromptsHome() {
               </div>
 
               <div>
-                <label className="block font-semibold mb-1 text-foreground">Generated Result Image URL</label>
-                <Input
-                  type="url"
-                  placeholder="https://images.unsplash.com/... or direct image link"
+                <ImageUploadInput
+                  label="Generated Result Image"
+                  placeholder="https://i.ibb.co/... or upload below"
                   value={newImageUrl}
-                  onChange={(e) => setNewImageUrl(e.target.value)}
+                  onChange={setNewImageUrl}
                   required
+                  helpText="Upload any image (1-5MB+) — auto compressed to lightweight WebP & uploaded to ImgBB."
                 />
               </div>
 

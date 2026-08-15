@@ -3,21 +3,51 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Favicon & App Icons (Google Search & Browser Standard) -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <link rel="shortcut icon" href="/favicon.svg" />
+    <link rel="shortcut icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <meta name="theme-color" content="#8b5cf6" />
 
     <!-- Primary Meta Tags -->
-    <title>Naxxivo Tools - Free YouTube Thumbnail Downloader & Image WebP Converter</title>
-    <meta name="title" content="Naxxivo Tools - Free YouTube Thumbnail Downloader & Image WebP Converter">
-    <meta name="description" content="Use Naxxivo Tools to download high-quality YouTube thumbnails, compress or convert images to next-gen WebP format, and format text instantly.">
-    <meta name="keywords" content="naxxivo tools, free youtube thumbnail downloader, download yt thumbnail hd, convert png to webp, online image compressor, text case converter, word counter online">
+    <title>Naxxivo - Free Creator & AI Studio | Prompts, Thumbnail Downloader & SEO Tools</title>
+    <meta name="title" content="Naxxivo - Free Creator & AI Studio | Prompts, Thumbnail Downloader & SEO Tools">
+    <meta name="description" content="All-in-one free suite for content creators: Midjourney/FLUX AI image prompts hub, 4K YouTube thumbnail downloader, Gemini AI channel analyzer, title/description generators, and image converters.">
+    <meta name="keywords" content="naxxivo, ai prompts hub, midjourney prompts, youtube thumbnail downloader, channel analyzer, title generator, image converter, free creator tools">
     <meta name="robots" content="index, follow">
     <meta name="language" content="English">
     <link rel="canonical" href="https://www.naxxivo.online/" />
 
-    <!-- Google AdSense -->
-    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7837194709908029"
-     crossorigin="anonymous"></script>
+    <!-- Resource Hints & DNS Prefetches for High Speed -->
+    <link rel="preconnect" href="https://i.ibb.co" crossorigin />
+    <link rel="dns-prefetch" href="https://i.ibb.co" />
+    <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
+    <link rel="dns-prefetch" href="https://googleads.g.doubleclick.net" />
+
+    <!-- Google AdSense (Lazy Non-blocking execution for 95+ PageSpeed) -->
+    <script>
+      (function() {
+        let adsLoaded = false;
+        function loadAdSense() {
+          if (adsLoaded) return;
+          adsLoaded = true;
+          const s = document.createElement('script');
+          s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7837194709908029";
+          s.async = true;
+          s.crossOrigin = "anonymous";
+          document.head.appendChild(s);
+        }
+        if ('requestIdleCallback' in window) {
+          window.requestIdleCallback(() => setTimeout(loadAdSense, 1500));
+        } else {
+          window.addEventListener('load', () => setTimeout(loadAdSense, 1500));
+        }
+        ['scroll', 'touchstart', 'mousemove', 'keydown'].forEach(event => {
+          window.addEventListener(event, loadAdSense, { once: true, passive: true });
+        });
+      })();
+    </script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">

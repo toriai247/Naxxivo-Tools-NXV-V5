@@ -1,8 +1,11 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Upload, FileImage, Settings2, Download, RefreshCw, X, ArrowRight } from "lucide-react";
+import { Upload, FileImage, Settings2, Download, RefreshCw, X, ArrowRight, UploadCloud, Check, Loader2, Link2 } from "lucide-react";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHistory } from "@/hooks/useHistory";
+import { uploadImageToImgBB } from "@/lib/imageUploader";
+import { useToast } from "@/hooks/use-toast";
+import { Button } from "@/components/ui/button";
 
 type ImageFormat = "image/webp" | "image/jpeg" | "image/png";
 
@@ -25,9 +28,34 @@ export default function ImageConverter() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [result, setResult] = useState<ProcessedImage | null>(null);
   const [processError, setProcessError] = useState<string | null>(null);
+  const [uploadingImgBB, setUploadingImgBB] = useState(false);
+  const [uploadedUrl, setUploadedUrl] = useState<string | null>(null);
   const { addHistoryItem } = useHistory();
+  const { toast } = useToast();
   
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleUploadToImgBB = async () => {
+    if (!file) return;
+    setUploadingImgBB(true);
+    try {
+      const uploadRes = await uploadImageToImgBB(file);
+      setUploadedUrl(uploadRes.url);
+      navigator.clipboard.writeText(uploadRes.url);
+      toast({
+        title: "Uploaded & Link Copied! 🚀",
+        description: `Direct ImgBB link copied (${uploadRes.savedPercent}% compressed).`,
+      });
+    } catch (err: any) {
+      toast({
+        title: "Upload Failed",
+        description: err.message || "Failed to upload to ImgBB.",
+        variant: "destructive",
+      });
+    } finally {
+      setUploadingImgBB(false);
+    }
+  };
 
   const processImageData = useCallback(
     async (
@@ -323,13 +351,40 @@ export default function ImageConverter() {
                       ) : null}
                     </div>
                     
-                    <a
-                      href={result.url}
-                      download={`converted-${file.name.replace(/\.[^/.]+$/, "")}.${result.format.toLowerCase()}`}
-                      className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2 rounded-md font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
-                    >
-                      <Download className="w-4 h-4" /> Download
-                    </a>
+                    <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={uploadingImgBB}
+                        onClick={handleUploadToImgBB}
+                        className="w-full sm:w-auto gap-2 border-primary/30 hover:bg-primary/10 text-primary"
+                      >
+                        {uploadingImgBB ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            <span>Uploading to ImgBB...</span>
+                          </>
+                        ) : uploadedUrl ? (
+                          <>
+                            <Check className="w-4 h-4 text-emerald-500" />
+                            <span>Direct Link Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-4 h-4" />
+                            <span>Upload to ImgBB & Copy URL</span>
+                          </>
+                        )}
+                      </Button>
+
+                      <a
+                        href={result.url}
+                        download={`converted-${file.name.replace(/\.[^/.]+$/, "")}.${result.format.toLowerCase()}`}
+                        className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2 rounded-md font-medium transition-colors flex items-center justify-center gap-2 shadow-sm text-sm"
+                      >
+                        <Download className="w-4 h-4" /> Download
+                      </a>
+                    </div>
                   </div>
                 </div>
               )}

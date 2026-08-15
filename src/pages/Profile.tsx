@@ -4,6 +4,7 @@ import { User, Mail, Phone, MapPin, Globe, Twitter, Instagram, Github, Save, Log
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { ImageUploadInput } from '@/components/ImageUploadInput';
 import { useToast } from '@/hooks/use-toast';
 import { useLocation, Link } from 'wouter';
 
@@ -255,14 +256,14 @@ export default function ProfilePage() {
               </div>
             </div>
 
-            {/* Avatar URL */}
+            {/* Avatar URL & Direct ImgBB Upload */}
             <div className="space-y-1.5 pt-2 border-t">
-              <label className="text-xs font-semibold text-foreground">Avatar Image URL</label>
-              <Input
-                type="url"
+              <ImageUploadInput
+                label="Profile Avatar Image"
+                placeholder="https://i.ibb.co/... or upload photo"
                 value={profile.avatar_url || ''}
-                onChange={(e) => setProfile({ ...profile, avatar_url: e.target.value })}
-                placeholder="https://images.unsplash.com/..."
+                onChange={(url) => setProfile({ ...profile, avatar_url: url })}
+                helpText="Upload your avatar image — auto compressed to WebP and saved directly to ImgBB."
               />
             </div>
 

@@ -116,14 +116,14 @@ const TOOLS_LIST: ToolItem[] = [
   },
   {
     id: 'image-converter',
-    title: 'Smart Image Converter',
-    description: 'Convert images between JPG, PNG, WEBP, and AVIF formats with lossless compression directly in your browser.',
+    title: 'Smart Image Converter & Cloud Host',
+    description: 'Convert images between JPG, PNG, and WebP, auto-compress heavy MB files to lightweight KB, and generate 1-click direct ImgBB links.',
     category: 'design',
     href: '/image-converter',
     icon: ImageIcon,
-    badge: 'BROWSER-FAST',
+    badge: 'DIRECT CLOUD LINK ☁️',
     badgeColor: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
-    features: ['WEBP / AVIF / PNG / JPG', 'Batch File Processing', 'No File Size Limits'],
+    features: ['Auto WebP Compression', '1-Click Direct ImgBB URL', 'Lossless Quality Slider'],
     gradient: 'from-teal-500/10 via-cyan-500/5 to-transparent'
   },
   {
