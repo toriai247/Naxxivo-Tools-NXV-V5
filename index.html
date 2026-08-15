@@ -19,35 +19,9 @@
     <meta name="language" content="English">
     <link rel="canonical" href="https://www.naxxivo.online/" />
 
-    <!-- Resource Hints & DNS Prefetches for High Speed -->
-    <link rel="preconnect" href="https://i.ibb.co" crossorigin />
-    <link rel="dns-prefetch" href="https://i.ibb.co" />
-    <link rel="dns-prefetch" href="https://pagead2.googlesyndication.com" />
-    <link rel="dns-prefetch" href="https://googleads.g.doubleclick.net" />
-
-    <!-- Google AdSense (Lazy Non-blocking execution for 95+ PageSpeed) -->
-    <script>
-      (function() {
-        let adsLoaded = false;
-        function loadAdSense() {
-          if (adsLoaded) return;
-          adsLoaded = true;
-          const s = document.createElement('script');
-          s.src = "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7837194709908029";
-          s.async = true;
-          s.crossOrigin = "anonymous";
-          document.head.appendChild(s);
-        }
-        if ('requestIdleCallback' in window) {
-          window.requestIdleCallback(() => setTimeout(loadAdSense, 1500));
-        } else {
-          window.addEventListener('load', () => setTimeout(loadAdSense, 1500));
-        }
-        ['scroll', 'touchstart', 'mousemove', 'keydown'].forEach(event => {
-          window.addEventListener(event, loadAdSense, { once: true, passive: true });
-        });
-      })();
-    </script>
+    <!-- Google AdSense -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7837194709908029"
+     crossorigin="anonymous"></script>
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website">
