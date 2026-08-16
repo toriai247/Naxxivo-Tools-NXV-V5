@@ -164,10 +164,7 @@ export default function DescriptionGenerator() {
               <div className="grid grid-cols-2 gap-3 max-w-md">
                 <button
                   type="button"
-                  onClick={() => {
-                    sound.tab();
-                    setDescType("video");
-                  }}
+                  onClick={() => setDescType("video")}
                   className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-medium transition-all ${
                     descType === "video"
                       ? "bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-500/20"
@@ -179,10 +176,7 @@ export default function DescriptionGenerator() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => {
-                    sound.tab();
-                    setDescType("channel");
-                  }}
+                  onClick={() => setDescType("channel")}
                   className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-medium transition-all ${
                     descType === "channel"
                       ? "bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-500/20"

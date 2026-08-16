@@ -4,6 +4,7 @@ import {
   Tag, Hash, FileText, Type, Zap, Wand2, ShieldAlert, Award, ShieldCheck, Database, Cpu
 } from 'lucide-react';
 import { generateAiOptimizations, AiOptimizationResult, AiApiResponse } from '@/api/aiService';
+import { sound } from '@/lib/sound';
 
 interface AiOptimizerCardProps {
   type: 'video' | 'channel';
@@ -28,6 +29,7 @@ export const AiOptimizerCard: React.FC<AiOptimizerCardProps> = ({ type, initialD
   const [tokenSaverEnabled, setTokenSaverEnabled] = useState(true);
 
   const handleRunAi = async (bypassCache = false) => {
+    sound.generate();
     setLoading(true);
     setError(null);
 
@@ -49,7 +51,9 @@ export const AiOptimizerCard: React.FC<AiOptimizerCardProps> = ({ type, initialD
         bypassCache,
       });
       setApiResponse(res);
+      sound.success();
     } catch (err: any) {
+      sound.error();
       setError(err?.message || 'Failed to generate AI optimizations. Please try again.');
     } finally {
       setLoading(false);
@@ -57,6 +61,7 @@ export const AiOptimizerCard: React.FC<AiOptimizerCardProps> = ({ type, initialD
   };
 
   const copyToClipboard = (text: string, key: string) => {
+    sound.copy();
     navigator.clipboard.writeText(text);
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 2000);

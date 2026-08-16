@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect, useCallback } from "react";
 import { Download, Palette, Upload, RefreshCw, Image as ImageIcon } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHistory } from "@/hooks/useHistory";
+import { sound } from "@/lib/sound";
 
 const SIZES = [16, 32, 48, 64, 128, 180, 192, 512];
 
@@ -181,6 +182,7 @@ export default function FaviconGenerator() {
   };
 
   const downloadPng = (size: number) => {
+    sound.download();
     const idx = SIZES.indexOf(size);
     const canvas = previewCanvasRefs.current[idx];
     if (!canvas) return;
@@ -188,6 +190,7 @@ export default function FaviconGenerator() {
   };
 
   const downloadIco = async () => {
+    sound.download();
     const icoSizes = [16, 32, 48];
     const canvases: HTMLCanvasElement[] = [];
     icoSizes.forEach((sz) => {
@@ -209,6 +212,7 @@ export default function FaviconGenerator() {
   };
 
   const downloadAll = async () => {
+    sound.download();
     // Download each PNG size + ico
     for (const size of SIZES) await new Promise<void>((res) => {
       const idx = SIZES.indexOf(size);

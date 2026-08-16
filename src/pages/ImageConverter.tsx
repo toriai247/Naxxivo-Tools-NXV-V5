@@ -156,7 +156,6 @@ export default function ImageConverter() {
   }, []);
 
   const handleFormatChange = (newFormat: ImageFormat) => {
-    sound.tab();
     setFormat(newFormat);
     if (preview && file) {
       processImageData(preview, file, newFormat, quality);

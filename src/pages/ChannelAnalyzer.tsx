@@ -11,6 +11,7 @@ import { AiOptimizerCard } from '@/components/AiOptimizerCard';
 import { useHistory } from '@/hooks/useHistory';
 
 import { WorkflowScanner } from '@/components/WorkflowScanner';
+import { sound } from '@/lib/sound';
 
 export default function ChannelAnalyzer() {
   const [inputUrl, setInputUrl] = useState('');
@@ -26,12 +27,14 @@ export default function ChannelAnalyzer() {
     if (e) e.preventDefault();
     if (!inputUrl.trim()) return;
 
+    sound.scan();
     setLoading(true);
     setError(null);
 
     try {
       const result = await analyzeYouTubeChannel(inputUrl);
       setData(result);
+      sound.success();
       
       addHistoryItem({
         type: 'channel_analysis',
@@ -40,6 +43,7 @@ export default function ChannelAnalyzer() {
         url: inputUrl
       });
     } catch (err: any) {
+      sound.error();
       setError(err?.message || 'Failed to analyze channel. Please check the channel handle/URL and try again.');
     } finally {
       setLoading(false);
@@ -47,6 +51,7 @@ export default function ChannelAnalyzer() {
   };
 
   const handleCopyText = (text: string, typeLabel: string) => {
+    sound.copy();
     navigator.clipboard.writeText(text);
     setCopiedType(typeLabel);
     setTimeout(() => setCopiedType(null), 2000);
@@ -54,6 +59,7 @@ export default function ChannelAnalyzer() {
 
   // Preset example handlers for quick testing
   const loadExample = (handle: string) => {
+    sound.click();
     setInputUrl(handle);
   };
 

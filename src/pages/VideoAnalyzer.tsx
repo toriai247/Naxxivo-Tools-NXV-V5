@@ -10,6 +10,7 @@ import { FaqSection } from '@/components/seo/FaqSection';
 import { AiOptimizerCard } from '@/components/AiOptimizerCard';
 import { WorkflowScanner } from '@/components/WorkflowScanner';
 import { useHistory } from '@/hooks/useHistory';
+import { sound } from '@/lib/sound';
 
 export default function VideoAnalyzer() {
   const [videoUrl, setVideoUrl] = useState('');
@@ -25,12 +26,14 @@ export default function VideoAnalyzer() {
     if (e) e.preventDefault();
     if (!videoUrl.trim()) return;
 
+    sound.scan();
     setLoading(true);
     setError(null);
 
     try {
       const result = await analyzeYouTubeVideo(videoUrl);
       setData(result);
+      sound.success();
       
       addHistoryItem({
         type: 'video_analysis',
@@ -39,6 +42,7 @@ export default function VideoAnalyzer() {
         url: videoUrl
       });
     } catch (err: any) {
+      sound.error();
       setError(err?.message || 'Failed to analyze video. Please verify the URL and try again.');
     } finally {
       setLoading(false);
@@ -46,12 +50,14 @@ export default function VideoAnalyzer() {
   };
 
   const handleCopyText = (text: string, typeLabel: string) => {
+    sound.copy();
     navigator.clipboard.writeText(text);
     setCopiedType(typeLabel);
     setTimeout(() => setCopiedType(null), 2000);
   };
 
   const handleDownloadThumbnail = async (imageUrl: string, qualityName: string) => {
+    sound.download();
     try {
       const response = await fetch(imageUrl);
       const blob = await response.blob();
@@ -70,6 +76,7 @@ export default function VideoAnalyzer() {
   };
 
   const loadExample = (url: string) => {
+    sound.click();
     setVideoUrl(url);
   };
 

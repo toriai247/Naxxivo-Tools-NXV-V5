@@ -247,10 +247,7 @@ export default function PromptsHome() {
           {PROMPT_CATEGORIES.map((cat) => (
             <button
               key={cat}
-              onClick={() => {
-                sound.tab();
-                setSelectedCategory(cat);
-              }}
+              onClick={() => setSelectedCategory(cat)}
               className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
                 selectedCategory === cat
                   ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]'

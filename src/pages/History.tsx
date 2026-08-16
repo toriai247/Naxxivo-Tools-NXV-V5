@@ -3,6 +3,7 @@ import { useHistory } from '@/hooks/useHistory';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { History as HistoryIcon, Trash2, Youtube, Sparkles, FileText, BarChart3, Video, Image as ImageIcon, Type, Palette, Clock, Link as LinkIcon, ExternalLink } from 'lucide-react';
+import { sound } from '@/lib/sound';
 
 const getTypeIcon = (type: string) => {
   switch (type) {
@@ -60,7 +61,15 @@ export default function History() {
         </div>
 
         {history.length > 0 && (
-          <Button variant="destructive" size="sm" onClick={clearHistory} className="gap-2">
+          <Button 
+            variant="destructive" 
+            size="sm" 
+            onClick={() => {
+              sound.clear();
+              clearHistory();
+            }} 
+            className="gap-2"
+          >
             <Trash2 className="w-4 h-4" />
             Clear History
           </Button>
@@ -116,7 +125,10 @@ export default function History() {
                 </div>
 
                 <button 
-                  onClick={() => removeHistoryItem(item.id)}
+                  onClick={() => {
+                    sound.delete();
+                    removeHistoryItem(item.id);
+                  }}
                   className="opacity-0 group-hover:opacity-100 transition-opacity p-2 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg shrink-0"
                   title="Remove item"
                 >

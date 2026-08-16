@@ -253,10 +253,7 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'all' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => {
-              sound.tab();
-              setActiveCategory('all');
-            }}
+            onClick={() => setActiveCategory('all')}
             className="rounded-full text-xs font-semibold px-4"
           >
             All Tools ({TOOLS_LIST.length})
@@ -264,10 +261,7 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'ai' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => {
-              sound.tab();
-              setActiveCategory('ai');
-            }}
+            onClick={() => setActiveCategory('ai')}
             className="rounded-full text-xs font-semibold px-4 gap-1.5"
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-500" /> AI Prompts & Text
@@ -275,10 +269,7 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'youtube' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => {
-              sound.tab();
-              setActiveCategory('youtube');
-            }}
+            onClick={() => setActiveCategory('youtube')}
             className="rounded-full text-xs font-semibold px-4 gap-1.5"
           >
             <Youtube className="w-3.5 h-3.5 text-red-500" /> YouTube & SEO
@@ -286,10 +277,7 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'design' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => {
-              sound.tab();
-              setActiveCategory('design');
-            }}
+            onClick={() => setActiveCategory('design')}
             className="rounded-full text-xs font-semibold px-4 gap-1.5"
           >
             <Palette className="w-3.5 h-3.5 text-teal-500" /> Image & Design
@@ -297,10 +285,7 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'utility' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => {
-              sound.tab();
-              setActiveCategory('utility');
-            }}
+            onClick={() => setActiveCategory('utility')}
             className="rounded-full text-xs font-semibold px-4 gap-1.5"
           >
             <Sliders className="w-3.5 h-3.5 text-slate-500" /> Utilities

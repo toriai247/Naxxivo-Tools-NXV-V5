@@ -3,6 +3,7 @@ import { SeoContentText } from "@/components/seo/SeoContentText";
 import { Copy, Trash2, Undo, CheckCircle2, Download, ChevronDown, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHistory } from "@/hooks/useHistory";
+import { sound } from "@/lib/sound";
 
 type HistoryState = { text: string };
 
@@ -38,8 +39,9 @@ export default function TextTools() {
     return { chars, charsNoSpaces, words, sentences, paragraphs, lines };
   }, [text]);
 
-  const updateText = (newText: string) => {
+  const updateText = (newText: string, playSound = false) => {
     if (newText === text) return;
+    if (playSound) sound.click();
     const newHistory = history.slice(0, historyIndex + 1);
     newHistory.push({ text: newText });
     if (newHistory.length > 50) newHistory.shift();
@@ -50,18 +52,23 @@ export default function TextTools() {
 
   const undo = () => {
     if (historyIndex > 0) {
+      sound.click();
       setHistoryIndex(historyIndex - 1);
       setText(history[historyIndex - 1].text);
     }
   };
 
-  const clear = () => updateText("");
+  const clear = () => {
+    sound.clear();
+    updateText("");
+  };
 
   const { addHistoryItem } = useHistory();
   
   const copy = async () => {
     if (!text) return;
     try {
+      sound.copy();
       await navigator.clipboard.writeText(text);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -79,6 +86,7 @@ export default function TextTools() {
   // ─── Download ────────────────────────────────────────────────────────────
   const downloadAs = (format: "txt" | "pdf" | "csv" | "png" | "md" | "html") => {
     if (!text) return;
+    sound.download();
     setDownloadOpen(false);
     
     addHistoryItem({

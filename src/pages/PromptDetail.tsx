@@ -6,6 +6,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { useHistory } from '@/hooks/useHistory';
+import { sound } from '@/lib/sound';
 
 export default function PromptDetail() {
   const [match, params] = useRoute<{ id: string }>('/prompts/:id');
@@ -52,6 +53,7 @@ export default function PromptDetail() {
   const handleToggleDetailLike = async () => {
     if (!promptData) return;
     const newLiked = !liked;
+    if (newLiked) sound.like();
     setLiked(newLiked);
     const newLikesCount = Math.max(0, promptData.likes_count + (newLiked ? 1 : -1));
     setPromptData({ ...promptData, likes_count: newLikesCount });
@@ -64,6 +66,7 @@ export default function PromptDetail() {
   };
 
   const handleCopyPromptText = (text: string, isNegative = false) => {
+    sound.copy();
     navigator.clipboard.writeText(text);
     if (isNegative) {
       setCopiedNegative(true);
@@ -88,6 +91,7 @@ export default function PromptDetail() {
   };
 
   const handleShare = () => {
+    sound.copy();
     navigator.clipboard.writeText(window.location.href);
     toast({
       title: "Link Copied!",
