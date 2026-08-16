@@ -25,6 +25,7 @@ import {
 import { generateTitleIdeas, GeneratedTitleItem, TitleGeneratorApiResponse } from "@/api/aiService";
 import { useToast } from "@/hooks/use-toast";
 import { useHistory } from "@/hooks/useHistory";
+import { sound } from "@/lib/sound";
 
 const PRESET_TEMPLATES = [
   { topic: "iPhone 16 Pro Review after 30 Days", category: "Tech & Gadgets", tone: "High CTR & Viral" },
@@ -101,6 +102,7 @@ export default function TitleGenerator() {
 
   const handleGenerate = async (bypassCache = false) => {
     if (!topic.trim() && !currentTitle.trim()) {
+      sound.error();
       toast({
         title: "Topic Required",
         description: "Please enter a video topic, keyword, or current title to generate ideas.",
@@ -109,6 +111,7 @@ export default function TitleGenerator() {
       return;
     }
 
+    sound.generate();
     setLoading(true);
     try {
       const response = await generateTitleIdeas({
@@ -122,6 +125,7 @@ export default function TitleGenerator() {
       });
 
       setApiResponse(response);
+      sound.success();
       toast({
         title: "Titles Generated!",
         description: `Created ${response.data.titles.length} high-CTR title variations.`,
@@ -133,6 +137,7 @@ export default function TitleGenerator() {
         description: `Generated ${response.data.titles.length} titles in ${tone}`
       });
     } catch (err: any) {
+      sound.error();
       toast({
         title: "Generation Failed",
         description: err?.message || "Failed to generate AI titles. Please try again.",
@@ -144,6 +149,7 @@ export default function TitleGenerator() {
   };
 
   const handleCopy = (text: string, index: number, type: "title" | "hook" | "keyword") => {
+    sound.copy();
     navigator.clipboard.writeText(text);
     if (type === "title") {
       setCopiedIndex(index);
@@ -163,6 +169,7 @@ export default function TitleGenerator() {
   };
 
   const toggleSaveTitle = (titleText: string) => {
+    sound.bookmark();
     if (savedTitles.includes(titleText)) {
       setSavedTitles(savedTitles.filter((t) => t !== titleText));
       toast({ description: "Removed from saved titles." });
@@ -173,6 +180,7 @@ export default function TitleGenerator() {
   };
 
   const applyPreset = (preset: typeof PRESET_TEMPLATES[0]) => {
+    sound.click();
     setTopic(preset.topic);
     setCategory(preset.category);
     setTone(preset.tone);

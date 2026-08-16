@@ -78,7 +78,21 @@ graph TD
 │   ├── sitemap.xml           # সমস্ত টুলস ও পেজসমূহের সার্চ ইঞ্জিন সাইটম্যাপ Index
 │   ├── robots.txt            # Search Engine Crawler নির্দেশিকা ও সাইটম্যাপ লিংক
 │   ├── google5e581e8123c0b2a5.html # Google Search Console সাইট ভেরিফিকেশন ফাইল
-│   └── _redirects            # Netlify/Static Host SPA Routing Rewrite Rules
+│   ├── _redirects            # Netlify/Static Host SPA Routing Rewrite Rules
+│   └── sounds/               # ইন্টারেক্টিভ অডিও সাউন্ড ইফেক্ট লাইব্রেরি (.wav files)
+│       ├── UI_Button_Press.wav
+│       ├── UI_Tab_Switch.wav
+│       ├── UI_Success.wav
+│       ├── UI_Error.wav
+│       ├── UI_Copy.wav
+│       ├── UI_Download.wav
+│       ├── UI_Generate.wav
+│       ├── UI_Trash_Clear.wav
+│       ├── UI_Bookmark.wav
+│       ├── UI_Like_Heart.wav
+│       ├── UI_Glitch_Scan.wav
+│       ├── UI_Bounce.wav
+│       └── UI_Launch.wav
 ├── metadata.json             # অ্যাপ্লিকেশনের নাম ও মেটাডেটা
 ├── package.json              # প্রজেক্টের ডিপেন্ডেন্সি ও নোড প্যাকেজসমূহ
 ├── vite.config.ts            # Vite বিল্ড ও সার্ভার কনফিগারেশন
@@ -113,6 +127,7 @@ graph TD
 │   │   └── not-found.tsx         # ৪০৪ এরর পেজ (404 Page)
 │   │
 │   ├── components/           # পুনর্ব্যবহারযোগ্য UI উপাদানসমূহ (Reusable UI)
+│   │   ├── SoundEffectsController.tsx # গ্লোবাল সাউন্ড কন্ট্রোলার (Mute/Unmute, ভলিউম স্লাইডার ও সেটিংস মডাল)
 │   │   ├── NotificationBanner.tsx # ইউজারের থেকে নোটিফিকেশন পারমিশন নেয়ার ফ্লোটিং ব্যানার
 │   │   ├── AiOptimizerCard.tsx # জেমিনি এআই চালিত ভিডিও ও চ্যানেল অ্যানালাইসিস ও অটো-জেনারেটর কম্পোনেন্ট
 │   │   ├── WorkflowScanner.tsx # ইউটিউব চ্যানেল ও ভিডিও অ্যানালাইসিসের লাইভ স্টেপ-বাই-স্টেপ এনিমেশন ও প্রোগ্রেস স্ক্যানার
@@ -135,6 +150,7 @@ graph TD
 │   │
 │   ├── hooks/                # কাস্টম রিয়েক্ট হুকস (React Hooks)
 │   └── lib/                  # হেল্পার ইউটিলিটি ফাংশন
+│       ├── sound.ts          # রিয়েলটাইম সাউন্ড ম্যানেজার ইঞ্জিন (Web Audio API Fallback, LocalStorage Persistence & Preloading)
 │       ├── supabase.ts       # Supabase Direct Client & Types (Direct API URLs & Real Database Connection)
 │       ├── supabaseSchema.sql# Database SQL Schema for Prompts & Profiles
 │       ├── notifications.ts  # Auto-Push Notification API logic ও 25 টি ফানি টেমপ্লেট
@@ -157,6 +173,8 @@ graph TD
 | **`src/api/aiService.ts`** | ক্লায়েন্ট-সাইড এআই সার্ভিস। ব্যাকএন্ড এনপয়েন্ট চেষ্টা করার পাশাপাশি স্ট্যাটিক ডিপ্লয়ে সরাসরি ব্রাউজার থেকে জেমিনি এআই এপিআই কল সাপোর্ট করে। |
 | **`src/pages/ChannelAnalyzer.tsx`** | ইউটিউব চ্যানেল অ্যানালাইসিস পেজ - প্রফেশনাল চ্যানেলের যাবতীয় তথ্য ও জেমিনি এআই চ্যানেল অপটিমাইজার অন্তর্ভুক্ত। |
 | **`src/pages/VideoAnalyzer.tsx`** | ইউটিউব ভিডিও অ্যানালাইসিস পেজ - ভিডিওর বিস্তারিত তথ্য, HD থাম্বনেইল ডাউনলোড ও জেমিনি এআই ভিডিও অপটিমাইজার অন্তর্ভুক্ত। |
+| **`src/lib/sound.ts`** | ইন্টারেক্টিভ সাউন্ড ম্যানেজার ইঞ্জিন - অডিও ফাইল প্লেব্যাক, ভলিউম কন্ট্রোল, লোকালস্টোরেজ পারসিস্টেন্স এবং ওয়েব অডিও এপিআই সিন্থেসিস ফলব্যাক পরিচালনা করে। |
+| **`src/components/SoundEffectsController.tsx`** | সাউন্ড কন্ট্রোলার UI - হেডার/সাইডবারে দ্রুত সাউন্ড মিউট/আনমিউট বাটন এবং ফুটার সেটিংস মডাল প্রদান করে। |
 | **`src/api/youtubeApi.ts`** | YouTube Data API v3 এর জন্য পার্সিং ও অ্যানালাইসিস ফাংশনসমূহ। |
 | **`src/api/apiKeys.ts`** | হার্ডকোডেড প্রাইমারি YouTube API Key (`AIzaSyAg9E9e1UEg8PEGCSqU7l1nI5pzCmlLWvg`) এবং Gemini AI Key (`AIzaSyAE9TerFp7AyHlSd7q1bab6ne0G09LVQAc`) ধারণ করে যা ডিপ্লয় ওয়েবসাইটে সরাসরি কার্যকর। |
 | **`FOLDER_STRUCTURE.md`** | সম্পূর্ণ প্রজেক্ট ফাইল স্ট্রাকচার এবং ওয়ার্কফ্লো নথিভুক্তকরণ ফাইল। |

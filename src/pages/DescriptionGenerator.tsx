@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { generateDescriptionIdeas, DescriptionGeneratorResult } from "@/api/aiService";
 import { useHistory } from "@/hooks/useHistory";
+import { sound } from "@/lib/sound";
 
 const presetIdeas = [
   { label: "iPhone 16 Pro Review & Unboxing", type: "video" as const, tone: "Clicky & Energetic" },
@@ -36,6 +37,7 @@ export default function DescriptionGenerator() {
   const [copiedHashtags, setCopiedHashtags] = useState(false);
 
   const handlePresetSelect = (preset: typeof presetIdeas[0]) => {
+    sound.click();
     setDescType(preset.type);
     if (preset.type === "channel") {
       setTitle(preset.label);
@@ -51,10 +53,12 @@ export default function DescriptionGenerator() {
   const handleSubmit = async (e?: React.FormEvent, bypassCache: boolean = false) => {
     if (e) e.preventDefault();
     if (!title.trim() && !topic.trim()) {
+      sound.error();
       setError("Please enter a Video Title, Channel Name, or Topic details.");
       return;
     }
 
+    sound.generate();
     setLoading(true);
     setError(null);
 
@@ -72,6 +76,7 @@ export default function DescriptionGenerator() {
       });
 
       setResult(res.data);
+      sound.success();
       setTokenInfo({
         cached: res.cached,
         tokensSaved: res.tokensSaved,
@@ -84,6 +89,7 @@ export default function DescriptionGenerator() {
         description: `Type: ${descType}, Tone: ${tone}`
       });
     } catch (err: any) {
+      sound.error();
       setError(err?.message || "Failed to generate description. Please try again.");
     } finally {
       setLoading(false);
@@ -91,6 +97,7 @@ export default function DescriptionGenerator() {
   };
 
   const handleCopyText = (text: string, setCopiedState: (v: boolean) => void) => {
+    sound.copy();
     navigator.clipboard.writeText(text);
     setCopiedState(true);
     setTimeout(() => setCopiedState(false), 2000);
@@ -157,7 +164,10 @@ export default function DescriptionGenerator() {
               <div className="grid grid-cols-2 gap-3 max-w-md">
                 <button
                   type="button"
-                  onClick={() => setDescType("video")}
+                  onClick={() => {
+                    sound.tab();
+                    setDescType("video");
+                  }}
                   className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-medium transition-all ${
                     descType === "video"
                       ? "bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-500/20"
@@ -169,7 +179,10 @@ export default function DescriptionGenerator() {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setDescType("channel")}
+                  onClick={() => {
+                    sound.tab();
+                    setDescType("channel");
+                  }}
                   className={`flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border text-sm font-medium transition-all ${
                     descType === "channel"
                       ? "bg-emerald-500 text-white border-emerald-600 shadow-md shadow-emerald-500/20"

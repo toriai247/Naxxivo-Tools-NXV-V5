@@ -4,6 +4,7 @@ import { SeoContentYouTube } from "@/components/seo/SeoContentYouTube";
 import { FaqSection } from "@/components/seo/FaqSection";
 import { motion } from "framer-motion";
 import { useHistory } from "@/hooks/useHistory";
+import { sound } from "@/lib/sound";
 
 interface Thumbnail {
   quality: string;
@@ -38,6 +39,9 @@ export default function YouTubeDownloader() {
 
     const id = extractVideoId(val);
     if (id) {
+      if (id !== videoId) {
+        sound.success();
+      }
       setVideoId(id);
     } else {
       setVideoId(null);
@@ -47,6 +51,7 @@ export default function YouTubeDownloader() {
 
   const handleDownload = async (thumbnail: Thumbnail) => {
     try {
+      sound.download();
       setDownloadingId(thumbnail.quality);
       const response = await fetch(thumbnail.url);
       if (!response.ok) throw new Error("Failed to fetch image");
@@ -59,6 +64,7 @@ export default function YouTubeDownloader() {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(blobUrl);
+      sound.success();
 
       addHistoryItem({
         type: 'thumbnail',
@@ -68,6 +74,7 @@ export default function YouTubeDownloader() {
       });
     } catch (err) {
       console.error(err);
+      sound.error();
       alert("Failed to download image. It might not be available in this resolution or there's a cross-origin restriction.");
     } finally {
       setTimeout(() => setDownloadingId(null), 1000); // Keep checkmark briefly

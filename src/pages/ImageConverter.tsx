@@ -3,6 +3,7 @@ import { Upload, FileImage, Settings2, Download, RefreshCw, X, ArrowRight } from
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHistory } from "@/hooks/useHistory";
+import { sound } from "@/lib/sound";
 
 type ImageFormat = "image/webp" | "image/jpeg" | "image/png";
 
@@ -87,6 +88,7 @@ export default function ImageConverter() {
           url: dataUrl,
           format: finalFormat,
         });
+        sound.success();
         
         addHistoryItem({
           type: 'image_conv',
@@ -95,6 +97,7 @@ export default function ImageConverter() {
         });
       } catch (error) {
         console.error("Image processing error:", error);
+        sound.error();
         setProcessError("Failed to process image. Please try another image file.");
       } finally {
         setIsProcessing(false);
@@ -105,10 +108,12 @@ export default function ImageConverter() {
 
   const handleFile = (selectedFile: File) => {
     if (!selectedFile.type.startsWith("image/")) {
+      sound.error();
       alert("Please select a valid image file.");
       return;
     }
     
+    sound.generate();
     setFile(selectedFile);
     setResult(null);
     setProcessError(null);
@@ -151,6 +156,7 @@ export default function ImageConverter() {
   }, []);
 
   const handleFormatChange = (newFormat: ImageFormat) => {
+    sound.tab();
     setFormat(newFormat);
     if (preview && file) {
       processImageData(preview, file, newFormat, quality);
@@ -165,6 +171,7 @@ export default function ImageConverter() {
   };
 
   const processImage = () => {
+    sound.generate();
     if (preview && file) {
       processImageData(preview, file, format, quality);
     }
@@ -186,6 +193,7 @@ export default function ImageConverter() {
   };
 
   const reset = () => {
+    sound.clear();
     setFile(null);
     setPreview(null);
     setResult(null);
@@ -325,6 +333,7 @@ export default function ImageConverter() {
                     
                     <a
                       href={result.url}
+                      onClick={() => sound.download()}
                       download={`converted-${file.name.replace(/\.[^/.]+$/, "")}.${result.format.toLowerCase()}`}
                       className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2 rounded-md font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
                     >

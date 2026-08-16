@@ -22,6 +22,8 @@ import {
 import { useTheme } from "@/components/theme-provider";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookmarkBanner } from "@/components/seo/BookmarkBanner";
+import { sound } from "@/lib/sound";
+import { SoundToggleBtn, SoundSettingsModal } from "@/components/SoundEffectsController";
 
 const navItems = [
   { href: "/", label: "Home Hub", icon: LayoutGrid },
@@ -67,13 +69,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <span className="font-bold text-lg tracking-tight">Naxxivo</span>
           </Link>
         </div>
-        <button
-          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-          className="p-2 rounded-md hover:bg-muted transition-colors"
-          title="Toggle theme"
-        >
-          {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
-        </button>
+        <div className="flex items-center gap-2">
+          <SoundToggleBtn />
+          <button
+            onClick={() => {
+              sound.theme();
+              setTheme(theme === "light" ? "dark" : "light");
+            }}
+            className="p-2 rounded-md hover:bg-muted transition-colors"
+            title="Toggle theme"
+          >
+            {theme === "light" ? <Moon className="w-5 h-5" /> : <Sun className="w-5 h-5" />}
+          </button>
+        </div>
       </header>
 
       {/* Mobile Sidebar Overlay */}
@@ -193,9 +201,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Bottom controls */}
           <div className="pt-6 border-t flex flex-col gap-4">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <SoundToggleBtn />
               <button
-                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+                onClick={() => {
+                  sound.theme();
+                  setTheme(theme === "light" ? "dark" : "light");
+                }}
                 className="flex items-center justify-center w-10 h-10 rounded-md bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors shrink-0"
                 title="Toggle theme"
               >
@@ -284,17 +296,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             {/* Footer */}
             <footer className="shrink-0 py-6 border-t flex flex-col items-center gap-4">
               <div className="flex flex-wrap justify-center items-center gap-4 md:gap-6 text-xs md:text-sm font-medium text-muted-foreground">
-                <Link href="/about-us" className="hover:text-primary transition-colors">
+                <Link href="/about-us" onClick={() => sound.tab()} className="hover:text-primary transition-colors">
                   About Us
                 </Link>
                 <span className="text-border">•</span>
-                <Link href="/contact-us" className="hover:text-primary transition-colors">
+                <Link href="/contact-us" onClick={() => sound.tab()} className="hover:text-primary transition-colors">
                   Contact Us
                 </Link>
                 <span className="text-border">•</span>
-                <Link href="/privacy-policy" className="hover:text-primary transition-colors">
+                <Link href="/privacy-policy" onClick={() => sound.tab()} className="hover:text-primary transition-colors">
                   Privacy Policy
                 </Link>
+                <span className="text-border">•</span>
+                <SoundSettingsModal />
               </div>
 
               <div className="flex flex-wrap justify-center gap-2">

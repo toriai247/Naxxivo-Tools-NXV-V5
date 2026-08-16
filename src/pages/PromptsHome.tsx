@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useHistory } from '@/hooks/useHistory';
+import { sound } from '@/lib/sound';
 
 export default function PromptsHome() {
   const [prompts, setPrompts] = useState<PromptItem[]>([]);
@@ -59,6 +60,7 @@ export default function PromptsHome() {
   const handleCopyPrompt = (e: React.MouseEvent, promptItem: PromptItem) => {
     e.stopPropagation();
     e.preventDefault();
+    sound.copy();
     navigator.clipboard.writeText(promptItem.prompt);
     setCopiedId(promptItem.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -78,6 +80,7 @@ export default function PromptsHome() {
   const handleToggleLike = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     e.preventDefault();
+    sound.like();
     const isLiked = likedIds[id];
     setLikedIds(prev => ({ ...prev, [id]: !prev[id] }));
 
@@ -103,6 +106,7 @@ export default function PromptsHome() {
   const handleAddPromptSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim() || !newPrompt.trim() || !newImageUrl.trim()) {
+      sound.error();
       toast({
         title: "Missing Fields",
         description: "Please fill in title, prompt, and image URL.",
@@ -111,6 +115,7 @@ export default function PromptsHome() {
       return;
     }
 
+    sound.generate();
     setSubmitting(true);
 
     try {
@@ -135,12 +140,14 @@ export default function PromptsHome() {
 
       if (error) {
         console.error('Supabase insert error:', error);
+        sound.error();
         toast({
           title: "Database Error",
           description: error.message || "Failed to publish prompt to Supabase.",
           variant: "destructive"
         });
       } else {
+        sound.success();
         if (data && data[0]) {
           setPrompts(prev => [data[0] as PromptItem, ...prev]);
         } else {
@@ -162,6 +169,7 @@ export default function PromptsHome() {
       }
     } catch (err: any) {
       console.error('Exception publishing prompt:', err);
+      sound.error();
       toast({
         title: "Error",
         description: err.message || "An unexpected error occurred.",
@@ -239,7 +247,10 @@ export default function PromptsHome() {
           {PROMPT_CATEGORIES.map((cat) => (
             <button
               key={cat}
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => {
+                sound.tab();
+                setSelectedCategory(cat);
+              }}
               className={`px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all border ${
                 selectedCategory === cat
                   ? 'bg-primary text-primary-foreground border-primary shadow-md scale-[1.02]'

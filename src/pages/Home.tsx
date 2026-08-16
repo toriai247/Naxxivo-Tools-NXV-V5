@@ -27,6 +27,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import { sound } from '@/lib/sound';
 
 interface ToolItem {
   id: string;
@@ -213,7 +214,10 @@ export default function HomePage() {
             />
             {searchQuery && (
               <button 
-                onClick={() => setSearchQuery('')}
+                onClick={() => {
+                  sound.clear();
+                  setSearchQuery('');
+                }}
                 className="absolute right-4 top-1/2 -translate-y-1/2 text-xs font-medium text-muted-foreground hover:text-foreground bg-muted px-2 py-0.5 rounded-md"
               >
                 Clear
@@ -249,7 +253,10 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'all' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveCategory('all')}
+            onClick={() => {
+              sound.tab();
+              setActiveCategory('all');
+            }}
             className="rounded-full text-xs font-semibold px-4"
           >
             All Tools ({TOOLS_LIST.length})
@@ -257,7 +264,10 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'ai' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveCategory('ai')}
+            onClick={() => {
+              sound.tab();
+              setActiveCategory('ai');
+            }}
             className="rounded-full text-xs font-semibold px-4 gap-1.5"
           >
             <Sparkles className="w-3.5 h-3.5 text-purple-500" /> AI Prompts & Text
@@ -265,7 +275,10 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'youtube' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveCategory('youtube')}
+            onClick={() => {
+              sound.tab();
+              setActiveCategory('youtube');
+            }}
             className="rounded-full text-xs font-semibold px-4 gap-1.5"
           >
             <Youtube className="w-3.5 h-3.5 text-red-500" /> YouTube & SEO
@@ -273,7 +286,10 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'design' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveCategory('design')}
+            onClick={() => {
+              sound.tab();
+              setActiveCategory('design');
+            }}
             className="rounded-full text-xs font-semibold px-4 gap-1.5"
           >
             <Palette className="w-3.5 h-3.5 text-teal-500" /> Image & Design
@@ -281,7 +297,10 @@ export default function HomePage() {
           <Button
             variant={activeCategory === 'utility' ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setActiveCategory('utility')}
+            onClick={() => {
+              sound.tab();
+              setActiveCategory('utility');
+            }}
             className="rounded-full text-xs font-semibold px-4 gap-1.5"
           >
             <Sliders className="w-3.5 h-3.5 text-slate-500" /> Utilities
@@ -305,7 +324,7 @@ export default function HomePage() {
               transition={{ duration: 0.2, delay: idx * 0.04 }}
               className="h-full"
             >
-              <Link href={tool.href}>
+              <Link href={tool.href} onClick={() => sound.click()}>
                 <Card className={`h-full group cursor-pointer transition-all duration-300 hover:shadow-xl hover:-translate-y-1 border-border hover:border-primary/50 relative overflow-hidden bg-gradient-to-b ${tool.gradient}`}>
                   <CardContent className="p-6 flex flex-col justify-between h-full space-y-4">
                     <div className="space-y-3">
@@ -383,7 +402,7 @@ export default function HomePage() {
         </div>
 
         <Link href="/prompts">
-          <Button className="shrink-0 gap-2 font-bold px-6">
+          <Button onClick={() => sound.launch()} className="shrink-0 gap-2 font-bold px-6">
             <Sparkles className="w-4 h-4" /> Browse AI Prompts Hub
           </Button>
         </Link>
