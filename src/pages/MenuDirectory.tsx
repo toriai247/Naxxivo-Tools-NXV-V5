@@ -17,7 +17,8 @@ import {
   User,
   ArrowRight,
   Layers,
-  LayoutGrid
+  LayoutGrid,
+  Crop
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { sound } from "@/lib/sound";
@@ -54,6 +55,14 @@ const MENU_CATEGORIES: MenuCategory[] = [
         desc: "Reduce file sizes while maintaining quality (Max 10MB).",
         icon: Minimize2,
         badge: "MAX 10MB ⚡",
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+      },
+      {
+        href: "/image-cropper",
+        title: "Image Cropper (ইমেজ ক্রপ)",
+        desc: "Crop images with free-form or 1:1, 4:3, 16:9 ratios, zoom & rotate.",
+        icon: Crop,
+        badge: "FREE & FIXED",
         badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
       },
       {

@@ -21,7 +21,8 @@ import {
   Download,
   Copy,
   ExternalLink,
-  Bot
+  Bot,
+  Crop
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -139,6 +140,18 @@ const TOOLS_LIST: ToolItem[] = [
     badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
     features: ['Quality Slider (10-100)', 'Canvas Realtime Resizing', 'Before & After Size Comparison'],
     gradient: 'from-emerald-500/10 via-teal-500/5 to-transparent'
+  },
+  {
+    id: 'image-cropper',
+    title: 'Image Cropper (ইমেজ ক্রপ)',
+    description: 'Crop images with free-form or preset aspect ratios (1:1, 4:3, 16:9, 9:16). Includes zoom, 360° rotation, and flip controls.',
+    category: 'design',
+    href: '/image-cropper',
+    icon: Crop,
+    badge: 'FREE & PRESETS ⚡',
+    badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    features: ['Free, 1:1, 4:3, 16:9 Ratios', 'Interactive Zoom & Rotate', 'Instant PNG/JPG/WebP Export'],
+    gradient: 'from-emerald-500/10 via-green-500/5 to-transparent'
   },
   {
     id: 'image-converter',

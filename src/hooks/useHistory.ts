@@ -8,6 +8,7 @@ export type HistoryItemType =
   | 'video_analysis' 
   | 'image_conv'
   | 'image_compress'
+  | 'image_crop'
   | 'text_tool' 
   | 'favicon';
 

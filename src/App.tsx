@@ -20,6 +20,7 @@ const ChannelAnalyzer = lazy(() => import('@/pages/ChannelAnalyzer'));
 const VideoAnalyzer = lazy(() => import('@/pages/VideoAnalyzer'));
 const ImageConverter = lazy(() => import('@/pages/ImageConverter'));
 const ImageCompressor = lazy(() => import('@/pages/ImageCompressor'));
+const ImageCropper = lazy(() => import('@/pages/ImageCropper'));
 const MenuDirectory = lazy(() => import('@/pages/MenuDirectory'));
 const TextTools = lazy(() => import('@/pages/TextTools'));
 const FaviconGenerator = lazy(() => import('@/pages/FaviconGenerator'));
@@ -68,6 +69,8 @@ function Router() {
           <Route path="/image-converter" component={ImageConverter} />
           <Route path="/image-compressor" component={ImageCompressor} />
           <Route path="/compress-image" component={ImageCompressor} />
+          <Route path="/image-cropper" component={ImageCropper} />
+          <Route path="/crop-image" component={ImageCropper} />
           <Route path="/menu" component={MenuDirectory} />
           <Route path="/tools" component={MenuDirectory} />
           <Route path="/text-tools" component={TextTools} />

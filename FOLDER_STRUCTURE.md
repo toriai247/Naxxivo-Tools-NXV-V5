@@ -19,6 +19,7 @@ graph TD
     F -->|/| H[pages/Home.tsx - Creator Studio Hub]
     F -->|/smart-bot| SB[pages/SmartBot.tsx - All-in-One Smart AI Assistant]
     F -->|/image-compressor| IC[pages/ImageCompressor.tsx - 10MB Quality Compressor]
+    F -->|/image-cropper| ICR[pages/ImageCropper.tsx - Image Cropper & Aspect Ratio Tools]
     F -->|/image-converter| ICONV[pages/ImageConverter.tsx - 5 Formats WebP/PNG/JPG/AVIF/BMP]
     F -->|/menu| MENU[pages/MenuDirectory.tsx - Categorized Tools Directory]
     F -->|/title-generator| TG[pages/TitleGenerator.tsx]
@@ -36,6 +37,7 @@ graph TD
     F -->|/privacy-policy| PP[pages/PrivacyPolicy.tsx]
     F -->|404 Route| L[pages/not-found.tsx]
 
+    ICR -->|Canvas Transforms & Export| CROPUTIL[src/lib/cropImage.ts - getCroppedImg with Rotate & Flip]
     SB -->|Auto-detects YouTube URLs| YT[src/api/youtubeApi.ts]
     SB -->|In-Chat Image Processing| CANVAS[Browser Canvas - WebP/PNG/JPG/Compress]
     SB -->|Gemini 3.7 Chat & Intelligence| AI[src/api/aiService.ts]
@@ -55,8 +57,9 @@ graph TD
 1. **Entry Point**: `src/main.tsx` initializes the application and renders `src/App.tsx`.
 2. **Layout Shell**: `AppLayout.tsx` provides categorized navigation (Image Tools, YouTube Tools, AI & Prompts, Text & Utilities), collapsible sidebar groups, theme toggle, and audio controllers.
 3. **Smart AI Assistant**: `src/pages/SmartBot.tsx` operates with pure client-side intelligence and zero API key requirement for local image operations (compression, format conversion, and tag extraction).
-4. **YouTube API Integration**: `src/api/youtubeApi.ts` fetches real-time channel statistics and video metadata.
-5. **AI Optimizer & Token Saver**: `src/components/AiOptimizerCard.tsx` uses token caching, prompt compression, and server-side optimization to save API tokens.
+4. **Image Cropper**: `src/pages/ImageCropper.tsx` uses `react-easy-crop` and `src/lib/cropImage.ts` to perform in-browser free-form, 1:1, 4:3, 16:9, 9:16 cropping with zoom, 360° rotation, horizontal/vertical flipping, and instant format export.
+5. **YouTube API Integration**: `src/api/youtubeApi.ts` fetches real-time channel statistics and video metadata.
+6. **AI Optimizer & Token Saver**: `src/components/AiOptimizerCard.tsx` uses token caching, prompt compression, and server-side optimization to save API tokens.
 
 ---
 
@@ -94,6 +97,7 @@ graph TD
 │   │   ├── Home.tsx              # Main Creator Studio Hub with categorized tool search
 │   │   ├── SmartBot.tsx          # Full-screen Smart AI Bot & Automation chat
 │   │   ├── ImageCompressor.tsx   # Image Compressor (10MB max, Quality slider 10-100)
+│   │   ├── ImageCropper.tsx      # Image Cropper (Free, 1:1, 4:3, 16:9, Zoom, Rotate, Flip)
 │   │   ├── ImageConverter.tsx    # Format Converter (JPEG, PNG, WebP, AVIF, BMP)
 │   │   ├── MenuDirectory.tsx     # Categorized Tools Directory (/menu, /tools)
 │   │   ├── ChannelAnalyzer.tsx   # YouTube Channel Analyzer & AI Audit
@@ -131,6 +135,7 @@ graph TD
 │   │
 │   ├── hooks/                # Custom React hooks (useHistory, useToast)
 │   └── lib/                  # Helper utilities
+│       ├── cropImage.ts      # Canvas image cropping, rotation, flip & export engine
 │       ├── botLogic.ts       # SmartBot NLP engine and rule matching
 │       ├── botCommandMatcher.ts # SmartBot command exporter
 │       ├── sound.ts          # Web Audio & sound effect manager
@@ -146,13 +151,13 @@ graph TD
 | File / Directory | Purpose & Functionality |
 | :--- | :--- |
 | **`server.ts`** | Express backend server handling `/api/ai/chat` and `/api/ai/optimize` with built-in token saver caching. |
-| **`src/pages/Home.tsx`** | Creator Studio homepage showcasing all 11+ creator tools with search and categorization. |
-| **`src/pages/SmartBot.tsx`** | Fullscreen Smart Bot chat UI featuring drag-and-drop file processing, instant conversions, and Gemini AI. |
+| **`src/pages/Home.tsx`** | Creator Studio homepage showcasing all creator tools with search and categorization. |
+| **`src/pages/ImageCropper.tsx`** | Dedicated Image Cropper with `react-easy-crop`, aspect presets (Free, 1:1, 4:3, 16:9, 9:16, 3:2), zoom, rotation, flip, and sound feedback. |
+| **`src/lib/cropImage.ts`** | Canvas extraction utility executing rotational and flip calculations to output high-resolution Blobs. |
 | **`src/pages/ImageCompressor.tsx`** | Dedicated image compressor with 10–100 quality slider, canvas scaling, live size metrics, and 10MB limit. |
 | **`src/pages/ImageConverter.tsx`** | Format converter supporting JPEG, PNG, WebP, AVIF, and BMP with canvas rendering and audio cues. |
 | **`src/pages/MenuDirectory.tsx`** | Complete categorized directory view for Image Tools, YouTube Tools, AI Hub, and Text Utilities. |
 | **`src/components/layout/AppLayout.tsx`** | Responsive app shell containing categorized collapsible navigation menus and global controls. |
-| **`src/lib/botLogic.ts`** | Client-side intent parser for matching commands to YouTube or image processing actions in English. |
 | **`src/lib/sound.ts`** | Sound manager with Web Audio API synthesis fallback and local storage persistence. |
 
 ---

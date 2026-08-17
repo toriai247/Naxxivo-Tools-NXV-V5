@@ -23,7 +23,8 @@ import {
   Layers,
   Wand2,
   Minimize2,
-  FolderSync
+  FolderSync,
+  Crop
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { motion, AnimatePresence } from "framer-motion";
@@ -57,6 +58,13 @@ const CATEGORIZED_NAV: NavCategory[] = [
         label: "Image Compressor", 
         icon: Minimize2, 
         badge: "10MB", 
+        badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" 
+      },
+      { 
+        href: "/image-cropper", 
+        label: "Image Cropper", 
+        icon: Crop, 
+        badge: "Free & Fixed", 
         badgeColor: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" 
       },
       { 
