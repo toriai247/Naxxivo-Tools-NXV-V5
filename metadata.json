@@ -1,6 +1,6 @@
 {
   "name": "Web Utility Hub",
   "description": "Naxxivo Free Web Utility Hub - YouTube Thumbnail Downloader, Image Converter, Text Case Converter, and Favicon Generator.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["camera"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

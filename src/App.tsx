@@ -12,12 +12,15 @@ import { initNotifications } from '@/lib/notifications';
 import HomePage from '@/pages/Home';
 
 // Lazy load other routes to keep initial bundle tiny and fast on mobile
+const SmartBot = lazy(() => import('@/pages/SmartBot'));
 const YouTubeDownloader = lazy(() => import('@/pages/YouTubeDownloader'));
 const TitleGenerator = lazy(() => import('@/pages/TitleGenerator'));
 const DescriptionGenerator = lazy(() => import('@/pages/DescriptionGenerator'));
 const ChannelAnalyzer = lazy(() => import('@/pages/ChannelAnalyzer'));
 const VideoAnalyzer = lazy(() => import('@/pages/VideoAnalyzer'));
 const ImageConverter = lazy(() => import('@/pages/ImageConverter'));
+const ImageCompressor = lazy(() => import('@/pages/ImageCompressor'));
+const MenuDirectory = lazy(() => import('@/pages/MenuDirectory'));
 const TextTools = lazy(() => import('@/pages/TextTools'));
 const FaviconGenerator = lazy(() => import('@/pages/FaviconGenerator'));
 const AboutUs = lazy(() => import('@/pages/AboutUs'));
@@ -49,6 +52,9 @@ function Router() {
       <Suspense fallback={<PageFallback />}>
         <Switch>
           <Route path="/" component={HomePage} />
+          <Route path="/smart-bot" component={SmartBot} />
+          <Route path="/ai-bot" component={SmartBot} />
+          <Route path="/chatbot" component={SmartBot} />
           <Route path="/thumbnail-downloader" component={YouTubeDownloader} />
           <Route path="/youtube-thumbnail-downloader" component={YouTubeDownloader} />
           <Route path="/prompts" component={PromptsHome} />
@@ -60,6 +66,10 @@ function Router() {
           <Route path="/channel-analyzer" component={ChannelAnalyzer} />
           <Route path="/video-analyzer" component={VideoAnalyzer} />
           <Route path="/image-converter" component={ImageConverter} />
+          <Route path="/image-compressor" component={ImageCompressor} />
+          <Route path="/compress-image" component={ImageCompressor} />
+          <Route path="/menu" component={MenuDirectory} />
+          <Route path="/tools" component={MenuDirectory} />
           <Route path="/text-tools" component={TextTools} />
           <Route path="/favicon-generator" component={FaviconGenerator} />
           <Route path="/history" component={History} />

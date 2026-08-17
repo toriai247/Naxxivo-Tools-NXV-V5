@@ -103,6 +103,58 @@ const getGeminiClient = () => {
   });
 };
 
+// Smart AI Assistant / ChatBot Route
+app.post("/api/ai/chat", async (req, res) => {
+  try {
+    const { messages, context, systemInstruction } = req.body;
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      return res.status(400).json({ error: "Please provide valid message history." });
+    }
+
+    const ai = getGeminiClient();
+
+    const baseSystemPrompt = systemInstruction || `You are Naxxivo Smart Assistant, an advanced, friendly, and ultra-capable AI powerhouse embedded inside the Naxxivo Web Utility Hub.
+Your capabilities include:
+1. YouTube Video & Channel SEO optimization, title creation, viral hook ideation, tag generation, and content strategies.
+2. AI Image prompt crafting and enhancement (Midjourney v6, FLUX.1, DALL-E 3).
+3. Image processing advice (WebP, PNG, compression, favicon design).
+4. Text utilities, markdown formatting, coding, translation (supports English, Bengali / Bangla, and all major languages).
+5. Conversational assistance with clear, beautifully structured markdown with bullet points, code blocks, bold key highlights, and actionable tips.
+
+Always respond politely, helpfully, concisely, and with crystal-clear formatting. If the user asks in Bengali or English, match their language naturally.`;
+
+    // Convert messages to Gemini API contents format
+    const formattedContents = messages.slice(-12).map((msg: any) => ({
+      role: msg.role === 'assistant' || msg.role === 'model' ? 'model' : 'user',
+      parts: [{ text: msg.content || '' }],
+    }));
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.7-flash",
+      contents: formattedContents,
+      config: {
+        systemInstruction: baseSystemPrompt,
+        maxOutputTokens: 2500,
+        temperature: 0.7,
+      },
+    });
+
+    const replyText = response.text || "I processed your request, but received an empty response. How else may I assist you?";
+
+    return res.json({
+      success: true,
+      reply: replyText,
+    });
+  } catch (error: any) {
+    console.error("AI Chat Error:", error);
+    return res.status(500).json({
+      error: "Failed to process AI chat message",
+      message: error?.message || String(error),
+    });
+  }
+});
+
 // AI Title Generator Route with Token Saver Engine
 app.post("/api/ai/title-generator", async (req, res) => {
   try {

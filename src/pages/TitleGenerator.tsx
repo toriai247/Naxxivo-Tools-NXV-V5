@@ -56,16 +56,16 @@ const TONES = [
   "How-To & Educational",
   "Listicle & Numbers",
   "Storytelling & Vlog",
-  "Bangla + English Mix",
+  "Professional & Authoritative",
   "Shocking & Bold",
 ];
 
 const LANGUAGES = [
   "English",
-  "Bangla (বাংলা)",
-  "Hindi (हिंदी)",
   "Spanish",
-  "Multilingual (English + Native)",
+  "French",
+  "German",
+  "Global / Multilingual",
 ];
 
 export default function TitleGenerator() {

@@ -6,7 +6,8 @@ export type HistoryItemType =
   | 'desc_gen' 
   | 'channel_analysis' 
   | 'video_analysis' 
-  | 'image_conv' 
+  | 'image_conv'
+  | 'image_compress'
   | 'text_tool' 
   | 'favicon';
 

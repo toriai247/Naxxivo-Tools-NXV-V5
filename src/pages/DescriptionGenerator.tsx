@@ -11,7 +11,7 @@ import { sound } from "@/lib/sound";
 const presetIdeas = [
   { label: "iPhone 16 Pro Review & Unboxing", type: "video" as const, tone: "Clicky & Energetic" },
   { label: "Complete Python Course for Beginners", type: "video" as const, tone: "SEO Heavy & Professional" },
-  { label: "Kivabe YouTube theke Taka Income Korbo (Bangla)", type: "video" as const, tone: "Engaging & Friendly", language: "Bangla / Banglish" },
+  { label: "How to Make Money on YouTube in 2026", type: "video" as const, tone: "Engaging & Friendly", language: "English" },
   { label: "Gaming & Tech Review Channel About", type: "channel" as const, tone: "Engaging & Friendly" },
   { label: "Daily Vlogs & Travel Adventures", type: "video" as const, tone: "Storytelling & Relatable" },
 ];

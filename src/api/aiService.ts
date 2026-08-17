@@ -391,4 +391,78 @@ export async function generateDescriptionIdeas(req: DescriptionGeneratorRequest)
   };
 }
 
+export interface ChatMessageItem {
+  role: 'user' | 'assistant' | 'model';
+  content: string;
+}
+
+export async function sendAiChatMessage(
+  messages: ChatMessageItem[],
+  systemInstruction?: string
+): Promise<string> {
+  // 1. Try Backend Server Endpoint
+  try {
+    const response = await fetch('/api/ai/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        messages,
+        systemInstruction,
+      }),
+    });
+
+    if (response.ok) {
+      const resData = await response.json();
+      if (resData.success && resData.reply) {
+        return resData.reply;
+      }
+    }
+  } catch (err) {
+    console.warn('Backend Chat API failed, switching to direct browser Gemini API:', err);
+  }
+
+  // 2. Fallback: Direct Browser Gemini API
+  try {
+    const apiKey = API_CONFIG.geminiApiKey;
+    if (!apiKey) {
+      return "Hello! I am Naxxivo Smart AI Assistant. Please check your API configuration or network connection to enable full AI responses.";
+    }
+
+    const defaultSysPrompt = systemInstruction || `You are Naxxivo Smart Assistant, an advanced, polite, and helpful AI assistant for the Naxxivo Web Utility Hub. Answer clearly using beautiful markdown, code blocks, bold text, and bullet points. Support Bengali and English naturally.`;
+
+    const formattedContents = messages.slice(-12).map((msg) => ({
+      role: msg.role === 'assistant' || msg.role === 'model' ? 'model' : 'user',
+      parts: [{ text: msg.content || '' }],
+    }));
+
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`;
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: formattedContents,
+        systemInstruction: { parts: [{ text: defaultSysPrompt }] },
+        generationConfig: {
+          maxOutputTokens: 2500,
+          temperature: 0.7,
+        },
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`Gemini API returned status ${res.status}`);
+    }
+
+    const json = await res.json();
+    return json?.candidates?.[0]?.content?.parts?.[0]?.text || "I processed your request, but could not generate a textual reply. How can I help further?";
+  } catch (err: any) {
+    console.error("Direct browser Gemini chat error:", err);
+    return `⚠️ AI service temporarily unavailable: ${err?.message || "Please check your network and try again."}`;
+  }
+}
+
+
 

@@ -1,40 +1,123 @@
 import React, { useState, useRef, useCallback } from "react";
-import { Upload, FileImage, Settings2, Download, RefreshCw, X, ArrowRight } from "lucide-react";
+import { 
+  Upload, 
+  FileImage, 
+  Settings2, 
+  Download, 
+  RefreshCw, 
+  X, 
+  ChevronDown,
+  Sparkles,
+  Zap,
+  CheckCircle2
+} from "lucide-react";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { motion, AnimatePresence } from "framer-motion";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
 
-type ImageFormat = "image/webp" | "image/jpeg" | "image/png";
+export type SupportedTargetFormat = "image/jpeg" | "image/png" | "image/webp" | "image/avif" | "image/bmp";
 
-interface ProcessedImage {
-  originalSize: number;
-  newSize: number;
-  url: string;
-  format: string;
+interface FormatOption {
+  value: SupportedTargetFormat;
+  label: string;
+  extension: string;
+  hasQuality: boolean;
+  tag: string;
 }
 
-export default function ImageConverter() {
+const FORMAT_OPTIONS: FormatOption[] = [
+  { value: "image/jpeg", label: "JPEG", extension: "jpg", hasQuality: true, tag: "Popular" },
+  { value: "image/png", label: "PNG", extension: "png", hasQuality: false, tag: "Lossless" },
+  { value: "image/webp", label: "WebP", extension: "webp", hasQuality: true, tag: "Recommended" },
+  { value: "image/avif", label: "AVIF", extension: "avif", hasQuality: true, tag: "Next-Gen" },
+  { value: "image/bmp", label: "BMP", extension: "bmp", hasQuality: false, tag: "Raw Bitmap" },
+];
+
+interface ConvertedResult {
+  originalSize: number;
+  newSize: number;
+  dataUrl: string;
+  blobUrl: string;
+  formatLabel: string;
+  extension: string;
+  width: number;
+  height: number;
+}
+
+// Pure JS BMP generator for universal browser compatibility
+function canvasToBmpBlob(canvas: HTMLCanvasElement): Blob {
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("Canvas context missing");
+  const width = canvas.width;
+  const height = canvas.height;
+  const imageData = ctx.getImageData(0, 0, width, height);
+  const data = imageData.data;
+
+  const extraBytes = (4 - ((width * 3) % 4)) % 4;
+  const rowSize = width * 3 + extraBytes;
+  const imageSize = rowSize * height;
+  const totalFileSize = 54 + imageSize;
+
+  const buffer = new ArrayBuffer(totalFileSize);
+  const view = new DataView(buffer);
+
+  // File Header
+  view.setUint16(0, 0x4d42, false); // BM
+  view.setUint32(2, totalFileSize, true);
+  view.setUint16(6, 0, true);
+  view.setUint16(8, 0, true);
+  view.setUint32(10, 54, true); // Offset
+
+  // BITMAPINFOHEADER
+  view.setUint32(14, 40, true);
+  view.setInt32(18, width, true);
+  view.setInt32(22, height, true);
+  view.setUint16(26, 1, true); // planes
+  view.setUint16(28, 24, true); // 24-bit
+  view.setUint32(30, 0, true); // BI_RGB
+  view.setUint32(34, imageSize, true);
+  view.setInt32(38, 2835, true);
+  view.setInt32(42, 2835, true);
+  view.setUint32(46, 0, true);
+  view.setUint32(50, 0, true);
+
+  const bytes = new Uint8Array(buffer);
+  let offset = 54;
+  for (let y = height - 1; y >= 0; y--) {
+    for (let x = 0; x < width; x++) {
+      const idx = (y * width + x) * 4;
+      bytes[offset++] = data[idx + 2]; // B
+      bytes[offset++] = data[idx + 1]; // G
+      bytes[offset++] = data[idx];     // R
+    }
+    for (let p = 0; p < extraBytes; p++) {
+      bytes[offset++] = 0;
+    }
+  }
+
+  return new Blob([buffer], { type: "image/bmp" });
+}
+
+export function ImageConverter() {
   const [file, setFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [dimensions, setDimensions] = useState<{ width: number; height: number } | null>(null);
-  const [isDragging, setIsDragging] = useState(false);
-  
-  const [format, setFormat] = useState<ImageFormat>("image/webp");
-  const [quality, setQuality] = useState<number>(80);
-  
+  const [selectedFormat, setSelectedFormat] = useState<SupportedTargetFormat>("image/webp");
+  const [quality, setQuality] = useState<number>(85);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [result, setResult] = useState<ProcessedImage | null>(null);
+  const [result, setResult] = useState<ConvertedResult | null>(null);
   const [processError, setProcessError] = useState<string | null>(null);
-  const { addHistoryItem } = useHistory();
-  
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
 
-  const processImageData = useCallback(
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const { addHistoryItem } = useHistory();
+
+  const convertImageUsingCanvas = useCallback(
     async (
-      sourcePreview: string,
+      sourceDataUrl: string,
       sourceFile: File,
-      targetFormat: ImageFormat,
+      targetFormat: SupportedTargetFormat,
       targetQuality: number
     ) => {
       setIsProcessing(true);
@@ -46,59 +129,104 @@ export default function ImageConverter() {
 
         await new Promise((resolve, reject) => {
           img.onload = () => resolve(null);
-          img.onerror = () => reject(new Error("Failed to load image element"));
-          img.src = sourcePreview;
+          img.onerror = () => reject(new Error("Failed to load image into DOM"));
+          img.src = sourceDataUrl;
           if (img.complete) resolve(null);
         });
 
-        const width = img.naturalWidth || img.width;
-        const height = img.naturalHeight || img.height;
-        setDimensions({ width, height });
+        const naturalWidth = img.naturalWidth || img.width;
+        const naturalHeight = img.naturalHeight || img.height;
+        setDimensions({ width: naturalWidth, height: naturalHeight });
 
         const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = naturalWidth;
+        canvas.height = naturalHeight;
         const ctx = canvas.getContext("2d");
 
-        if (!ctx) throw new Error("Could not get canvas context");
-
-        // Fill background white for JPEG conversion (otherwise transparent becomes black)
-        if (targetFormat === "image/jpeg") {
-          ctx.fillStyle = "#ffffff";
-          ctx.fillRect(0, 0, width, height);
+        if (!ctx) {
+          throw new Error("Could not initialize 2D canvas context");
         }
 
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
 
-        // Export data URL directly for robust preview & download
-        const dataUrl = canvas.toDataURL(targetFormat, targetQuality / 100);
+        // If target is JPEG or BMP, add white background for transparency
+        if (targetFormat === "image/jpeg" || targetFormat === "image/bmp") {
+          ctx.fillStyle = "#FFFFFF";
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+        }
 
-        // Get exact blob size
-        const blob: Blob | null = await new Promise((resolve) => {
-          canvas.toBlob(resolve, targetFormat, targetQuality / 100);
-        });
+        ctx.drawImage(img, 0, 0, naturalWidth, naturalHeight);
 
-        const newSize = blob ? blob.size : Math.round((dataUrl.length * 3) / 4);
-        
-        const finalFormat = targetFormat.split("/")[1].toUpperCase();
+        const formatConfig = FORMAT_OPTIONS.find((f) => f.value === targetFormat) || FORMAT_OPTIONS[2];
+        const qualityRatio = Math.min(Math.max(targetQuality / 100, 0.1), 1.0);
 
-        setResult({
+        let finalBlob: Blob;
+        let dataUrlForPreview: string = "";
+
+        if (targetFormat === "image/bmp") {
+          finalBlob = canvasToBmpBlob(canvas);
+          dataUrlForPreview = URL.createObjectURL(finalBlob);
+        } else {
+          finalBlob = await new Promise<Blob>((resolve, reject) => {
+            canvas.toBlob(
+              (blob) => {
+                if (blob) {
+                  resolve(blob);
+                } else {
+                  // Fallback to dataURL
+                  try {
+                    const fallbackData = canvas.toDataURL(targetFormat, qualityRatio);
+                    const head = `data:${targetFormat};base64,`;
+                    const base64Data = fallbackData.startsWith(head)
+                      ? fallbackData.slice(head.length)
+                      : fallbackData.split(",")[1] || "";
+                    const byteString = atob(base64Data);
+                    const ab = new ArrayBuffer(byteString.length);
+                    const ia = new Uint8Array(ab);
+                    for (let i = 0; i < byteString.length; i++) {
+                      ia[i] = byteString.charCodeAt(i);
+                    }
+                    resolve(new Blob([ab], { type: targetFormat }));
+                  } catch (fallbackErr) {
+                    reject(new Error("Canvas conversion failed"));
+                  }
+                }
+              },
+              targetFormat,
+              qualityRatio
+            );
+          });
+
+          dataUrlForPreview = canvas.toDataURL(targetFormat, qualityRatio);
+        }
+
+        const blobUrl = URL.createObjectURL(finalBlob);
+
+        const converted: ConvertedResult = {
           originalSize: sourceFile.size,
-          newSize,
-          url: dataUrl,
-          format: finalFormat,
-        });
+          newSize: finalBlob.size,
+          dataUrl: dataUrlForPreview || blobUrl,
+          blobUrl,
+          formatLabel: formatConfig.label,
+          extension: formatConfig.extension,
+          width: naturalWidth,
+          height: naturalHeight,
+        };
+
+        setResult(converted);
         sound.success();
-        
+
+        // Track action in history
         addHistoryItem({
-          type: 'image_conv',
-          title: `Converted ${sourceFile.name}`,
-          description: `Format: ${finalFormat}, Quality: ${targetQuality}%`
+          type: "image_conv",
+          title: `Converted ${sourceFile.name} to ${formatConfig.label}`,
+          description: `${(sourceFile.size / 1024).toFixed(1)} KB → ${(finalBlob.size / 1024).toFixed(1)} KB (${naturalWidth}x${naturalHeight})`,
         });
-      } catch (error) {
-        console.error("Image processing error:", error);
+      } catch (error: any) {
+        console.error("Image conversion error:", error);
         sound.error();
-        setProcessError("Failed to process image. Please try another image file.");
+        setProcessError("Failed to convert image. Please try another file.");
       } finally {
         setIsProcessing(false);
       }
@@ -109,10 +237,10 @@ export default function ImageConverter() {
   const handleFile = (selectedFile: File) => {
     if (!selectedFile.type.startsWith("image/")) {
       sound.error();
-      alert("Please select a valid image file.");
+      setProcessError("Please select a valid image file.");
       return;
     }
-    
+
     sound.generate();
     setFile(selectedFile);
     setResult(null);
@@ -124,7 +252,7 @@ export default function ImageConverter() {
       const dataUrl = e.target?.result as string;
       if (dataUrl) {
         setPreview(dataUrl);
-        processImageData(dataUrl, selectedFile, format, quality);
+        convertImageUsingCanvas(dataUrl, selectedFile, selectedFormat, quality);
       } else {
         setProcessError("Could not read image file.");
         setIsProcessing(false);
@@ -137,61 +265,28 @@ export default function ImageConverter() {
     reader.readAsDataURL(selectedFile);
   };
 
-  const onDragOver = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const onDragLeave = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-  }, []);
-
-  const onDrop = useCallback((e: React.DragEvent) => {
-    e.preventDefault();
-    setIsDragging(false);
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      handleFile(e.dataTransfer.files[0]);
-    }
-  }, []);
-
-  const handleFormatChange = (newFormat: ImageFormat) => {
-    setFormat(newFormat);
+  const handleFormatSelectChange = (newFmt: SupportedTargetFormat) => {
+    setSelectedFormat(newFmt);
     if (preview && file) {
-      processImageData(preview, file, newFormat, quality);
+      convertImageUsingCanvas(preview, file, newFmt, quality);
     }
   };
 
-  const handleQualityChange = (newQuality: number) => {
-    setQuality(newQuality);
+  const handleQualityChange = (newQ: number) => {
+    setQuality(newQ);
     if (preview && file) {
-      processImageData(preview, file, format, newQuality);
+      convertImageUsingCanvas(preview, file, selectedFormat, newQ);
     }
   };
 
-  const processImage = () => {
+  const triggerConvert = () => {
     sound.generate();
     if (preview && file) {
-      processImageData(preview, file, format, quality);
+      convertImageUsingCanvas(preview, file, selectedFormat, quality);
     }
   };
 
-  const formatBytes = (bytes: number, decimals = 2) => {
-    if (bytes === 0) return '0 Bytes';
-    const k = 1024;
-    const dm = decimals < 0 ? 0 : decimals;
-    const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
-    const i = Math.floor(Math.log(bytes) / Math.log(k));
-    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
-  };
-
-  const getReductionClass = (original: number, newSize: number) => {
-    if (newSize < original) return "text-emerald-500";
-    if (newSize > original) return "text-amber-500";
-    return "text-muted-foreground";
-  };
-
-  const reset = () => {
+  const resetAll = () => {
     sound.clear();
     setFile(null);
     setPreview(null);
@@ -200,63 +295,122 @@ export default function ImageConverter() {
     setProcessError(null);
   };
 
+  const formatBytes = (bytes: number, decimals = 2) => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const dm = decimals < 0 ? 0 : decimals;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + " " + sizes[i];
+  };
+
+  const currentOpt = FORMAT_OPTIONS.find((f) => f.value === selectedFormat) || FORMAT_OPTIONS[2];
+
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Image Converter & Compressor</h1>
-        <p className="text-muted-foreground">Convert images to WebP, PNG, or JPG and reduce file size completely in your browser. No data sent to servers.</p>
+    <div className="space-y-8 max-w-5xl mx-auto">
+      {/* Header Section */}
+      <div className="space-y-2 text-center sm:text-left">
+        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
+          <Zap className="w-3.5 h-3.5" />
+          <span>Image Format Converter</span>
+        </div>
+        <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
+          Image Format Converter
+        </h1>
+        <p className="text-muted-foreground text-sm sm:text-base">
+          Convert PNG, JPG, WebP, AVIF, and BMP images quickly with zero server uploads.
+        </p>
       </div>
 
       <AnimatePresence mode="wait">
         {!file ? (
-          <motion.div 
+          /* Upload State */
+          <motion.div
             key="upload"
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.98 }}
-            className={`border-2 border-dashed rounded-xl p-12 flex flex-col items-center justify-center text-center space-y-4 transition-colors cursor-pointer min-h-[300px]
-              ${isDragging ? 'border-primary bg-primary/5' : 'border-muted hover:border-primary/50 hover:bg-card/50'}`}
-            onDragOver={onDragOver}
-            onDragLeave={onDragLeave}
-            onDrop={onDrop}
+            className={`border-2 border-dashed rounded-2xl p-8 sm:p-12 flex flex-col items-center justify-center text-center space-y-4 transition-all cursor-pointer min-h-[300px] bg-card/60 backdrop-blur-xs ${
+              isDragging
+                ? "border-emerald-500 bg-emerald-500/5 scale-[1.01]"
+                : "border-border hover:border-emerald-500/50 hover:bg-card"
+            }`}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsDragging(true);
+            }}
+            onDragLeave={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              setIsDragging(false);
+              if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+                handleFile(e.dataTransfer.files[0]);
+              }
+            }}
             onClick={() => fileInputRef.current?.click()}
           >
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              className="hidden" 
-              accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml"
+            <input
+              type="file"
+              ref={fileInputRef}
+              className="hidden"
+              accept="image/png, image/jpeg, image/webp, image/gif, image/svg+xml, image/bmp, image/avif"
               onChange={(e) => e.target.files && e.target.files[0] && handleFile(e.target.files[0])}
             />
-            <div className={`p-4 rounded-full transition-colors ${isDragging ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'}`}>
+            <div
+              className={`p-4 rounded-2xl transition-transform ${
+                isDragging
+                  ? "bg-emerald-500 text-white scale-110"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+              }`}
+            >
               <Upload className="w-8 h-8" />
             </div>
-            <div>
-              <h3 className="text-lg font-medium">Drag & drop your image here</h3>
-              <p className="text-muted-foreground text-sm mt-1">
+            <div className="space-y-1">
+              <h3 className="text-base sm:text-lg font-bold text-foreground">
+                Drop your image here
+              </h3>
+              <p className="text-xs sm:text-sm text-muted-foreground">
                 or click to browse from your device
               </p>
             </div>
-            <div className="flex gap-2 mt-2">
-              {['JPG', 'PNG', 'WebP', 'GIF', 'SVG'].map(ext => (
-                <span key={ext} className="text-xs font-mono bg-muted px-2 py-1 rounded-md text-muted-foreground">{ext}</span>
+            <div className="flex flex-wrap justify-center gap-2 pt-2">
+              {["JPEG", "PNG", "WebP", "AVIF", "BMP"].map((ext) => (
+                <span
+                  key={ext}
+                  className="text-[11px] font-medium font-mono bg-muted px-2.5 py-1 rounded-md text-muted-foreground border border-border/50"
+                >
+                  {ext}
+                </span>
               ))}
             </div>
+
+            {processError && (
+              <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-xs font-medium max-w-md">
+                {processError}
+              </div>
+            )}
           </motion.div>
         ) : (
-          <motion.div 
+          /* Editor & Converter Workspace */
+          <motion.div
             key="editor"
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0, y: 15 }}
             animate={{ opacity: 1, y: 0 }}
-            className="grid grid-cols-1 md:grid-cols-[1fr_300px] gap-6"
+            className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6 items-start"
           >
-            {/* Preview Section */}
-            <div className="bg-card border rounded-xl overflow-hidden shadow-sm flex flex-col">
+            {/* Preview & Comparison Section */}
+            <div className="bg-card border rounded-2xl overflow-hidden shadow-xs flex flex-col">
+              {/* Header */}
               <div className="p-4 border-b bg-muted/30 flex items-center justify-between">
                 <div className="flex items-center gap-3 overflow-hidden">
-                  <FileImage className="w-5 h-5 text-primary shrink-0" />
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 shrink-0">
+                    <FileImage className="w-5 h-5" />
+                  </div>
                   <div className="truncate">
-                    <p className="font-medium text-sm truncate">{file.name}</p>
+                    <p className="font-semibold text-sm truncate">{file.name}</p>
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                       <span>{formatBytes(file.size)}</span>
                       {dimensions && (
@@ -268,75 +422,92 @@ export default function ImageConverter() {
                     </div>
                   </div>
                 </div>
-                <button 
-                  onClick={reset}
-                  className="p-1.5 hover:bg-muted rounded-md text-muted-foreground hover:text-foreground transition-colors shrink-0"
+
+                <button
+                  onClick={resetAll}
+                  className="p-2 hover:bg-muted rounded-xl text-muted-foreground hover:text-foreground transition-colors shrink-0"
                   title="Remove image"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
-              
-              <div className="flex-1 bg-black/5 dark:bg-black/20 p-4 flex items-center justify-center min-h-[300px] relative overflow-hidden checkerboard-bg">
+
+              {/* Canvas Preview Area */}
+              <div className="p-6 flex items-center justify-center min-h-[340px] bg-black/5 dark:bg-black/20 relative overflow-hidden checkerboard-bg">
                 {isProcessing && !result ? (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <RefreshCw className="w-8 h-8 animate-spin text-primary" />
-                    <span className="text-sm font-medium">Processing image...</span>
+                  <div className="flex flex-col items-center gap-3 text-muted-foreground">
+                    <RefreshCw className="w-8 h-8 animate-spin text-emerald-500" />
+                    <span className="text-sm font-medium">Converting image...</span>
                   </div>
                 ) : processError ? (
                   <div className="text-center p-6 text-destructive space-y-2">
-                    <p className="font-medium">{processError}</p>
+                    <p className="font-medium text-sm">{processError}</p>
                     <button
-                      onClick={reset}
+                      onClick={resetAll}
                       className="text-xs text-muted-foreground underline hover:text-foreground"
                     >
-                      Try another file
+                      Upload another file
                     </button>
                   </div>
                 ) : (
-                  <img 
-                    src={result ? result.url : preview!} 
-                    alt="Converted Preview" 
-                    className="max-w-full max-h-[400px] object-contain rounded-md shadow-sm"
+                  <img
+                    src={result ? result.dataUrl : preview!}
+                    alt="Converted Preview"
+                    className="max-w-full max-h-[420px] object-contain rounded-xl shadow-md border"
                     referrerPolicy="no-referrer"
                   />
                 )}
               </div>
-              
+
+              {/* Dynamic Size & Download Bar */}
               {result && (
-                <div className="p-4 border-t bg-muted/10">
-                  <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-                    <div className="flex items-center gap-4 w-full sm:w-auto">
-                      <div className="text-center sm:text-left">
-                         <p className="text-xs text-muted-foreground uppercase tracking-wider">Original</p>
-                         <p className="font-mono text-sm">{formatBytes(result.originalSize)}</p>
-                      </div>
-                      <ArrowRight className="w-4 h-4 text-muted-foreground shrink-0" />
-                      <div className="text-center sm:text-left">
-                         <p className="text-xs text-muted-foreground uppercase tracking-wider">{result.format}</p>
-                         <p className={`font-mono text-sm font-semibold ${getReductionClass(result.originalSize, result.newSize)}`}>
-                           {formatBytes(result.newSize)}
-                         </p>
-                      </div>
-                      
-                      {result.originalSize > result.newSize ? (
-                        <span className="ml-auto sm:ml-4 bg-emerald-500/10 text-emerald-500 text-xs font-bold px-2 py-1 rounded-full">
-                          -{Math.round((1 - result.newSize / result.originalSize) * 100)}%
-                        </span>
-                      ) : result.originalSize < result.newSize ? (
-                        <span className="ml-auto sm:ml-4 bg-amber-500/10 text-amber-500 text-xs font-bold px-2 py-1 rounded-full">
-                          +{Math.round((result.newSize / result.originalSize - 1) * 100)}%
-                        </span>
-                      ) : null}
+                <div className="p-4 sm:p-5 border-t bg-muted/20 space-y-4">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="p-3 rounded-xl bg-card border">
+                      <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider block">
+                        Original Size
+                      </span>
+                      <span className="text-base font-extrabold text-foreground font-mono mt-0.5 block">
+                        {formatBytes(result.originalSize)}
+                      </span>
                     </div>
-                    
+
+                    <div className="p-3 rounded-xl bg-card border">
+                      <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider block">
+                        Converted ({result.formatLabel})
+                      </span>
+                      <span className="text-base font-extrabold text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 block">
+                        {formatBytes(result.newSize)}
+                      </span>
+                    </div>
+
+                    <div className="col-span-2 sm:col-span-1 p-3 rounded-xl bg-card border flex items-center justify-between sm:flex-col sm:items-start">
+                      <span className="text-[11px] uppercase font-bold text-muted-foreground tracking-wider block">
+                        Output Status
+                      </span>
+                      {result.newSize < result.originalSize ? (
+                        <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400 font-bold text-sm">
+                          <CheckCircle2 className="w-4 h-4" />
+                          <span>-{Math.round((1 - result.newSize / result.originalSize) * 100)}% Saved</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground font-medium text-xs mt-0.5">
+                          Ready to Download
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Download Button */}
+                  <div className="pt-2">
                     <a
-                      href={result.url}
+                      href={result.blobUrl || result.dataUrl}
                       onClick={() => sound.download()}
-                      download={`converted-${file.name.replace(/\.[^/.]+$/, "")}.${result.format.toLowerCase()}`}
-                      className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90 px-6 py-2 rounded-md font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
+                      download={`converted-${file.name.replace(/\.[^/.]+$/, "")}.${result.extension}`}
+                      className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 text-sm sm:text-base text-center cursor-pointer"
                     >
-                      <Download className="w-4 h-4" /> Download
+                      <Download className="w-5 h-5" />
+                      <span>Download {result.formatLabel} Image</span>
                     </a>
                   </div>
                 </div>
@@ -344,74 +515,117 @@ export default function ImageConverter() {
             </div>
 
             {/* Controls Section */}
-            <div className="bg-card border rounded-xl p-6 shadow-sm flex flex-col gap-6">
-              <div className="flex items-center gap-2 text-lg font-semibold border-b pb-4">
-                <Settings2 className="w-5 h-5 text-primary" />
-                Settings
+            <div className="bg-card border rounded-2xl p-5 sm:p-6 shadow-xs flex flex-col gap-6">
+              <div className="flex items-center gap-2 text-base font-bold border-b pb-3.5">
+                <Settings2 className="w-5 h-5 text-emerald-500" />
+                <span>Conversion Settings</span>
               </div>
-              
-              <div className="space-y-4">
-                <div>
-                  <label className="text-sm font-medium block mb-2">Output Format</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {[
-                      { val: "image/webp", label: "WebP" },
-                      { val: "image/jpeg", label: "JPG" },
-                      { val: "image/png", label: "PNG" }
-                    ].map(fmt => (
+
+              <div className="space-y-5">
+                {/* Format Dropdown Selector (JPEG, PNG, WebP, AVIF, BMP) */}
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-foreground flex items-center justify-between">
+                    <span>Target Format:</span>
+                    <span className="text-[11px] font-mono text-emerald-600 dark:text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded">
+                      {currentOpt.tag}
+                    </span>
+                  </label>
+
+                  <div className="relative">
+                    <select
+                      value={selectedFormat}
+                      onChange={(e) => handleFormatSelectChange(e.target.value as SupportedTargetFormat)}
+                      className="w-full appearance-none bg-background border border-border rounded-xl px-3.5 py-2.5 text-sm font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-emerald-500/40 cursor-pointer pr-10"
+                    >
+                      {FORMAT_OPTIONS.map((opt) => (
+                        <option key={opt.value} value={opt.value}>
+                          {opt.label} (.{opt.extension}) - {opt.tag}
+                        </option>
+                      ))}
+                    </select>
+                    <ChevronDown className="w-4 h-4 text-muted-foreground absolute right-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  </div>
+                </div>
+
+                {/* Grid Format Chips */}
+                <div className="space-y-1.5">
+                  <span className="text-[11px] font-medium text-muted-foreground">Quick Select:</span>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {FORMAT_OPTIONS.map((opt) => (
                       <button
-                        key={fmt.val}
-                        onClick={() => handleFormatChange(fmt.val as ImageFormat)}
-                        className={`py-2 text-sm font-medium rounded-md transition-colors ${
-                          format === fmt.val 
-                            ? 'bg-primary text-primary-foreground shadow-sm' 
-                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                        key={opt.value}
+                        type="button"
+                        onClick={() => handleFormatSelectChange(opt.value)}
+                        className={`py-1.5 px-2 text-xs font-bold rounded-lg border transition-all truncate ${
+                          selectedFormat === opt.value
+                            ? "bg-emerald-500 text-white border-emerald-500 shadow-xs"
+                            : "bg-muted/50 text-muted-foreground hover:text-foreground border-border hover:bg-muted"
                         }`}
                       >
-                        {fmt.label}
+                        {opt.label}
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div className={`transition-opacity ${format === "image/png" ? "opacity-50 pointer-events-none" : "opacity-100"}`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <label className="text-sm font-medium">Quality</label>
-                    <span className="text-xs font-mono bg-muted px-2 py-0.5 rounded text-muted-foreground">{quality}%</span>
+                {/* Quality Slider (for lossy formats: JPEG, WebP, AVIF) */}
+                {currentOpt.hasQuality ? (
+                  <div className="space-y-2 pt-2 border-t">
+                    <div className="flex items-center justify-between text-xs font-semibold">
+                      <label className="text-foreground">Quality:</label>
+                      <span className="font-mono bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-2 py-0.5 rounded-md font-bold">
+                        {quality}%
+                      </span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="5"
+                      value={quality}
+                      onChange={(e) => handleQualityChange(Number(e.target.value))}
+                      className="w-full accent-emerald-500 cursor-pointer h-2 bg-muted rounded-lg"
+                    />
+                    <div className="flex justify-between text-[10px] text-muted-foreground">
+                      <span>Small Size (10%)</span>
+                      <span>Balanced (85%)</span>
+                      <span>High Quality (100%)</span>
+                    </div>
                   </div>
-                  <input 
-                    type="range" 
-                    min="10" 
-                    max="100" 
-                    step="5"
-                    value={quality}
-                    onChange={(e) => handleQualityChange(Number(e.target.value))}
-                    className="w-full accent-primary"
-                  />
-                  <p className="text-xs text-muted-foreground mt-2">
-                    Lower quality means smaller file size. Not applicable for PNG.
-                  </p>
-                </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-muted/40 border text-xs text-muted-foreground space-y-1">
+                    <span className="font-semibold text-foreground block">
+                      📌 {currentOpt.label} Lossless Mode
+                    </span>
+                    <p className="text-[11px]">
+                      {currentOpt.label} preserves original pixel quality losslessly.
+                    </p>
+                  </div>
+                )}
               </div>
 
-              <div className="mt-auto pt-6">
+              {/* Action Buttons */}
+              <div className="mt-auto pt-4 space-y-2.5">
                 <button
-                  onClick={processImage}
+                  onClick={triggerConvert}
                   disabled={isProcessing}
-                  className="w-full bg-foreground text-background hover:bg-foreground/90 py-3 rounded-md font-semibold transition-colors flex items-center justify-center gap-2 shadow-sm disabled:opacity-70"
+                  className="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-3 rounded-xl font-bold transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 text-sm disabled:opacity-50 cursor-pointer"
                 >
                   {isProcessing ? (
-                    <RefreshCw className="w-5 h-5 animate-spin" />
+                    <RefreshCw className="w-4 h-4 animate-spin" />
                   ) : (
-                    "Re-Convert Image"
+                    <Sparkles className="w-4 h-4" />
                   )}
+                  <span>Re-convert Image</span>
                 </button>
+
                 {result && (
                   <button
-                    onClick={reset}
-                    className="w-full mt-3 bg-muted text-foreground hover:bg-muted/80 py-2.5 rounded-md font-medium transition-colors text-sm"
+                    onClick={resetAll}
+                    type="button"
+                    className="w-full bg-muted hover:bg-muted/80 text-foreground py-2.5 rounded-xl font-medium transition-colors text-xs"
                   >
-                    Process Another Image
+                    Choose Another Image
                   </button>
                 )}
               </div>
@@ -419,22 +633,24 @@ export default function ImageConverter() {
           </motion.div>
         )}
       </AnimatePresence>
-      
-      {/* SEO: How-to guide + WebP deep dive */}
+
+      {/* SEO & Format Guide */}
       <SeoContentImage />
 
       {/* Custom CSS for checkerboard pattern */}
       <style>{`
         .checkerboard-bg {
           background-image: 
-            linear-gradient(45deg, rgba(128,128,128,0.1) 25%, transparent 25%), 
-            linear-gradient(-45deg, rgba(128,128,128,0.1) 25%, transparent 25%), 
-            linear-gradient(45deg, transparent 75%, rgba(128,128,128,0.1) 75%), 
-            linear-gradient(-45deg, transparent 75%, rgba(128,128,128,0.1) 75%);
-          background-size: 20px 20px;
-          background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            linear-gradient(45deg, rgba(128,128,128,0.08) 25%, transparent 25%), 
+            linear-gradient(-45deg, rgba(128,128,128,0.08) 25%, transparent 25%), 
+            linear-gradient(45deg, transparent 75%, rgba(128,128,128,0.08) 75%), 
+            linear-gradient(-45deg, transparent 75%, rgba(128,128,128,0.08) 75%);
+          background-size: 16px 16px;
+          background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
         }
       `}</style>
     </div>
   );
 }
+
+export default ImageConverter;

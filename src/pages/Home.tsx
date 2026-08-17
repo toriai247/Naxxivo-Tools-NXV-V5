@@ -20,7 +20,8 @@ import {
   TrendingUp,
   Download,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Bot
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -43,6 +44,18 @@ interface ToolItem {
 }
 
 const TOOLS_LIST: ToolItem[] = [
+  {
+    id: 'smart-bot',
+    title: 'Smart AI Bot & Automation Hub',
+    description: 'Auto-detects YouTube links to extract tags & thumbnails, converts uploaded images, and automates tasks with Gemini 3.7 in a single chat.',
+    category: 'ai',
+    href: '/smart-bot',
+    icon: Bot,
+    badge: 'AUTOMATIC BOT ⚡',
+    badgeColor: 'bg-gradient-to-r from-emerald-500 to-teal-600 text-white border-none shadow-sm',
+    features: ['Auto-Detect YouTube Links', 'In-Chat Image Converter', 'Gemini 3.7 Intelligence'],
+    gradient: 'from-emerald-500/15 via-teal-500/10 to-transparent'
+  },
   {
     id: 'prompts',
     title: 'AI Image Prompts Hub',
@@ -116,15 +129,27 @@ const TOOLS_LIST: ToolItem[] = [
     gradient: 'from-indigo-500/10 via-purple-500/5 to-transparent'
   },
   {
+    id: 'image-compressor',
+    title: 'Image Compressor & Optimizer',
+    description: 'Compress PNG, JPG, and WebP files to reduce size while preserving visual quality. Fully in-browser with max 10MB support.',
+    category: 'design',
+    href: '/image-compressor',
+    icon: ImageIcon,
+    badge: 'MAX 10MB ⚡',
+    badgeColor: 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
+    features: ['Quality Slider (10-100)', 'Canvas Realtime Resizing', 'Before & After Size Comparison'],
+    gradient: 'from-emerald-500/10 via-teal-500/5 to-transparent'
+  },
+  {
     id: 'image-converter',
-    title: 'Smart Image Converter',
-    description: 'Convert images between JPG, PNG, WEBP, and AVIF formats with lossless compression directly in your browser.',
+    title: 'Image Format Converter',
+    description: 'Convert between PNG, JPG, WebP, AVIF, and BMP formats instantly with high fidelity and zero server uploads.',
     category: 'design',
     href: '/image-converter',
     icon: ImageIcon,
-    badge: 'BROWSER-FAST',
+    badge: '5 FORMATS ⚡',
     badgeColor: 'bg-teal-500/10 text-teal-600 dark:text-teal-400 border-teal-500/20',
-    features: ['WEBP / AVIF / PNG / JPG', 'Batch File Processing', 'No File Size Limits'],
+    features: ['JPEG, PNG, WebP, AVIF, BMP', 'Canvas.toBlob Engine', 'Live Quality & Lossless Mode'],
     gradient: 'from-teal-500/10 via-cyan-500/5 to-transparent'
   },
   {
@@ -229,20 +254,51 @@ export default function HomePage() {
           <div className="pt-4 grid grid-cols-2 sm:grid-cols-4 gap-3 text-left">
             <div className="p-3 rounded-xl bg-background/60 border border-border/50 backdrop-blur-sm">
               <p className="text-xs text-muted-foreground font-medium">Available Tools</p>
-              <p className="text-lg font-bold text-foreground">10+ Dedicated Apps</p>
+              <p className="text-lg font-bold text-foreground">11+ Dedicated Apps</p>
             </div>
             <div className="p-3 rounded-xl bg-background/60 border border-border/50 backdrop-blur-sm">
               <p className="text-xs text-muted-foreground font-medium">AI Technology</p>
-              <p className="text-lg font-bold text-foreground">Gemini 2.5 & Flash</p>
+              <p className="text-lg font-bold text-foreground">Gemini 3.7 & Flash</p>
             </div>
             <div className="p-3 rounded-xl bg-background/60 border border-border/50 backdrop-blur-sm">
-              <p className="text-xs text-muted-foreground font-medium">Image Prompt Models</p>
-              <p className="text-lg font-bold text-foreground">Midjourney, FLUX</p>
+              <p className="text-xs text-muted-foreground font-medium">Smart Bot Automation</p>
+              <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">All-in-One Chat</p>
             </div>
             <div className="p-3 rounded-xl bg-background/60 border border-border/50 backdrop-blur-sm">
               <p className="text-xs text-muted-foreground font-medium">Access & Pricing</p>
               <p className="text-lg font-bold text-emerald-600 dark:text-emerald-400">100% Free Forever</p>
             </div>
+          </div>
+
+          {/* New Smart AI Bot Banner CTA */}
+          <div className="pt-2">
+            <Link 
+              href="/smart-bot" 
+              onClick={() => sound.click()} 
+              className="inline-flex items-center justify-between gap-4 w-full p-4 rounded-2xl bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-primary/10 border border-emerald-500/30 hover:border-emerald-500/50 hover:shadow-lg transition-all group text-left"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/20 group-hover:scale-105 transition-transform">
+                  <Bot className="w-5 h-5" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="font-bold text-sm text-foreground group-hover:text-emerald-500 transition-colors">
+                      Try New: Naxxivo Smart AI Bot
+                    </span>
+                    <span className="text-[10px] uppercase font-bold px-2 py-0.5 rounded-full bg-emerald-500 text-white shadow-sm">
+                      Automatic
+                    </span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    Paste any YouTube URL or upload an image to automatically extract tags, download thumbnails & convert files directly in chat.
+                  </p>
+                </div>
+              </div>
+              <span className="hidden sm:inline-flex items-center gap-1 text-xs font-bold text-emerald-500 group-hover:translate-x-1 transition-transform">
+                Open Bot <ArrowRight className="w-4 h-4" />
+              </span>
+            </Link>
           </div>
         </div>
       </div>
