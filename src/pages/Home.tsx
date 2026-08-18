@@ -26,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { sound } from '@/lib/sound';
 import { RecentlyUsedTools } from '@/components/RecentlyUsedTools';
 import { useRecentTools } from '@/hooks/useRecentTools';
+import { SmartBotTour, TourReplayButton } from '@/components/SmartBotTour';
 
 interface ToolItem {
   id: string;
@@ -204,6 +205,7 @@ const CATEGORIES = [
 export default function HomePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [activeCategory, setActiveCategory] = useState<'all' | 'ai' | 'youtube' | 'design' | 'utility'>('all');
+  const [isTourManualOpen, setIsTourManualOpen] = useState(false);
   const { recordToolUsage } = useRecentTools();
 
   const filteredTools = useMemo(() => {
@@ -257,13 +259,14 @@ export default function HomePage() {
       <div className="p-5 sm:p-7 rounded-2xl bg-card border shadow-xs space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
               <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-foreground">
                 Naxxivo Studio
               </h1>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-primary/10 text-primary border border-primary/20">
                 100% Free
               </span>
+              <TourReplayButton onClick={() => setIsTourManualOpen(true)} />
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
               Fast, lightweight creator tools for YouTube, AI image prompts, and graphics.
@@ -272,6 +275,7 @@ export default function HomePage() {
 
           {/* Quick Smart Bot Launcher Button */}
           <Link
+            id="hero-smart-bot-btn"
             href="/smart-bot"
             onClick={() => sound.click()}
             className="shrink-0 inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/30 text-xs font-semibold transition-colors shadow-xs"
@@ -357,6 +361,7 @@ export default function HomePage() {
           return (
             <Link
               key={tool.id}
+              id={`tool-${tool.id}`}
               href={tool.href}
               onClick={() => {
                 sound.click();
@@ -443,6 +448,12 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      {/* ─── 6. INTERACTIVE ONBOARDING TOUR FOR SMART BOT ──────────────── */}
+      <SmartBotTour 
+        forceOpen={isTourManualOpen} 
+        onClose={() => setIsTourManualOpen(false)} 
+      />
 
     </div>
   );

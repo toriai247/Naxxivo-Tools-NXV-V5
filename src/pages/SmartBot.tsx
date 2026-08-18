@@ -79,6 +79,8 @@ import {
   detectAndStoreUserFactsFromInput,
   resolveContextualQuery,
   isSupabaseConfigured,
+  analyzeUploadedFile,
+  FileAnalysisSummary,
   BotSavedChannel,
   BotMemoryFact
 } from '@/lib/botLogic';
@@ -206,6 +208,8 @@ export default function SmartBot() {
     size: string;
     type: 'image' | 'document' | 'file';
     textContent?: string;
+    dimensions?: { width: number; height: number; aspectRatio: string };
+    analysis?: FileAnalysisSummary;
   } | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
@@ -382,7 +386,7 @@ export default function SmartBot() {
   // Unified File Attach Function
   const attachSelectedFile = (file: File) => {
     sound.click();
-    const isImage = file.type.startsWith('image/');
+    const isImage = file.type.startsWith('image/') || /\.(jpg|jpeg|png|webp|gif|bmp|svg|avif|heic|heif)$/i.test(file.name);
     const isDoc = file.type.includes('text') || 
                   file.type.includes('pdf') || 
                   file.name.endsWith('.json') || 
@@ -390,32 +394,86 @@ export default function SmartBot() {
                   file.name.endsWith('.txt') || 
                   file.name.endsWith('.csv');
 
-    const previewUrl = isImage ? URL.createObjectURL(file) : '';
     const sizeInKb = (file.size / 1024).toFixed(1);
     const sizeStr = file.size > 1024 * 1024 ? `${(file.size / (1024 * 1024)).toFixed(2)} MB` : `${sizeInKb} KB`;
 
-    if (isDoc && !isImage && file.size < 2 * 1024 * 1024) {
+    if (isImage) {
+      // Use FileReader to generate reliable base64 Data URL for previews, Cropper & persistent storage
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const dataUrl = (e.target?.result as string) || '';
+        const img = new Image();
+        img.onload = () => {
+          const w = img.naturalWidth || img.width;
+          const h = img.naturalHeight || img.height;
+          const ratio = w / h;
+          let aspectLabel = `${w} × ${h}px`;
+          if (Math.abs(ratio - 1) < 0.05) aspectLabel = '1:1 Square';
+          else if (Math.abs(ratio - 16 / 9) < 0.08) aspectLabel = '16:9 Widescreen';
+          else if (Math.abs(ratio - 9 / 16) < 0.08) aspectLabel = '9:16 Story / Reel';
+          else if (Math.abs(ratio - 4 / 3) < 0.08) aspectLabel = '4:3 Standard';
+
+          const analysis = analyzeUploadedFile(file, { width: w, height: h });
+          setAttachedFile({
+            file,
+            previewUrl: dataUrl,
+            name: file.name,
+            size: sizeStr,
+            type: 'image',
+            dimensions: { width: w, height: h, aspectRatio: aspectLabel },
+            analysis
+          });
+        };
+        img.onerror = () => {
+          const analysis = analyzeUploadedFile(file);
+          setAttachedFile({
+            file,
+            previewUrl: dataUrl,
+            name: file.name,
+            size: sizeStr,
+            type: 'image',
+            analysis
+          });
+        };
+        img.src = dataUrl;
+      };
+      reader.onerror = () => {
+        const fallbackUrl = URL.createObjectURL(file);
+        setAttachedFile({
+          file,
+          previewUrl: fallbackUrl,
+          name: file.name,
+          size: sizeStr,
+          type: 'image'
+        });
+      };
+      reader.readAsDataURL(file);
+    } else if (isDoc && file.size < 2 * 1024 * 1024) {
       // Read text for documents
       const reader = new FileReader();
       reader.onload = (e) => {
         const text = e.target?.result as string;
+        const analysis = analyzeUploadedFile(file, { textContent: text });
         setAttachedFile({
           file,
-          previewUrl,
+          previewUrl: '',
           name: file.name,
           size: sizeStr,
           type: 'document',
-          textContent: text
+          textContent: text,
+          analysis
         });
       };
       reader.readAsText(file);
     } else {
+      const analysis = analyzeUploadedFile(file);
       setAttachedFile({
         file,
-        previewUrl,
+        previewUrl: '',
         name: file.name,
         size: sizeStr,
         type: isImage ? 'image' : 'file',
+        analysis
       });
     }
 
@@ -545,7 +603,9 @@ export default function SmartBot() {
   ): Promise<{ dataUrl: string; newSizeStr: string; savings: number }> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      img.crossOrigin = 'anonymous';
+      if (typeof source === 'string' && (source.startsWith('http://') || source.startsWith('https://'))) {
+        img.crossOrigin = 'anonymous';
+      }
 
       const handleImageLoaded = (originalBytes: number) => {
         const canvas = document.createElement('canvas');
@@ -1988,6 +2048,13 @@ export default function SmartBot() {
                   onClick={() => {
                     if (starter.action === "Upload Image") {
                       imageInputRef.current?.click();
+                    } else if (starter.action === "Crop image") {
+                      if (attachedFile) {
+                        handleSendMessage('Crop image');
+                      } else {
+                        setInputVal('Crop image');
+                        imageInputRef.current?.click();
+                      }
                     } else if (starter.action === "Analyze Document") {
                       docInputRef.current?.click();
                     } else {
@@ -2398,24 +2465,25 @@ export default function SmartBot() {
                 {/* 3. Image Options Card */}
                 {msg.toolState?.type === 'image_options' && msg.toolState.imageInfo && (
                   <div className="pt-2 border-t space-y-3">
-                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 border">
+                    {/* Auto Analysis Header Card */}
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/50 border">
                       <img
                         src={msg.toolState.imageInfo.originalUrl}
                         alt="Uploaded"
-                        className="w-16 h-16 object-cover rounded-lg border shadow-sm"
+                        className="w-16 h-16 object-cover rounded-lg border shadow-xs shrink-0"
                       />
-                      <div className="min-w-0 flex-1">
+                      <div className="min-w-0 flex-1 space-y-1">
                         <p className="text-xs font-semibold truncate text-foreground">{msg.toolState.imageInfo.name}</p>
-                        <p className="text-[10px] text-muted-foreground">Original: {msg.toolState.imageInfo.originalSize}</p>
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium border border-emerald-500/20">
-                            <Sparkles className="w-2.5 h-2.5" /> Ready for tools
+                        <div className="flex flex-wrap items-center gap-1 text-[10px] text-muted-foreground">
+                          <span className="font-mono bg-background px-1.5 py-0.5 rounded border">{msg.toolState.imageInfo.originalSize}</span>
+                          <span className="px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-medium border border-emerald-500/20">
+                            ✨ File Analyzed
                           </span>
                         </div>
                       </div>
                     </div>
 
-                    <div className="space-y-2">
+                    <div className="space-y-2.5">
                       {/* Highlighted Crop Action Button */}
                       <button
                         onClick={() => {
@@ -2429,90 +2497,97 @@ export default function SmartBot() {
                       </button>
 
                       {/* Quick Aspect Ratio Presets */}
-                      <div className="grid grid-cols-4 gap-1.5">
-                        {[
-                          { label: '1:1 Square', preset: '1:1', aspect: 1 },
-                          { label: '16:9 Video', preset: '16:9', aspect: 16 / 9 },
-                          { label: '9:16 Story', preset: '9:16', aspect: 9 / 16 },
-                          { label: '4:3 Standard', preset: '4:3', aspect: 4 / 3 }
-                        ].map((item) => (
-                          <button
-                            key={item.preset}
-                            onClick={() => {
-                              sound.click();
-                              setMessages((prev) =>
-                                prev.map((m) => {
-                                  if (m.id === msg.id && m.toolState) {
-                                    return {
-                                      ...m,
-                                      text: `✂️ **ইমেজ ক্রপার ওপেন করা হয়েছে (${item.preset}):**\nপ্রয়োজনীয় Frame, Zoom, Rotation বা Flip সেট করে **Apply & Crop Image Now** বাটনে চাপুন:`,
-                                      toolState: {
-                                        ...m.toolState,
-                                        type: 'image_crop_workspace',
-                                        cropWorkspaceInfo: {
-                                          imageUrl: msg.toolState!.imageInfo!.originalUrl,
-                                          fileName: msg.toolState!.imageInfo!.name,
-                                          initialAspect: item.aspect,
-                                          initialPreset: item.preset,
+                      <div className="space-y-1">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground pl-0.5">Quick Crop Presets:</span>
+                        <div className="grid grid-cols-4 gap-1.5">
+                          {[
+                            { label: '1:1 Square (DP)', preset: '1:1', aspect: 1 },
+                            { label: '16:9 Video', preset: '16:9', aspect: 16 / 9 },
+                            { label: '9:16 Story', preset: '9:16', aspect: 9 / 16 },
+                            { label: '4:3 Standard', preset: '4:3', aspect: 4 / 3 }
+                          ].map((item) => (
+                            <button
+                              key={item.preset}
+                              onClick={() => {
+                                sound.click();
+                                setMessages((prev) =>
+                                  prev.map((m) => {
+                                    if (m.id === msg.id && m.toolState) {
+                                      return {
+                                        ...m,
+                                        text: `✂️ **ইমেজ ক্রপার ওপেন করা হয়েছে (${item.preset}):**\nপ্রয়োজনীয় Frame, Zoom, Rotation বা Flip সেট করে **Apply & Crop Image Now** বাটনে চাপুন:`,
+                                        toolState: {
+                                          ...m.toolState,
+                                          type: 'image_crop_workspace',
+                                          cropWorkspaceInfo: {
+                                            imageUrl: msg.toolState!.imageInfo!.originalUrl,
+                                            fileName: msg.toolState!.imageInfo!.name,
+                                            initialAspect: item.aspect,
+                                            initialPreset: item.preset,
+                                          }
                                         }
-                                      }
-                                    };
-                                  }
-                                  return m;
-                                })
-                              );
-                            }}
-                            className="py-1.5 px-1 rounded-lg text-[10px] font-semibold bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border transition-all text-center cursor-pointer"
-                          >
-                            {item.label}
-                          </button>
-                        ))}
+                                      };
+                                    }
+                                    return m;
+                                  })
+                                );
+                              }}
+                              className="py-1.5 px-1 rounded-lg text-[10px] font-semibold bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border transition-all text-center cursor-pointer"
+                            >
+                              {item.label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
 
-                      <div className="grid grid-cols-2 gap-2">
-                        <button
-                          onClick={() => {
-                            const userMsg = messages.find(m => m.attachment?.fileObj);
-                            executeImageAction(msg.id, 'compress', msg.toolState!.imageInfo!, userMsg);
-                          }}
-                          className="p-2.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <Sliders className="w-3.5 h-3.5" />
-                          <span>🗜️ Compress Size (65%)</span>
-                        </button>
+                      {/* Conversion & Compression Quick Action Grid */}
+                      <div className="space-y-1 pt-1">
+                        <span className="text-[10px] uppercase font-bold text-muted-foreground pl-0.5">Quick Actions:</span>
+                        <div className="grid grid-cols-2 gap-2">
+                          <button
+                            onClick={() => {
+                              const userMsg = messages.find(m => m.attachment?.fileObj);
+                              executeImageAction(msg.id, 'compress', msg.toolState!.imageInfo!, userMsg);
+                            }}
+                            className="p-2.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Sliders className="w-3.5 h-3.5" />
+                            <span>🗜️ Compress Size (65%)</span>
+                          </button>
 
-                        <button
-                          onClick={() => {
-                            const userMsg = messages.find(m => m.attachment?.fileObj);
-                            executeImageAction(msg.id, 'webp', msg.toolState!.imageInfo!, userMsg);
-                          }}
-                          className="p-2.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <Zap className="w-3.5 h-3.5" />
-                          <span>⚡ Convert to WebP</span>
-                        </button>
+                          <button
+                            onClick={() => {
+                              const userMsg = messages.find(m => m.attachment?.fileObj);
+                              executeImageAction(msg.id, 'webp', msg.toolState!.imageInfo!, userMsg);
+                            }}
+                            className="p-2.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Zap className="w-3.5 h-3.5" />
+                            <span>⚡ Convert to WebP</span>
+                          </button>
 
-                        <button
-                          onClick={() => {
-                            const userMsg = messages.find(m => m.attachment?.fileObj);
-                            executeImageAction(msg.id, 'png', msg.toolState!.imageInfo!, userMsg);
-                          }}
-                          className="p-2.5 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <ImageIcon className="w-3.5 h-3.5" />
-                          <span>🖼️ Convert to PNG</span>
-                        </button>
+                          <button
+                            onClick={() => {
+                              const userMsg = messages.find(m => m.attachment?.fileObj);
+                              executeImageAction(msg.id, 'png', msg.toolState!.imageInfo!, userMsg);
+                            }}
+                            className="p-2.5 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <ImageIcon className="w-3.5 h-3.5" />
+                            <span>🖼️ Convert to PNG</span>
+                          </button>
 
-                        <button
-                          onClick={() => {
-                            const userMsg = messages.find(m => m.attachment?.fileObj);
-                            executeImageAction(msg.id, 'jpeg', msg.toolState!.imageInfo!, userMsg);
-                          }}
-                          className="p-2.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
-                        >
-                          <Palette className="w-3.5 h-3.5" />
-                          <span>🎨 Convert to JPG</span>
-                        </button>
+                          <button
+                            onClick={() => {
+                              const userMsg = messages.find(m => m.attachment?.fileObj);
+                              executeImageAction(msg.id, 'jpeg', msg.toolState!.imageInfo!, userMsg);
+                            }}
+                            className="p-2.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Palette className="w-3.5 h-3.5" />
+                            <span>🎨 Convert to JPG</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -2777,29 +2852,103 @@ export default function SmartBot() {
           </div>
         )}
 
-        {/* Attached File Preview Bar before Sending */}
+        {/* Attached File Preview Bar with Auto-Analysis & Quick-Action Triggers before Sending */}
         {attachedFile && (
-          <div className="flex items-center justify-between p-2 rounded-xl bg-muted/80 border text-xs max-w-md animate-in fade-in slide-in-from-bottom-2 mx-auto sm:mx-0 shadow-xs">
-            <div className="flex items-center gap-2.5 min-w-0">
-              {attachedFile.type === 'image' && attachedFile.previewUrl ? (
-                <img src={attachedFile.previewUrl} alt="preview" className="w-9 h-9 object-cover rounded-lg border shadow-xs" />
-              ) : (
-                <div className="w-9 h-9 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
-                  <FileText className="w-5 h-5" />
+          <div className="p-2.5 rounded-xl bg-card border shadow-xs max-w-4xl mx-auto space-y-2 animate-in fade-in slide-in-from-bottom-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2.5 min-w-0">
+                {attachedFile.type === 'image' && attachedFile.previewUrl ? (
+                  <img src={attachedFile.previewUrl} alt="preview" className="w-10 h-10 object-cover rounded-lg border shadow-xs shrink-0" />
+                ) : (
+                  <div className="w-10 h-10 rounded-lg bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                )}
+                <div className="truncate">
+                  <p className="font-semibold truncate text-foreground text-xs">{attachedFile.name}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    {attachedFile.size} • {attachedFile.dimensions?.aspectRatio || attachedFile.type.toUpperCase()}
+                  </p>
                 </div>
-              )}
-              <div className="truncate">
-                <p className="font-semibold truncate text-foreground text-xs">{attachedFile.name}</p>
-                <p className="text-[10px] text-muted-foreground">{attachedFile.size} • {attachedFile.type.toUpperCase()}</p>
               </div>
+              <button
+                onClick={() => setAttachedFile(null)}
+                className="p-1.5 rounded-md hover:bg-destructive/10 hover:text-destructive text-muted-foreground transition-colors cursor-pointer"
+                title="Remove attachment"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <button
-              onClick={() => setAttachedFile(null)}
-              className="p-1 rounded-md hover:bg-destructive/10 hover:text-destructive transition-colors"
-              title="Remove attachment"
-            >
-              <X className="w-4 h-4" />
-            </button>
+
+            {/* Quick Action Suggestion Buttons for Attached File */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none pt-1 border-t">
+              <span className="text-[10px] uppercase font-bold text-emerald-600 dark:text-emerald-400 shrink-0 flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Quick Actions:
+              </span>
+              {attachedFile.type === 'image' ? (
+                <>
+                  <button
+                    onClick={() => handleSendMessage('Crop image')}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <Crop className="w-3 h-3" />
+                    <span>✂️ Crop</span>
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage('Compress image')}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <Sliders className="w-3 h-3" />
+                    <span>🗜️ Compress</span>
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage('Convert to webp')}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold bg-teal-500/10 text-teal-600 dark:text-teal-400 hover:bg-teal-500/20 border border-teal-500/20 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <Zap className="w-3 h-3" />
+                    <span>⚡ Convert WebP</span>
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage('Convert to png')}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold bg-indigo-500/10 text-indigo-600 dark:text-indigo-400 hover:bg-indigo-500/20 border border-indigo-500/20 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <ImageIcon className="w-3 h-3" />
+                    <span>🖼️ Convert PNG</span>
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage('Convert to jpeg')}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <Palette className="w-3 h-3" />
+                    <span>🎨 Convert JPG</span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button
+                    onClick={() => handleSendMessage('Word count')}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 border border-blue-500/20 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <FileText className="w-3 h-3" />
+                    <span>📊 Word Stats</span>
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage('Format JSON')}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <FileCode className="w-3 h-3" />
+                    <span>✨ Format JSON</span>
+                  </button>
+                  <button
+                    onClick={() => handleSendMessage('Uppercase')}
+                    className="px-2.5 py-1 rounded-full text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center gap-1 shrink-0 transition-colors cursor-pointer"
+                  >
+                    <Type className="w-3 h-3" />
+                    <span>🔠 UPPERCASE</span>
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         )}
 

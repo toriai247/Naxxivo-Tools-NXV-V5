@@ -654,8 +654,8 @@ export function parseImageCommandLogic(text: string): ImageProcessingIntent {
     '9:16', '9.16', '9 16', '9-16', '4:3', '4.3', '4 3', '4-3', '3:2', '3.2', '3 2', '3-2',
     'circle crop', 'circular crop', 'profile crop', 'dp crop', 'avatar crop', 'thumbnail crop',
     'story crop', 'reels crop', 'shorts crop', 'portrait crop', 'landscape crop',
-    // Bengali / Banglish
-    'crop koro', 'ক্রপ করো', 'ক্রপ', 'ছবি ক্রপ করো', 'ছবি ক্রপ', 'image crop koro', 'photo cut koro',
+    // Bengali / Banglish & Misspellings (crap, crop, etc.)
+    'crap', 'crap koro', 'crap image', 'crap photo', 'crop koro', 'ক্রপ করো', 'ক্রপ', 'ছবি ক্রপ করো', 'ছবি ক্রপ', 'image crop koro', 'photo cut koro',
     'সাইজ করো', 'square koro', '16:9 koro', '16.9 koro', '1:1 koro', '1.1 koro', '9:16 koro', '9.16 koro',
     '4:3 koro', '4.3 koro', 'dp banao', 'thumbnail banao', 'kete dao', 'কেটে দাও', 'রেশিও', 'রেশিও পরিবর্তন'
   ];
@@ -1113,6 +1113,230 @@ export function parseDocumentCommandLogic(text: string): DocumentProcessingInten
 // 7. URL & Media Stream Intelligent Detector
 // ─────────────────────────────────────────────────────────────
 export type DetectedMediaType = 'image_url' | 'youtube_video' | 'youtube_channel' | 'document_file' | 'general_web_url' | 'none';
+
+export interface FileAnalysisSummary {
+  category: 'image' | 'document' | 'json' | 'code' | 'general';
+  name: string;
+  sizeBytes: number;
+  sizeFormatted: string;
+  extension: string;
+  mimeType: string;
+  isImage: boolean;
+  isDocument: boolean;
+  imageDimensions?: {
+    width: number;
+    height: number;
+    aspectRatio: string;
+    orientation: 'landscape' | 'portrait' | 'square';
+  };
+  docStats?: {
+    words: number;
+    lines: number;
+    chars: number;
+    isValidJson?: boolean;
+    readTimeMinutes?: number;
+  };
+  suggestedActions: Array<{
+    id: string;
+    label: string;
+    action: string;
+    description: string;
+    badge?: string;
+    color: string;
+  }>;
+}
+
+/**
+ * Generates automated analysis and context-aware quick action suggestions for an uploaded file
+ */
+export function analyzeUploadedFile(
+  file: { name: string; size: number; type: string },
+  extra?: {
+    width?: number;
+    height?: number;
+    textContent?: string;
+  }
+): FileAnalysisSummary {
+  const name = file.name || 'unnamed-file';
+  const sizeBytes = file.size || 0;
+  const sizeKb = (sizeBytes / 1024).toFixed(1);
+  const sizeFormatted = sizeBytes > 1024 * 1024 ? `${(sizeBytes / (1024 * 1024)).toFixed(2)} MB` : `${sizeKb} KB`;
+  
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  const mimeType = file.type || '';
+  const isImage = mimeType.startsWith('image/') || ['jpg', 'jpeg', 'png', 'webp', 'gif', 'bmp', 'svg', 'avif'].includes(ext);
+  const isJson = ext === 'json' || mimeType.includes('json');
+  const isDoc = isJson || ['txt', 'md', 'csv', 'js', 'ts', 'html', 'css', 'pdf', 'xml', 'log'].includes(ext) || mimeType.includes('text');
+
+  let category: FileAnalysisSummary['category'] = 'general';
+  if (isImage) category = 'image';
+  else if (isJson) category = 'json';
+  else if (['js', 'ts', 'html', 'css', 'py', 'java', 'cpp', 'rs', 'go'].includes(ext)) category = 'code';
+  else if (isDoc) category = 'document';
+
+  const suggestedActions: FileAnalysisSummary['suggestedActions'] = [];
+
+  // Image analysis & suggested actions
+  let imageDimensions: FileAnalysisSummary['imageDimensions'] | undefined = undefined;
+  if (isImage) {
+    if (extra?.width && extra?.height) {
+      const w = extra.width;
+      const h = extra.height;
+      const ratio = w / h;
+      let aspectLabel = `${w} × ${h}`;
+      let orientation: 'landscape' | 'portrait' | 'square' = 'landscape';
+      if (Math.abs(ratio - 1) < 0.05) {
+        orientation = 'square';
+        aspectLabel = '1:1 Square';
+      } else if (Math.abs(ratio - 16 / 9) < 0.08) {
+        orientation = 'landscape';
+        aspectLabel = '16:9 Widescreen';
+      } else if (Math.abs(ratio - 9 / 16) < 0.08) {
+        orientation = 'portrait';
+        aspectLabel = '9:16 Story / Reel';
+      } else if (Math.abs(ratio - 4 / 3) < 0.08) {
+        orientation = 'landscape';
+        aspectLabel = '4:3 Standard';
+      } else if (ratio > 1) {
+        orientation = 'landscape';
+        aspectLabel = `${ratio.toFixed(2)}:1 Landscape`;
+      } else {
+        orientation = 'portrait';
+        aspectLabel = `1:${(1 / ratio).toFixed(2)} Portrait`;
+      }
+      imageDimensions = { width: w, height: h, aspectRatio: aspectLabel, orientation };
+    }
+
+    suggestedActions.push({
+      id: 'crop',
+      label: '✂️ Interactive Crop',
+      action: 'crop',
+      description: 'Crop to 1:1, 16:9, 9:16, 4:3, rotate & zoom',
+      badge: 'Interactive',
+      color: 'emerald'
+    });
+
+    suggestedActions.push({
+      id: 'compress',
+      label: '🗜️ Compress Size',
+      action: 'compress',
+      description: 'Reduce file size while keeping visual fidelity',
+      badge: 'Save ~60-80%',
+      color: 'blue'
+    });
+
+    if (ext !== 'webp') {
+      suggestedActions.push({
+        id: 'webp',
+        label: '⚡ Convert to WebP',
+        action: 'webp',
+        description: 'Convert to ultra-fast modern web image format',
+        badge: 'Recommended',
+        color: 'emerald'
+      });
+    }
+
+    if (ext !== 'png') {
+      suggestedActions.push({
+        id: 'png',
+        label: '🖼️ Convert to PNG',
+        action: 'png',
+        description: 'Lossless format with crisp graphics support',
+        color: 'indigo'
+      });
+    }
+
+    if (ext !== 'jpg' && ext !== 'jpeg') {
+      suggestedActions.push({
+        id: 'jpeg',
+        label: '🎨 Convert to JPG',
+        action: 'jpeg',
+        description: 'Standard format for universal compatibility',
+        color: 'amber'
+      });
+    }
+  }
+
+  // Document analysis & suggested actions
+  let docStats: FileAnalysisSummary['docStats'] | undefined = undefined;
+  if (isDoc && extra?.textContent !== undefined) {
+    const text = extra.textContent;
+    const words = text.trim() ? text.trim().split(/\s+/).length : 0;
+    const lines = text ? text.split('\n').length : 0;
+    const chars = text.length;
+    const readTimeMinutes = Math.max(1, Math.ceil(words / 200));
+
+    let isValidJson = false;
+    if (isJson || text.trim().startsWith('{') || text.trim().startsWith('[')) {
+      try {
+        JSON.parse(text);
+        isValidJson = true;
+      } catch {
+        isValidJson = false;
+      }
+    }
+
+    docStats = { words, lines, chars, isValidJson, readTimeMinutes };
+
+    suggestedActions.push({
+      id: 'count',
+      label: '📊 Word & Read Stats',
+      action: 'count',
+      description: `${words.toLocaleString()} words • ~${readTimeMinutes} min read`,
+      badge: `${words} words`,
+      color: 'blue'
+    });
+
+    if (isValidJson || isJson) {
+      suggestedActions.push({
+        id: 'json',
+        label: '✨ Format JSON',
+        action: 'json',
+        description: 'Prettify and validate JSON structure',
+        badge: 'JSON Tool',
+        color: 'cyan'
+      });
+    }
+
+    suggestedActions.push({
+      id: 'upper',
+      label: '🔠 UPPERCASE',
+      action: 'upper',
+      description: 'Convert all text characters to uppercase',
+      color: 'emerald'
+    });
+
+    suggestedActions.push({
+      id: 'lower',
+      label: '🔡 lowercase',
+      action: 'lower',
+      description: 'Convert all text characters to lowercase',
+      color: 'purple'
+    });
+
+    suggestedActions.push({
+      id: 'title_case',
+      label: '🔤 Title Case',
+      action: 'title_case',
+      description: 'Capitalize the first letter of each word',
+      color: 'amber'
+    });
+  }
+
+  return {
+    category,
+    name,
+    sizeBytes,
+    sizeFormatted,
+    extension: ext,
+    mimeType,
+    isImage,
+    isDocument: isDoc,
+    imageDimensions,
+    docStats,
+    suggestedActions
+  };
+}
 
 export interface MediaDetectionResult {
   type: DetectedMediaType;

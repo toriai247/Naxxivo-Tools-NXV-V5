@@ -136,6 +136,7 @@ graph TD
 │   │   └── not-found.tsx         # 404 error page
 │   │
 │   ├── components/           # Reusable UI components
+│   │   ├── SmartBotTour.tsx      # Interactive popover & tooltip onboarding tour for Smart Bot & proactive features
 │   │   ├── RecentlyUsedTools.tsx # Horizontal clickable list of recently interacted tools with scroll & clear
 │   │   ├── SoundEffectsController.tsx # Global audio toggle and volume modal
 │   │   ├── NotificationBanner.tsx # Push notification permission banner
@@ -178,6 +179,7 @@ graph TD
 | **`src/pages/ApiKeysDashboard.tsx`** | Complete Developer Portal with API key creation, activation/revocation, live interactive request sandbox/tester, status code matrix, and multi-language code snippets (cURL, JavaScript Fetch, Python Requests, Node.js Axios, PHP cURL). |
 | **`server.ts`** | Express backend server containing the API Key Registry, `verifyApiKey` rate limiter (60 req/min), and public v1 REST endpoints (`/api/v1/prompts`, `/api/v1/youtube/extract`, `/api/v1/sfx`, `/api/v1/text/convert`, `/api/v1/ai/generate-title`, `/api/v1/health`, `/api/v1/keys`). |
 | **`src/components/RecentlyUsedTools.tsx`** | Horizontal clickable list/carousel of recently visited tools with relative timestamps, category tags, horizontal scrolling, and quick removal. |
+| **`src/components/SmartBotTour.tsx`** | Lightweight interactive onboarding tour & spotlight tooltip system guiding new homepage visitors through the Smart Bot launcher, proactive attachment workflow, and interactive cropper. |
 | **`src/hooks/useRecentTools.ts`** | Custom React hook managing recently used tools, localStorage persistence, visit counts, and relative time formatting. |
 | **`src/lib/botLogic.ts`** | Central AI Bot brain & persistent memory orchestration layer with proactive media detection (`detectMediaTypeFromInput`, `getPoliteOptionsPrompt`), contextual follow-up parsing, channel memory, conversational context builder, and zero-API-key regex parsers. |
 | **`src/pages/SmartBot.tsx`** | Interactive Smart AI Bot & Automation chat with proactive attachment options, contextual media follow-ups ("crop 1:1", "compress koro"), 1-click Brain Memory management modal, persistent conversation history, live YouTube querying, and interactive in-chat image cropper/converters. |

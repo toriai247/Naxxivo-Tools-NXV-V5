@@ -13,9 +13,11 @@ export interface FlipState {
 export const createImage = (url: string): Promise<HTMLImageElement> =>
   new Promise((resolve, reject) => {
     const image = new Image();
-    image.addEventListener("load", () => resolve(image));
-    image.addEventListener("error", (error) => reject(error));
-    image.setAttribute("crossOrigin", "anonymous");
+    image.onload = () => resolve(image);
+    image.onerror = (error) => reject(error);
+    if (url.startsWith("http://") || url.startsWith("https://")) {
+      image.crossOrigin = "anonymous";
+    }
     image.src = url;
   });
 
