@@ -1,3 +1,5 @@
+import { loadImageElement } from "./imageProcessor";
+
 export interface PixelCrop {
   x: number;
   y: number;
@@ -10,16 +12,7 @@ export interface FlipState {
   vertical: boolean;
 }
 
-export const createImage = (url: string): Promise<HTMLImageElement> =>
-  new Promise((resolve, reject) => {
-    const image = new Image();
-    image.onload = () => resolve(image);
-    image.onerror = (error) => reject(error);
-    if (url.startsWith("http://") || url.startsWith("https://")) {
-      image.crossOrigin = "anonymous";
-    }
-    image.src = url;
-  });
+export const createImage = (url: string): Promise<HTMLImageElement> => loadImageElement(url);
 
 export function getRadianAngle(degreeValue: number) {
   return (degreeValue * Math.PI) / 180;

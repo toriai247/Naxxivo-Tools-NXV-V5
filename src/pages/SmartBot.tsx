@@ -86,6 +86,7 @@ import {
 } from '@/lib/botLogic';
 import { VideoAnalysisData, ChannelAnalysisData } from '@/types';
 import { InChatCropper, InChatCropResultCard, CropResultPayload } from '@/components/bot/InChatCropper';
+import { convertImage } from '@/lib/imageProcessor';
 
 interface BotMessage {
   id: string;
@@ -594,67 +595,24 @@ export default function SmartBot() {
     }
   };
 
-  // Convert and Compress Image Helper (Supports both File and Image URL/DataURL)
+  // Convert and Compress Image Helper (Supports File, Blob, DataURL, and Image URLs)
   const processImageConversion = async (
-    source: File | string, 
+    source: File | Blob | string, 
     targetFormat: 'webp' | 'png' | 'jpeg', 
     quality: number = 0.85,
     fallbackOriginalSize?: number
   ): Promise<{ dataUrl: string; newSizeStr: string; savings: number }> => {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      if (typeof source === 'string' && (source.startsWith('http://') || source.startsWith('https://'))) {
-        img.crossOrigin = 'anonymous';
-      }
-
-      const handleImageLoaded = (originalBytes: number) => {
-        const canvas = document.createElement('canvas');
-        canvas.width = img.width;
-        canvas.height = img.height;
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return reject('Canvas error');
-
-        if (targetFormat === 'jpeg') {
-          ctx.fillStyle = '#ffffff';
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-        ctx.drawImage(img, 0, 0);
-
-        const mime = `image/${targetFormat}`;
-        const dataUrl = canvas.toDataURL(mime, quality);
-
-        // Calculate approximate size
-        const head = `data:${mime};base64,`;
-        const base64Len = dataUrl.length - head.length;
-        const newSizeBytes = Math.round((base64Len * 3) / 4);
-        const newSizeStr = newSizeBytes > 1024 * 1024 
-          ? `${(newSizeBytes / (1024 * 1024)).toFixed(2)} MB` 
-          : `${(newSizeBytes / 1024).toFixed(1)} KB`;
-
-        const baseBytes = originalBytes || newSizeBytes * 1.5;
-        const savings = Math.max(0, Math.round(((baseBytes - newSizeBytes) / baseBytes) * 100));
-
-        resolve({ dataUrl, newSizeStr, savings });
-      };
-
-      img.onload = () => {
-        const origSize = source instanceof File ? source.size : (fallbackOriginalSize || 0);
-        handleImageLoaded(origSize);
-      };
-
-      img.onerror = () => reject('Failed to load image');
-
-      if (source instanceof File) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          img.src = e.target?.result as string;
-        };
-        reader.onerror = () => reject('Failed to read file');
-        reader.readAsDataURL(source);
-      } else {
-        img.src = source;
-      }
+    const res = await convertImage({
+      source,
+      targetFormat,
+      quality,
+      fallbackOriginalSize
     });
+    return {
+      dataUrl: res.dataUrl,
+      newSizeStr: res.newSizeStr,
+      savings: res.savingsPercent
+    };
   };
 
   // Main Submit Handler
@@ -1673,7 +1631,13 @@ export default function SmartBot() {
     setIsLoading(true);
 
     try {
-      const imageSource = userMessageWithFile?.attachment?.fileObj || imageInfo?.originalUrl;
+      const fallbackUserMsg = [...messages].reverse().find(m => m.attachment?.fileObj || m.attachment?.url);
+      const imageSource = userMessageWithFile?.attachment?.fileObj 
+        || imageInfo?.originalUrl 
+        || userMessageWithFile?.attachment?.url 
+        || fallbackUserMsg?.attachment?.fileObj 
+        || fallbackUserMsg?.attachment?.url;
+
       if (!imageSource) {
         toast({ title: "Image reference missing", description: "Please re-upload your image or provide an image link." });
         setIsLoading(false);
@@ -2546,7 +2510,7 @@ export default function SmartBot() {
                         <div className="grid grid-cols-2 gap-2">
                           <button
                             onClick={() => {
-                              const userMsg = messages.find(m => m.attachment?.fileObj);
+                              const userMsg = [...messages].reverse().find(m => m.attachment?.fileObj || m.attachment?.url);
                               executeImageAction(msg.id, 'compress', msg.toolState!.imageInfo!, userMsg);
                             }}
                             className="p-2.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 flex items-center justify-center gap-1.5 cursor-pointer"
@@ -2557,7 +2521,7 @@ export default function SmartBot() {
 
                           <button
                             onClick={() => {
-                              const userMsg = messages.find(m => m.attachment?.fileObj);
+                              const userMsg = [...messages].reverse().find(m => m.attachment?.fileObj || m.attachment?.url);
                               executeImageAction(msg.id, 'webp', msg.toolState!.imageInfo!, userMsg);
                             }}
                             className="p-2.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
@@ -2568,7 +2532,7 @@ export default function SmartBot() {
 
                           <button
                             onClick={() => {
-                              const userMsg = messages.find(m => m.attachment?.fileObj);
+                              const userMsg = [...messages].reverse().find(m => m.attachment?.fileObj || m.attachment?.url);
                               executeImageAction(msg.id, 'png', msg.toolState!.imageInfo!, userMsg);
                             }}
                             className="p-2.5 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
@@ -2579,7 +2543,7 @@ export default function SmartBot() {
 
                           <button
                             onClick={() => {
-                              const userMsg = messages.find(m => m.attachment?.fileObj);
+                              const userMsg = [...messages].reverse().find(m => m.attachment?.fileObj || m.attachment?.url);
                               executeImageAction(msg.id, 'jpeg', msg.toolState!.imageInfo!, userMsg);
                             }}
                             className="p-2.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer"

@@ -14,6 +14,7 @@ import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
+import { convertImage } from "@/lib/imageProcessor";
 
 interface CompressedImageResult {
   originalSize: number;
@@ -56,74 +57,58 @@ export function ImageCompressor() {
       setErrorMsg(null);
 
       try {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
+        let fmtKey: "jpeg" | "webp" | "png" = "jpeg";
+        if (targetFormat !== "auto") {
+          fmtKey = targetFormat === "image/webp" ? "webp" : targetFormat === "image/png" ? "png" : "jpeg";
+        } else if (sourceFile.type === "image/png") {
+          fmtKey = "webp";
+        } else if (sourceFile.type === "image/webp") {
+          fmtKey = "webp";
+        } else {
+          fmtKey = "jpeg";
+        }
 
-        await new Promise((resolve, reject) => {
-          img.onload = () => resolve(null);
-          img.onerror = () => reject(new Error("Failed to load image element"));
-          img.src = sourceDataUrl;
-          if (img.complete) resolve(null);
+        const qualityRatio = Math.min(Math.max(targetQuality / 100, 0.05), 1.0);
+
+        const convRes = await convertImage({
+          source: sourceFile || sourceDataUrl,
+          targetFormat: fmtKey,
+          quality: qualityRatio,
+          fallbackOriginalSize: sourceFile?.size
         });
 
-        const naturalWidth = img.naturalWidth || img.width;
-        const naturalHeight = img.naturalHeight || img.height;
+        const naturalWidth = convRes.width;
+        const naturalHeight = convRes.height;
         setOrigDimensions({ width: naturalWidth, height: naturalHeight });
 
-        // Calculate scaled dimensions
         const scaledWidth = Math.max(1, Math.round((naturalWidth * targetScale) / 100));
         const scaledHeight = Math.max(1, Math.round((naturalHeight * targetScale) / 100));
 
-        const canvas = document.createElement("canvas");
-        canvas.width = scaledWidth;
-        canvas.height = scaledHeight;
-        const ctx = canvas.getContext("2d");
+        let finalDataUrl = convRes.dataUrl;
+        let finalSize = convRes.newSizeBytes;
 
-        if (!ctx) throw new Error("Could not initialize 2D canvas context");
-
-        // High quality rendering
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-
-        // Determine actual output mime type
-        let exportMime = sourceFile.type;
-        if (targetFormat !== "auto") {
-          exportMime = targetFormat;
-        } else if (!exportMime || exportMime === "image/png") {
-          exportMime = "image/jpeg";
+        if (targetScale < 100) {
+          const scaledRes = await convertImage({
+            source: convRes.blob,
+            targetFormat: fmtKey,
+            quality: qualityRatio,
+            maxWidth: scaledWidth,
+            maxHeight: scaledHeight
+          });
+          finalDataUrl = scaledRes.dataUrl;
+          finalSize = scaledRes.newSizeBytes;
         }
 
-        // Determine extension
-        let extension = "jpg";
-        if (exportMime === "image/webp") extension = "webp";
-        else if (exportMime === "image/png") extension = "png";
-
-        // Render white background if converting PNG to JPEG
-        if (exportMime === "image/jpeg") {
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fillRect(0, 0, scaledWidth, scaledHeight);
-        }
-
-        // Draw image onto canvas
-        ctx.drawImage(img, 0, 0, scaledWidth, scaledHeight);
-
-        // Convert to dataUrl using target quality ratio (0.1 to 1.0)
-        const qualityRatio = Math.min(Math.max(targetQuality / 100, 0.05), 1.0);
-        const dataUrl = canvas.toDataURL(exportMime, qualityRatio);
-
-        // Calculate compressed binary size
-        const head = `data:${exportMime};base64,`;
-        const base64Data = dataUrl.startsWith(head) ? dataUrl.slice(head.length) : dataUrl.split(",")[1] || "";
-        const byteString = atob(base64Data);
-        const compressedByteSize = byteString.length;
+        const extension = fmtKey === "webp" ? "webp" : fmtKey === "png" ? "png" : "jpg";
+        const mimeType = fmtKey === "webp" ? "image/webp" : fmtKey === "png" ? "image/png" : "image/jpeg";
 
         const resObj: CompressedImageResult = {
           originalSize: sourceFile.size,
-          compressedSize: compressedByteSize,
-          dataUrl,
+          compressedSize: finalSize,
+          dataUrl: finalDataUrl,
           width: scaledWidth,
           height: scaledHeight,
-          mimeType: exportMime,
+          mimeType,
           extension,
         };
 
@@ -134,7 +119,7 @@ export function ImageCompressor() {
         addHistoryItem({
           type: "image_compress",
           title: `Compressed ${sourceFile.name}`,
-          description: `Original: ${(sourceFile.size / 1024).toFixed(1)} KB → Output: ${(compressedByteSize / 1024).toFixed(1)} KB (${Math.round(((sourceFile.size - compressedByteSize) / sourceFile.size) * 100)}% saved)`,
+          description: `Original: ${(sourceFile.size / 1024).toFixed(1)} KB → Output: ${(finalSize / 1024).toFixed(1)} KB (${Math.round(((sourceFile.size - finalSize) / sourceFile.size) * 100)}% saved)`,
         });
       } catch (err: any) {
         sound.error();

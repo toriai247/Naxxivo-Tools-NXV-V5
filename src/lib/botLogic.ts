@@ -976,7 +976,7 @@ export function parsePureTextCommandLogic(text: string): GeneralBotIntent {
   }
 
   // Greetings with Personalized Tone & Memory
-  const greetings = ['hi', 'hello', 'hey', 'who are you', 'help', 'bot', 'salam', 'kemon acho', 'ki khobor', 'ji sir'];
+  const greetings = ['hi', 'hello', 'hey', 'who are you', 'help', 'bot', 'salam', 'kemon acho', 'ki khobor', 'ji sir', 'smartbot', 'assistant'];
   if (greetings.some(w => norm === w || norm.startsWith(w + ' '))) {
     const facts = getBotMemoryFacts();
     const userName = facts.user_name?.value;
@@ -985,7 +985,7 @@ export function parsePureTextCommandLogic(text: string): GeneralBotIntent {
     return {
       matched: true,
       intent: 'greeting',
-      replyText: `${greetingHeader}\n\nআজ কীভাবে সাহায্য করতে পারি? ব্রাউজার লেভেলে কোনো বিলম্ব ছাড়াই আমি আপনার জন্য কাজ করতে প্রস্তুত:\n\n• 🎬 **YouTube Automation:** যেকোনো ভিডিও বা চ্যানেলের লিংক পেস্ট করুন—ট্যাগ, 1080p থাম্বনেইল, বা এসইও কিওয়ার্ড পেয়ে যাবেন।\n• 🧠 **Memory & Channels:** আপনার চ্যানেলের নাম সেভ করে রাখলে নাম বললেই লাইভ আপডেট দিব।\n• 🖼️ **Image Processing:** ইমেজ কনভার্ট বা কম্প্রেস করতে 📎 বাটনে ইমেজ আপলোড করুন *(e.g. "WebP", "Compress")*.\n• ✍️ **Viral Titles & SEO:** যেকোনো টপিকের জন্য ভাইরাল আইডিয়া চান *(e.g. "Titles for Tech Review")*.\n\nআপনার রিকোয়েস্টটি লিখুন!`
+      replyText: `${greetingHeader}\n\nআজ কীভাবে সাহায্য করতে পারি? ব্রাউজার লেভেলে কোনো বিলম্ব ছাড়াই আমি আপনার জন্য কাজ করতে প্রস্তুত:\n\n• 🎬 **YouTube Automation:** যেকোনো ভিডিও বা চ্যানেলের লিংক পেস্ট করুন—ট্যাগ, 1080p থাম্বনেইল, বা এসইও কিওয়ার্ড পেয়ে যাবেন।\n• 🧠 **Memory & Channels:** আপনার চ্যানেলের নাম সেভ করে রাখলে নাম বললেই লাইভ আপডেট দিব *(e.g. "Amar channel er nam Rony")*.\n• 🖼️ **Image Processing:** ইমেজ কনভার্ট, ক্রপ বা কম্প্রেস করতে 📎 বাটনে ইমেজ আপলোড করুন *(e.g. "WebP", "Crop 16:9", "Compress 70%")*.\n• ✍️ **Viral Titles & SEO:** যেকোনো টপিকের জন্য ভাইরাল আইডিয়া চান *(e.g. "Titles for Tech Review")*.\n• 🎵 **Sound Effects & Tools:** 60+ রয়্যালটি-ফ্রি SFX, AI প্রম্পট বা API কী এক্সেস করুন।\n\nআপনার রিকোয়েস্টটি নিচে লিখুন বা ফাইল ড্রপ করুন!`
     };
   }
 
@@ -994,6 +994,96 @@ export function parsePureTextCommandLogic(text: string): GeneralBotIntent {
     return {
       matched: true,
       intent: 'clear_chat'
+    };
+  }
+
+  // SmartBot capabilities, "work kore na", "kivabe kaj kore", "features"
+  const isHelpOrCapabilities = [
+    'work kore na', 'kaj kore na', 'kivabe kaj kore', 'kivabe use korbo', 'how to use', 'how does it work',
+    'what can you do', 'features', 'tool list', 'tools list', 'ki ki feature', 'ki ki kaj', 'sob tool',
+    'smartbot ki', 'smart bot help', 'all tools', 'সব টুল', 'কীভাবে কাজ করে', 'কী করতে পারো'
+  ].some(w => norm.includes(w));
+
+  if (isHelpOrCapabilities) {
+    return {
+      matched: true,
+      intent: 'greeting',
+      replyText: `🤖 **Naxxivo Smart Bot — ১০০% কার্যকরী অল-ইন-ওয়ান স্টুডিও গাইড:**
+
+Smart Bot আপনার ব্রাউজারে ক্লায়েন্ট-সাইড প্রসেসিং এবং Gemini AI আর্কিটেকচার দ্বারা চালিত। নিচে এর মূল সিস্টেম ও ব্যবহারের নিয়ম দেওয়া হলো:
+
+1. 🖼️ **ইমেজ কনভার্ট, ক্রপ ও কম্প্রেস (100% Client-Side):**
+   • **কীভাবে করবেন:** নিচের **📎 বাটনে ক্লিক করে** যেকোনো ইমেজ আপলোড করুন (বা Drag & Drop করুন)।
+   • **কমান্ডসমূহ:** 
+     - *"Convert to WebP"* বা *"PNG"* বা *"JPG"*
+     - *"Compress image"* বা *"75% quality"*
+     - *"Crop image"* বা *"Crop 1:1"*, *"Crop 16:9"*, *"Crop 9:16"* (ইন-চ্যাটেই জুম, রোটেট ও ফ্লিপ কন্ট্রোলসহ ইন্টারেক্টিভ ক্রপার ওপেন হবে)
+
+2. 🎬 **YouTube মেটাডাটা ও এসইও এক্সট্রাক্টর:**
+   • **কীভাবে করবেন:** যেকোনো YouTube ভিডিও, শর্টস বা চ্যানেলের লিংক চ্যাটে পেস্ট করুন।
+   • **যা পাবেন:** ১-ক্লিকে কপিযোগ্য সব ভিডিও ট্যাগ, 1080p ও 4K থাম্বনেইল ডাউনলোড, এসইও কিওয়ার্ড, হ্যাশট্যাগ ও রেসপনসিভ এম্বেড কোড।
+
+3. 🧠 **পারসিস্টেন্ট মেমোরি ও চ্যানেল ট্র্যাকার:**
+   • লিখুন: *"Amar channel er nam TechRony"* ও সাথে লিংক দিন।
+   • পরবর্তীতে লিখুন: *"Amar channel er update dao"* — সাথে সাথে লাইভ সাবস্ক্রাইবার ও ভিউজ কাউন্ট পেয়ে যাবেন!
+
+4. 💡 **ইউটিউব ভাইরাল টাইটেল ও হুক জেনারেটর:**
+   • লিখুন: *"Titles for Travel Vlog"* — সাথে সাথে ১০টি হাই-সিটিআর টাইটেল আইডিয়া চলে আসবে।
+
+5. 📄 **ডকুমেন্ট এনালাইজার:**
+   • 📎 বাটনে TXT বা JSON ফাইল আপলোড করুন — ওয়ার্ড কাউন্ট, লাইন অ্যানালাইসিস ও বিউটিফাই হয়ে যাবে।
+
+👉 **শুরু করতে নিচের 📎 বাটনে ক্লিক করে একটি ইমেজ দিন বা একটি YouTube লিঙ্ক পেস্ট করুন!**`
+    };
+  }
+
+  // Sound Effects Inquiry
+  const isSoundInquiry = ['sound effect', 'sound effects', 'sfx', 'audio fx', 'audio pack', 'সাউন্ড ইফেক্ট'].some(w => norm.includes(w));
+  if (isSoundInquiry) {
+    return {
+      matched: true,
+      intent: 'greeting',
+      replyText: `🎵 **Sound Effects Studio (60+ Royalty-Free SFX Pack):**\n\nআমাদের প্ল্যাটফর্মে কনটেন্ট ক্রিয়েটর, ইউটিউবার এবং এডিটরদের জন্য 60+ হাই-কোয়ালিটি WAV সাউন্ড ইফেক্ট রয়েছে (Whoosh, Pop, Cinematic Boom, Glitch, Bell, Camera Shutter, ইত্যাদি)।\n\n🎧 **আপনি মেন্যু থেকে "/sound-effects" পেজে গিয়ে সরাসরি প্লে, পিচ চেঞ্জ ও ১-ক্লিকে ডাউনলোড করতে পারেন!**`
+    };
+  }
+
+  // API Keys Inquiry
+  const isApiInquiry = ['api key', 'api keys', 'developer api', 'api sandbox', 'rest api', 'এপিআই'].some(w => norm.includes(w));
+  if (isApiInquiry) {
+    return {
+      matched: true,
+      intent: 'greeting',
+      replyText: `🔑 **Developer API Portal & Live Sandbox:**\n\nNaxxivo পাবলিক REST v1 API প্রদান করে যার মাধ্যমে আপনি আপনার অ্যাপে ইউটিউব এক্সট্রাকশন, সাউন্ড ইফেক্টস এবং টেক্সট কনভার্টার ইন্টিগ্রেট করতে পারেন।\n\n⚡ **ফিচারসমূহ:**\n• ইনস্ট্যান্ট API Key তৈরি ও রেট লিমিটিং (৬০ রিকোয়েস্ট/মিনিট)\n• cURL, JavaScript Fetch, Python Requests ও PHP কোড স্নিপেট\n• লাইভ স্যান্ডবক্স টেস্ট কনসোল\n\n👉 **মেন্যু থেকে "/api-keys" ড্যাশবোর্ডে গিয়ে আপনার কী ম্যানেজ করুন!**`
+    };
+  }
+
+  // Favicon Inquiry
+  const isFaviconInquiry = ['favicon', 'ico', 'app icon', 'ফেভিকন', 'website icon'].some(w => norm.includes(w));
+  if (isFaviconInquiry) {
+    return {
+      matched: true,
+      intent: 'greeting',
+      replyText: `🎨 **Favicon & App Icon Generator:**\n\nযেকোনো ইমেজ থেকে এক ক্লিকে 16x16, 32x32, 48x48, 64x64, 128x128, 512x512 ফেভিকন এবং Complete ZIP প্যাকেজ তৈরি করুন।\n\n👉 **চ্যাটে 📎 দিয়ে ইমেজ আপলোড করে "Favicon" লিখুন অথবা মেন্যু থেকে "/favicon-generator" এ যান!**`
+    };
+  }
+
+  // Text Tools Inquiry
+  const isTextToolInquiry = ['text tool', 'text tools', 'case converter', 'slugify', 'word count', 'টেক্সট টুল'].some(w => norm.includes(w));
+  if (isTextToolInquiry) {
+    return {
+      matched: true,
+      intent: 'greeting',
+      replyText: `✍️ **Text & String Utilities Studio:**\n\n• **Case Converters:** UPPERCASE, lowercase, Title Case, camelCase, kebab-case, snake_case\n• **Word & Character Counter:** রিডিং টাইম ও ইউনিক ওয়ার্ড অ্যানালাইসিস\n• **URL Slugifier:** এসইও ফ্রেন্ডলি স্লাগ তৈরি\n\n👉 **চ্যাটে টেক্সট ফাইল ড্রপ করুন বা মেন্যু থেকে "/text-tools" পেজে যান!**`
+    };
+  }
+
+  // Prompts Directory Inquiry
+  const isPromptInquiry = ['prompt', 'prompts', 'midjourney', 'flux prompt', 'ai prompt', 'প্রম্পট'].some(w => norm.includes(w));
+  if (isPromptInquiry) {
+    return {
+      matched: true,
+      intent: 'greeting',
+      replyText: `✨ **Curated AI Prompts Hub:**\n\nMidjourney v6, FLUX.1, DALL-E 3 এবং ChatGPT এর জন্য শতাধিক কিউরেটেড প্রম্পট লাইব্রেরি প্রস্তুত রয়েছে।\n\n👉 **মেন্যু থেকে "/prompts" পেজে গিয়ে পছন্দমতো প্রম্পট কপি করুন!**`
     };
   }
 

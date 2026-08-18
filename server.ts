@@ -130,17 +130,35 @@ Always respond politely, helpfully, concisely, and with crystal-clear formatting
       parts: [{ text: msg.content || '' }],
     }));
 
-    const response = await ai.models.generateContent({
-      model: "gemini-3.7-flash",
-      contents: formattedContents,
-      config: {
-        systemInstruction: baseSystemPrompt,
-        maxOutputTokens: 2500,
-        temperature: 0.7,
-      },
-    });
+    let replyText = "";
+    try {
+      const response = await ai.models.generateContent({
+        model: "gemini-2.5-flash",
+        contents: formattedContents,
+        config: {
+          systemInstruction: baseSystemPrompt,
+          maxOutputTokens: 2500,
+          temperature: 0.7,
+        },
+      });
+      replyText = response.text || "";
+    } catch (e1) {
+      console.warn("Primary model gemini-2.5-flash failed, trying gemini-3.7-flash:", e1);
+      const response2 = await ai.models.generateContent({
+        model: "gemini-3.7-flash",
+        contents: formattedContents,
+        config: {
+          systemInstruction: baseSystemPrompt,
+          maxOutputTokens: 2500,
+          temperature: 0.7,
+        },
+      });
+      replyText = response2.text || "";
+    }
 
-    const replyText = response.text || "I processed your request, but received an empty response. How else may I assist you?";
+    if (!replyText) {
+      replyText = "I processed your request. How else may I assist you?";
+    }
 
     return res.json({
       success: true,

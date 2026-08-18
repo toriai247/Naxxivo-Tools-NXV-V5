@@ -161,6 +161,7 @@ graph TD
 │   │   └── useToast.ts       # Toast notification hook
 │   │
 │   └── lib/                  # Helper utilities
+│       ├── imageProcessor.ts # Universal in-browser image decoding, format conversion & compression engine
 │       ├── cropImage.ts      # Canvas image cropping, rotation, flip & export engine
 │       ├── botLogic.ts       # SmartBot NLP engine and rule matching
 │       ├── botCommandMatcher.ts # SmartBot command exporter

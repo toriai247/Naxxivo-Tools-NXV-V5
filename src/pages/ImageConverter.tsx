@@ -15,6 +15,7 @@ import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { convertImage } from "@/lib/imageProcessor";
 
 export type SupportedTargetFormat = "image/jpeg" | "image/png" | "image/webp" | "image/avif" | "image/bmp";
 
@@ -124,90 +125,32 @@ export function ImageConverter() {
       setProcessError(null);
 
       try {
-        const img = new Image();
-        img.crossOrigin = "anonymous";
+        const fmtKey = targetFormat === "image/jpeg" ? "jpeg"
+          : targetFormat === "image/png" ? "png"
+          : targetFormat === "image/webp" ? "webp"
+          : targetFormat === "image/avif" ? "avif"
+          : "bmp";
 
-        await new Promise((resolve, reject) => {
-          img.onload = () => resolve(null);
-          img.onerror = () => reject(new Error("Failed to load image into DOM"));
-          img.src = sourceDataUrl;
-          if (img.complete) resolve(null);
-        });
-
-        const naturalWidth = img.naturalWidth || img.width;
-        const naturalHeight = img.naturalHeight || img.height;
-        setDimensions({ width: naturalWidth, height: naturalHeight });
-
-        const canvas = document.createElement("canvas");
-        canvas.width = naturalWidth;
-        canvas.height = naturalHeight;
-        const ctx = canvas.getContext("2d");
-
-        if (!ctx) {
-          throw new Error("Could not initialize 2D canvas context");
-        }
-
-        ctx.imageSmoothingEnabled = true;
-        ctx.imageSmoothingQuality = "high";
-
-        // If target is JPEG or BMP, add white background for transparency
-        if (targetFormat === "image/jpeg" || targetFormat === "image/bmp") {
-          ctx.fillStyle = "#FFFFFF";
-          ctx.fillRect(0, 0, canvas.width, canvas.height);
-        }
-
-        ctx.drawImage(img, 0, 0, naturalWidth, naturalHeight);
-
-        const formatConfig = FORMAT_OPTIONS.find((f) => f.value === targetFormat) || FORMAT_OPTIONS[2];
         const qualityRatio = Math.min(Math.max(targetQuality / 100, 0.1), 1.0);
 
-        let finalBlob: Blob;
-        let dataUrlForPreview: string = "";
+        const convRes = await convertImage({
+          source: sourceFile || sourceDataUrl,
+          targetFormat: fmtKey,
+          quality: qualityRatio,
+          fallbackOriginalSize: sourceFile?.size
+        });
 
-        if (targetFormat === "image/bmp") {
-          finalBlob = canvasToBmpBlob(canvas);
-          dataUrlForPreview = URL.createObjectURL(finalBlob);
-        } else {
-          finalBlob = await new Promise<Blob>((resolve, reject) => {
-            canvas.toBlob(
-              (blob) => {
-                if (blob) {
-                  resolve(blob);
-                } else {
-                  // Fallback to dataURL
-                  try {
-                    const fallbackData = canvas.toDataURL(targetFormat, qualityRatio);
-                    const head = `data:${targetFormat};base64,`;
-                    const base64Data = fallbackData.startsWith(head)
-                      ? fallbackData.slice(head.length)
-                      : fallbackData.split(",")[1] || "";
-                    const byteString = atob(base64Data);
-                    const ab = new ArrayBuffer(byteString.length);
-                    const ia = new Uint8Array(ab);
-                    for (let i = 0; i < byteString.length; i++) {
-                      ia[i] = byteString.charCodeAt(i);
-                    }
-                    resolve(new Blob([ab], { type: targetFormat }));
-                  } catch (fallbackErr) {
-                    reject(new Error("Canvas conversion failed"));
-                  }
-                }
-              },
-              targetFormat,
-              qualityRatio
-            );
-          });
+        const naturalWidth = convRes.width;
+        const naturalHeight = convRes.height;
+        setDimensions({ width: naturalWidth, height: naturalHeight });
 
-          dataUrlForPreview = canvas.toDataURL(targetFormat, qualityRatio);
-        }
-
-        const blobUrl = URL.createObjectURL(finalBlob);
+        const formatConfig = FORMAT_OPTIONS.find((f) => f.value === targetFormat) || FORMAT_OPTIONS[2];
 
         const converted: ConvertedResult = {
-          originalSize: sourceFile.size,
-          newSize: finalBlob.size,
-          dataUrl: dataUrlForPreview || blobUrl,
-          blobUrl,
+          originalSize: sourceFile ? sourceFile.size : convRes.newSizeBytes * 1.5,
+          newSize: convRes.newSizeBytes,
+          dataUrl: convRes.dataUrl,
+          blobUrl: convRes.blobUrl,
           formatLabel: formatConfig.label,
           extension: formatConfig.extension,
           width: naturalWidth,
@@ -220,8 +163,8 @@ export function ImageConverter() {
         // Track action in history
         addHistoryItem({
           type: "image_conv",
-          title: `Converted ${sourceFile.name} to ${formatConfig.label}`,
-          description: `${(sourceFile.size / 1024).toFixed(1)} KB → ${(finalBlob.size / 1024).toFixed(1)} KB (${naturalWidth}x${naturalHeight})`,
+          title: `Converted ${sourceFile?.name || 'Image'} to ${formatConfig.label}`,
+          description: `${((sourceFile?.size || convRes.newSizeBytes) / 1024).toFixed(1)} KB → ${(convRes.newSizeBytes / 1024).toFixed(1)} KB (${naturalWidth}x${naturalHeight})`,
         });
       } catch (error: any) {
         console.error("Image conversion error:", error);
