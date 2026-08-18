@@ -18,9 +18,11 @@ import {
   ArrowRight,
   Layers,
   LayoutGrid,
-  Crop
+  Crop,
+  Music,
+  Key
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { sound } from "@/lib/sound";
 
 interface MenuCategory {
@@ -173,6 +175,22 @@ const MENU_CATEGORIES: MenuCategory[] = [
         desc: "Case conversion, character counter, cleanups, and export utilities.",
         icon: Type,
         badge: "FAST",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+      },
+      {
+        href: "/sound-effects",
+        title: "SFX Audio Studio (SFX 50+)",
+        desc: "Explore and download 60+ royalty-free studio audio effects and risers.",
+        icon: Music,
+        badge: "60+ SFX",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+      },
+      {
+        href: "/api-keys",
+        title: "Developer API & Keys Hub",
+        desc: "Generate private API keys, inspect rate limits, and access live REST APIs.",
+        icon: Key,
+        badge: "REST v1",
         badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400"
       },
       {

@@ -22,7 +22,7 @@ import {
   Sliders,
   Ratio
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import getCroppedImg, { FlipState } from "@/lib/cropImage";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";

@@ -1,7 +1,7 @@
 import { useState, useMemo, useRef } from "react";
 import { SeoContentText } from "@/components/seo/SeoContentText";
 import { Copy, Trash2, Undo, CheckCircle2, Download, ChevronDown, X } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
 

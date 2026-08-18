@@ -38,21 +38,52 @@ import {
   CheckCircle2,
   Plus,
   Wand2,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Brain,
+  Bookmark,
+  Database,
+  Star,
+  User,
+  Save,
+  MessageSquare,
+  Radio,
+  BarChart3,
+  Search,
+  Crop,
+  Ratio
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence } from 'motion/react';
 import { useToast } from '@/hooks/use-toast';
 import { sound } from '@/lib/sound';
-import { generateTitleIdeas, generateDescriptionIdeas } from '@/api/aiService';
+import { generateTitleIdeas, generateDescriptionIdeas, sendAiChatMessage } from '@/api/aiService';
 import { analyzeYouTubeVideo, analyzeYouTubeChannel, extractVideoId, parseChannelIdentifier } from '@/api/youtubeApi';
 import { 
   parseImageCommandLogic, 
   parseYouTubeCommandLogic, 
   parsePureTextCommandLogic, 
   parseDocumentCommandLogic,
-  normalizeUserInput 
+  detectMediaTypeFromInput,
+  isDirectImageUrl,
+  getPoliteOptionsPrompt,
+  normalizeUserInput,
+  fetchUserSessionHistory,
+  saveUserSessionHistory,
+  clearUserSessionHistory,
+  getBotMemoryFacts,
+  saveBotMemoryFact,
+  rememberUserChannel,
+  getRememberedChannels,
+  findRememberedChannel,
+  removeRememberedChannel,
+  buildConversationContextPrompt,
+  detectAndStoreUserFactsFromInput,
+  resolveContextualQuery,
+  isSupabaseConfigured,
+  BotSavedChannel,
+  BotMemoryFact
 } from '@/lib/botLogic';
 import { VideoAnalysisData, ChannelAnalysisData } from '@/types';
+import { InChatCropper, InChatCropResultCard, CropResultPayload } from '@/components/bot/InChatCropper';
 
 interface BotMessage {
   id: string;
@@ -75,6 +106,8 @@ interface BotMessage {
       | 'youtube_channel_result' 
       | 'image_options' 
       | 'image_result' 
+      | 'image_crop_workspace'
+      | 'image_crop_result'
       | 'document_options'
       | 'document_result'
       | 'text_tool_result' 
@@ -92,6 +125,13 @@ interface BotMessage {
       savingsPercent?: number;
       format?: string;
     };
+    cropWorkspaceInfo?: {
+      imageUrl: string;
+      fileName: string;
+      initialAspect?: number;
+      initialPreset?: string;
+    };
+    cropResult?: CropResultPayload;
     documentInfo?: {
       name: string;
       size: string;
@@ -115,6 +155,13 @@ const STARTER_PROMPTS = [
     color: "text-red-500 bg-red-500/10 border-red-500/20"
   },
   {
+    icon: Crop,
+    title: "Interactive Image Cropper",
+    desc: "Crop image to 1:1, 16:9, 9:16, 4:3, rotate, zoom & flip in chat",
+    action: "Crop image",
+    color: "text-amber-500 bg-amber-500/10 border-amber-500/20"
+  },
+  {
     icon: ImageIcon,
     title: "Image Converter & Compressor",
     desc: "Upload image to convert to WebP, PNG or reduce file size",
@@ -127,13 +174,6 @@ const STARTER_PROMPTS = [
     desc: "Generate 10 high-CTR, psychological title angles for your video",
     action: "Generate viral YouTube titles for a video about: AI Tools in 2026",
     color: "text-purple-500 bg-purple-500/10 border-purple-500/20"
-  },
-  {
-    icon: FileText,
-    title: "Document & Text Tools",
-    desc: "Analyze word count, format JSON, or convert case in text files",
-    action: "Analyze Document",
-    color: "text-blue-500 bg-blue-500/10 border-blue-500/20"
   }
 ];
 
@@ -152,7 +192,7 @@ export default function SmartBot() {
         id: 'welcome-1',
         sender: 'bot',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: `👋 **Welcome to Naxxivo Smart Bot!**\n\nI am a browser-level, fast and private automation engine:\n\n• 🎬 **Paste YouTube Link:** Extract tags, 1080p HD thumbnails, SEO keywords, and responsive embed code.\n• 🖼️ **Upload Image (📎 button or Drag & Drop):** Directly convert *(e.g., "WebP", "PNG to WebP", "Compress size", "90% quality")*.\n• 📄 **Document Files (PDF/TXT/JSON):** Count words, convert text cases, or format JSON.\n• 📋 **Clipboard Paste (Ctrl+V):** Paste any screenshot or image directly into the chat.\n\nWhat would you like to start with?`,
+        text: `👋 **Welcome to Naxxivo Smart Bot!**\n\nI am equipped with a **Persistent Memory Layer** & automation engine:\n\n• 🧠 **Persistent Memory & Channels:** Tell me *"Amar channel er nam Rony"* to remember your channel, then say *"Rony channel er info dao"* for real-time stats.\n• 🎬 **Paste YouTube Link:** Extract tags, 1080p HD thumbnails, SEO keywords, and embed codes.\n• 🖼️ **Upload Image (📎 or Drag & Drop):** Convert directly *(e.g., "WebP", "PNG", "Compress size", "90% quality")*.\n• 📄 **Document Tools:** Analyze word counts, case conversions, or format JSON.\n\nHow can I help you today?`,
       }
     ];
   });
@@ -172,6 +212,14 @@ export default function SmartBot() {
   // Attachment Menu Sheet state
   const [showAttachMenu, setShowAttachMenu] = useState(false);
   const [isDraggingOver, setIsDraggingOver] = useState(false);
+
+  // Memory & Knowledge Base State
+  const [savedChannels, setSavedChannels] = useState<BotSavedChannel[]>(() => getRememberedChannels());
+  const [memoryFacts, setMemoryFacts] = useState<Record<string, BotMemoryFact>>(() => getBotMemoryFacts());
+  const [showMemoryModal, setShowMemoryModal] = useState(false);
+  const [newChannelAlias, setNewChannelAlias] = useState('');
+  const [newChannelUrl, setNewChannelUrl] = useState('');
+  const [rememberingAliasForChannel, setRememberingAliasForChannel] = useState<{ id: string; defaultAlias: string } | null>(null);
 
   // Session-based Command History state
   const [commandHistory, setCommandHistory] = useState<string[]>(() => {
@@ -195,6 +243,23 @@ export default function SmartBot() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  // Load cloud/local session history on mount
+  useEffect(() => {
+    fetchUserSessionHistory().then(() => {
+      setSavedChannels(getRememberedChannels());
+      setMemoryFacts(getBotMemoryFacts());
+    });
+  }, []);
+
+  // Save messages to LocalStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('naxxivo_bot_messages_v1', JSON.stringify(messages.slice(-60)));
+    } catch {
+      // Storage error ignored
+    }
+  }, [messages]);
 
   // Close attachment menu on outside click
   useEffect(() => {
@@ -471,19 +536,18 @@ export default function SmartBot() {
     }
   };
 
-  // Convert and Compress Image Helper
+  // Convert and Compress Image Helper (Supports both File and Image URL/DataURL)
   const processImageConversion = async (
-    file: File, 
+    source: File | string, 
     targetFormat: 'webp' | 'png' | 'jpeg', 
-    quality: number = 0.85
+    quality: number = 0.85,
+    fallbackOriginalSize?: number
   ): Promise<{ dataUrl: string; newSizeStr: string; savings: number }> => {
     return new Promise((resolve, reject) => {
       const img = new Image();
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        img.src = e.target?.result as string;
-      };
-      img.onload = () => {
+      img.crossOrigin = 'anonymous';
+
+      const handleImageLoaded = (originalBytes: number) => {
         const canvas = document.createElement('canvas');
         canvas.width = img.width;
         canvas.height = img.height;
@@ -507,12 +571,29 @@ export default function SmartBot() {
           ? `${(newSizeBytes / (1024 * 1024)).toFixed(2)} MB` 
           : `${(newSizeBytes / 1024).toFixed(1)} KB`;
 
-        const savings = Math.max(0, Math.round(((file.size - newSizeBytes) / file.size) * 100));
+        const baseBytes = originalBytes || newSizeBytes * 1.5;
+        const savings = Math.max(0, Math.round(((baseBytes - newSizeBytes) / baseBytes) * 100));
 
         resolve({ dataUrl, newSizeStr, savings });
       };
+
+      img.onload = () => {
+        const origSize = source instanceof File ? source.size : (fallbackOriginalSize || 0);
+        handleImageLoaded(origSize);
+      };
+
       img.onerror = () => reject('Failed to load image');
-      reader.readAsDataURL(file);
+
+      if (source instanceof File) {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          img.src = e.target?.result as string;
+        };
+        reader.onerror = () => reject('Failed to read file');
+        reader.readAsDataURL(source);
+      } else {
+        img.src = source;
+      }
     });
   };
 
@@ -558,7 +639,94 @@ export default function SmartBot() {
     setMessages((prev) => [...prev, newUserMsg]);
     setIsLoading(true);
 
+    // Persist to user session history
+    saveUserSessionHistory({
+      id: userMsgId,
+      role: 'user',
+      text: newUserMsg.text,
+      attachmentInfo: currentAttached ? {
+        type: currentAttached.type,
+        name: currentAttached.name,
+        size: currentAttached.size
+      } : undefined
+    });
+
+    // Check for user memory fact or channel declaration
+    if (rawText) {
+      const factResult = detectAndStoreUserFactsFromInput(rawText);
+      if (factResult.factStored) {
+        setMemoryFacts(getBotMemoryFacts());
+        setSavedChannels(getRememberedChannels());
+      }
+    }
+
     try {
+      // ─────────────────────────────────────────────────────────────
+      // 0. SCENARIO 0: User queries or manages Remembered Channels / Memory
+      // ─────────────────────────────────────────────────────────────
+      const pureTextMatch = parsePureTextCommandLogic(rawText);
+
+      if (pureTextMatch.intent === 'query_saved_channel' && pureTextMatch.suggestedAction) {
+        sound.scan();
+        const channelAnalysis = await analyzeYouTubeChannel(pureTextMatch.suggestedAction);
+        sound.success();
+
+        // Update latest stats in memory
+        rememberUserChannel(
+          pureTextMatch.channelAlias || 'my_channel',
+          channelAnalysis.id,
+          channelAnalysis.title,
+          channelAnalysis.handle,
+          {
+            subscribers: channelAnalysis.subscribersCount ? String(channelAnalysis.subscribersCount) : undefined,
+            views: channelAnalysis.viewCount ? String(channelAnalysis.viewCount) : undefined,
+            videos: channelAnalysis.videoCount ? String(channelAnalysis.videoCount) : undefined
+          }
+        );
+        setSavedChannels(getRememberedChannels());
+
+        const botMsgId = `bot-${Date.now()}`;
+        const botResponseMsg: BotMessage = {
+          id: botMsgId,
+          sender: 'bot',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: `👋 **জি স্যার! আপনার "${(pureTextMatch.channelAlias || 'Saved').toUpperCase()}" (${channelAnalysis.title}) চ্যানেলের মেমোরি ডেটা ও লাইভ স্ট্যাটাস:**\n\n• 👥 **সাবস্ক্রাইবার:** **${channelAnalysis.subscribersCount || 'N/A'}**\n• 👁️ **মোট ভিউজ:** **${channelAnalysis.viewCount || 'N/A'}**\n• 🎬 **ভিডিও সংখ্যা:** **${channelAnalysis.videoCount || 'N/A'}**\n• 🔗 **হ্যান্ডেল / আইডি:** \`${channelAnalysis.handle || channelAnalysis.id}\`\n\nচ্যানেলের কিওয়ার্ড, ব্যানার বা বিস্তারিত তথ্য দেখতে নিচে ক্লিক করুন:`,
+          toolState: {
+            type: 'youtube_channel_options',
+            channelData: channelAnalysis,
+          }
+        };
+        setMessages((prev) => [...prev, botResponseMsg]);
+        saveUserSessionHistory({
+          id: botMsgId,
+          role: 'bot',
+          text: botResponseMsg.text,
+          toolType: 'youtube_channel_options',
+          metadata: { channelTitle: channelAnalysis.title, channelId: channelAnalysis.id }
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      if (pureTextMatch.intent === 'remember_channel') {
+        sound.success();
+        const botMsgId = `bot-${Date.now()}`;
+        const botResponseMsg: BotMessage = {
+          id: botMsgId,
+          sender: 'bot',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: pureTextMatch.replyText || '🧠 **Memory & Saved Channels updated.**',
+        };
+        setMessages((prev) => [...prev, botResponseMsg]);
+        saveUserSessionHistory({
+          id: botMsgId,
+          role: 'bot',
+          text: botResponseMsg.text,
+        });
+        setIsLoading(false);
+        return;
+      }
+
       // ─────────────────────────────────────────────────────────────
       // 1. SCENARIO A: User Attached an Image File (+ optional text command)
       // ─────────────────────────────────────────────────────────────
@@ -576,6 +744,46 @@ export default function SmartBot() {
             text: parsedCmd.unsupportedReason,
           };
           setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        // Handle In-Chat Interactive Cropper
+        if (parsedCmd.action === 'crop') {
+          sound.success();
+          const presetName = parsedCmd.aspectPreset 
+            ? (parsedCmd.aspectPreset === '16:9' ? '16:9' : parsedCmd.aspectPreset === '1:1' ? '1:1' : parsedCmd.aspectPreset === '9:16' ? '9:16' : parsedCmd.aspectPreset === '4:3' ? '4:3' : parsedCmd.aspectPreset === '3:2' ? '3:2' : 'Free') 
+            : 'Free';
+
+          const botMsgId = `bot-${Date.now()}`;
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `✂️ **ইমেজ ক্রপার ওপেন করা হয়েছে (${currentAttached.name}):**\nপ্রয়োজনীয় Aspect Ratio (${presetName}), Zoom, Rotation বা Flip সেট করে **Apply & Crop Image Now** বাটনে চাপুন:`,
+            toolState: {
+              type: 'image_crop_workspace',
+              cropWorkspaceInfo: {
+                imageUrl: currentAttached.previewUrl,
+                fileName: currentAttached.name,
+                initialAspect: parsedCmd.aspectValue,
+                initialPreset: presetName,
+              }
+            }
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text,
+            toolType: 'image_crop_workspace',
+            metadata: { fileName: currentAttached.name, preset: presetName }
+          });
           setIsLoading(false);
           return;
         }
@@ -612,16 +820,24 @@ export default function SmartBot() {
             }
           };
           setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text,
+            toolType: 'image_result',
+            metadata: { format: formatToConvert, newSize: conversionRes.newSizeStr }
+          });
           setIsLoading(false);
           return;
         }
 
         const botMsgId = `bot-${Date.now()}`;
+        const politeImagePrompt = getPoliteOptionsPrompt('image', { name: currentAttached.name, size: currentAttached.size });
         const botResponseMsg: BotMessage = {
           id: botMsgId,
           sender: 'bot',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          text: `🖼️ **Image received: "${currentAttached.name}" (${currentAttached.size})**\n\nWhat would you like to do? Select an option below or type commands *(e.g., "WebP", "PNG", "Compress", "90% quality")*:`,
+          text: politeImagePrompt,
           toolState: {
             type: 'image_options',
             imageInfo: {
@@ -632,6 +848,12 @@ export default function SmartBot() {
           }
         };
         setMessages((prev) => [...prev, botResponseMsg]);
+        saveUserSessionHistory({
+          id: botMsgId,
+          role: 'bot',
+          text: botResponseMsg.text,
+          toolType: 'image_options'
+        });
         setIsLoading(false);
         return;
       }
@@ -651,13 +873,14 @@ export default function SmartBot() {
         if (docCmd.action === 'count') {
           sound.success();
           const botMsgId = `bot-${Date.now()}`;
+          const reply = `📊 **Document Analysis:**\n\n• **File:** \`${currentAttached.name}\` (${currentAttached.size})\n• **Words:** ${wordsCount.toLocaleString()}\n• **Characters:** ${charsCount.toLocaleString()}\n• **Lines:** ${linesCount.toLocaleString()}\n• **Estimated Read Time:** ~${Math.max(1, Math.ceil(wordsCount / 200))} min`;
           setMessages((prev) => [
             ...prev,
             {
               id: botMsgId,
               sender: 'bot',
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              text: `📊 **Document Analysis:**\n\n• **File:** \`${currentAttached.name}\` (${currentAttached.size})\n• **Words:** ${wordsCount.toLocaleString()}\n• **Characters:** ${charsCount.toLocaleString()}\n• **Lines:** ${linesCount.toLocaleString()}\n• **Estimated Read Time:** ~${Math.max(1, Math.ceil(wordsCount / 200))} min`,
+              text: reply,
               toolState: {
                 type: 'document_result',
                 documentInfo: {
@@ -673,6 +896,12 @@ export default function SmartBot() {
               }
             }
           ]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: reply,
+            toolType: 'document_result'
+          });
           setIsLoading(false);
           return;
         }
@@ -702,6 +931,12 @@ export default function SmartBot() {
                 }
               }
             ]);
+            saveUserSessionHistory({
+              id: botMsgId,
+              role: 'bot',
+              text: '⚡ JSON formatted and validated successfully!',
+              toolType: 'document_result'
+            });
             setIsLoading(false);
             return;
           } catch {
@@ -712,13 +947,14 @@ export default function SmartBot() {
 
         // Default document options menu
         const botMsgId = `bot-${Date.now()}`;
+        const politeDocPrompt = getPoliteOptionsPrompt('document', { name: currentAttached.name, size: currentAttached.size });
         setMessages((prev) => [
           ...prev,
           {
             id: botMsgId,
             sender: 'bot',
             timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            text: `📄 **Document received: "${currentAttached.name}" (${currentAttached.size})**\n\nChoose an action below to process your file:`,
+            text: politeDocPrompt,
             toolState: {
               type: 'document_options',
               documentInfo: {
@@ -733,6 +969,106 @@ export default function SmartBot() {
             }
           }
         ]);
+        saveUserSessionHistory({
+          id: botMsgId,
+          role: 'bot',
+          text: `📄 Document received: "${currentAttached.name}"`,
+          toolType: 'document_options'
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 2.5 SCENARIO B2: Direct Image URL in User Text Input
+      // ─────────────────────────────────────────────────────────────
+      const detectedMediaType = detectMediaTypeFromInput(rawText);
+      if (detectedMediaType.type === 'image_url' && detectedMediaType.url) {
+        sound.scan();
+        const parsedCmd = parseImageCommandLogic(rawText);
+        const imgUrl = detectedMediaType.url;
+        const imgName = detectedMediaType.name || 'web-image.jpg';
+
+        if (parsedCmd.action === 'crop') {
+          sound.success();
+          const presetName = parsedCmd.aspectPreset 
+            ? (parsedCmd.aspectPreset === '16:9' ? '16:9' : parsedCmd.aspectPreset === '1:1' ? '1:1' : parsedCmd.aspectPreset === '9:16' ? '9:16' : parsedCmd.aspectPreset === '4:3' ? '4:3' : parsedCmd.aspectPreset === '3:2' ? '3:2' : 'Free') 
+            : 'Free';
+
+          const botMsgId = `bot-${Date.now()}`;
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `✂️ **অনলাইন ইমেজের ক্রপার লোড হয়েছে:**\nপ্রয়োজনীয় Aspect Ratio (${presetName}), Zoom, Rotation বা Flip সেট করে **Apply & Crop Image Now** বাটনে চাপুন:`,
+            toolState: {
+              type: 'image_crop_workspace',
+              cropWorkspaceInfo: {
+                imageUrl: imgUrl,
+                fileName: imgName,
+                initialAspect: parsedCmd.aspectValue,
+                initialPreset: presetName,
+              }
+            }
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          setIsLoading(false);
+          return;
+        }
+
+        if (parsedCmd.action && parsedCmd.action !== 'options' && parsedCmd.action !== 'unsupported') {
+          sound.generate();
+          const targetFormat = parsedCmd.targetFormat || (parsedCmd.action === 'compress' ? 'webp' : parsedCmd.action === 'favicon' ? 'png' : parsedCmd.action);
+          const quality = parsedCmd.quality;
+          const formatToConvert: 'webp' | 'png' | 'jpeg' = targetFormat;
+          
+          const conversionRes = await processImageConversion(imgUrl, formatToConvert, quality);
+          sound.success();
+
+          const qualityText = parsedCmd.detectedParameters.requestedQualityPercent ? ` (Quality: ${parsedCmd.detectedParameters.requestedQualityPercent}%)` : '';
+
+          const botMsgId = `bot-${Date.now()}`;
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `✅ **Task Completed!**\nYour online image has been processed to **${parsedCmd.action === 'compress' ? 'Compressed WebP' : formatToConvert.toUpperCase()}**${qualityText}. Download your processed file below:`,
+            toolState: {
+              type: 'image_result',
+              selectedAction: parsedCmd.action,
+              imageInfo: {
+                name: imgName,
+                originalSize: 'Web URL',
+                originalUrl: imgUrl,
+                convertedUrl: conversionRes.dataUrl,
+                newSize: conversionRes.newSizeStr,
+                savingsPercent: conversionRes.savings,
+                format: parsedCmd.action === 'compress' ? 'Compressed WebP' : formatToConvert.toUpperCase(),
+              }
+            }
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          setIsLoading(false);
+          return;
+        }
+
+        const botMsgId = `bot-${Date.now()}`;
+        const politePrompt = getPoliteOptionsPrompt('image', { name: imgName, size: 'Online Link' });
+        const botResponseMsg: BotMessage = {
+          id: botMsgId,
+          sender: 'bot',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: politePrompt,
+          toolState: {
+            type: 'image_options',
+            imageInfo: {
+              name: imgName,
+              originalSize: 'Web URL',
+              originalUrl: imgUrl,
+            }
+          }
+        };
+        setMessages((prev) => [...prev, botResponseMsg]);
         setIsLoading(false);
         return;
       }
@@ -755,6 +1091,11 @@ export default function SmartBot() {
             text: ytCmd.unsupportedReason,
           };
           setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text
+          });
           setIsLoading(false);
           return;
         }
@@ -776,22 +1117,37 @@ export default function SmartBot() {
             }
           };
           setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text,
+            toolType: 'youtube_video_result',
+            metadata: { videoTitle: videoAnalysis.title, videoId: videoAnalysis.id }
+          });
           setIsLoading(false);
           return;
         }
 
         const botMsgId = `bot-${Date.now()}`;
+        const politeVideoPrompt = getPoliteOptionsPrompt('video', { title: videoAnalysis.title });
         const botResponseMsg: BotMessage = {
           id: botMsgId,
           sender: 'bot',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          text: `🎬 **YouTube video detected: "${videoAnalysis.title}"**\n\nWhat would you like to extract? Select an option below:`,
+          text: politeVideoPrompt,
           toolState: {
             type: 'youtube_video_options',
             videoData: videoAnalysis,
           }
         };
         setMessages((prev) => [...prev, botResponseMsg]);
+        saveUserSessionHistory({
+          id: botMsgId,
+          role: 'bot',
+          text: botResponseMsg.text,
+          toolType: 'youtube_video_options',
+          metadata: { videoTitle: videoAnalysis.title, videoId: videoAnalysis.id }
+        });
         setIsLoading(false);
         return;
       }
@@ -810,24 +1166,169 @@ export default function SmartBot() {
           id: botMsgId,
           sender: 'bot',
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          text: `📺 **YouTube Channel Analysis Ready: "${channelAnalysis.title}"**\n\nClick below to view channel keywords, banners, and analytics:`,
+          text: `📺 **YouTube Channel Analysis Ready: "${channelAnalysis.title}"**\n\nClick below to view channel keywords, banners, analytics, or remember this channel:`,
           toolState: {
             type: 'youtube_channel_options',
             channelData: channelAnalysis,
           }
         };
         setMessages((prev) => [...prev, botResponseMsg]);
+        saveUserSessionHistory({
+          id: botMsgId,
+          role: 'bot',
+          text: botResponseMsg.text,
+          toolType: 'youtube_channel_options',
+          metadata: { channelTitle: channelAnalysis.title, channelId: channelAnalysis.id }
+        });
         setIsLoading(false);
         return;
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 5. SCENARIO E: Pure Text Command & Smart Logic (0 API Key)
+      // 4.5 CONTEXTUAL MEDIA FOLLOW-UP (Commands referencing active image/video in history)
       // ─────────────────────────────────────────────────────────────
-      const pureTextMatch = parsePureTextCommandLogic(rawText);
+      const imageCmdCheck = parseImageCommandLogic(rawText);
+      const isExplicitImageAction = imageCmdCheck.action !== 'options' && imageCmdCheck.action !== 'unsupported';
+      const hasImageKeywords = /crop|cropping|cut|1[:.]1|16[:.]9|9[:.]16|4[:.]3|3[:.]2|compress|compromise|komao|size\s*komao|webp|png|jpg|jpeg|favicon|format|formet|ক্রপ|কম্প্রেস|সাইজ|ফরম্যাট/i.test(rawText);
 
+      if (isExplicitImageAction || hasImageKeywords) {
+        // Search previous messages for the most recent active image
+        const prevImageMsg = [...messages].reverse().find(m => 
+          m.attachment?.type === 'image' || 
+          m.toolState?.type === 'image_options' || 
+          m.toolState?.type === 'image_crop_workspace' || 
+          m.toolState?.type === 'image_crop_result' || 
+          m.toolState?.type === 'image_result'
+        );
+
+        if (prevImageMsg) {
+          const activeUrl = prevImageMsg.attachment?.url || 
+            prevImageMsg.toolState?.imageInfo?.originalUrl || 
+            prevImageMsg.toolState?.cropWorkspaceInfo?.imageUrl || 
+            prevImageMsg.toolState?.cropResult?.croppedDataUrl;
+          const activeName = prevImageMsg.attachment?.name || 
+            prevImageMsg.toolState?.imageInfo?.name || 
+            prevImageMsg.toolState?.cropWorkspaceInfo?.fileName || 'image.png';
+          const activeFile = prevImageMsg.attachment?.fileObj;
+
+          if (activeUrl) {
+            sound.scan();
+            if (imageCmdCheck.action === 'crop') {
+              sound.success();
+              const presetName = imageCmdCheck.aspectPreset 
+                ? (imageCmdCheck.aspectPreset === '16:9' ? '16:9' : imageCmdCheck.aspectPreset === '1:1' ? '1:1' : imageCmdCheck.aspectPreset === '9:16' ? '9:16' : imageCmdCheck.aspectPreset === '4:3' ? '4:3' : imageCmdCheck.aspectPreset === '3:2' ? '3:2' : 'Free') 
+                : 'Free';
+
+              const botMsgId = `bot-${Date.now()}`;
+              const botResponseMsg: BotMessage = {
+                id: botMsgId,
+                sender: 'bot',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                text: `✂️ **পূর্ববর্তী ছবির জন্য ক্রপার লোড করা হয়েছে ("${activeName}"):**\nপ্রয়োজনীয় Aspect Ratio (${presetName}), Zoom, Rotation বা Flip সেট করে **Apply & Crop Image Now** বাটনে চাপুন:`,
+                toolState: {
+                  type: 'image_crop_workspace',
+                  cropWorkspaceInfo: {
+                    imageUrl: activeUrl,
+                    fileName: activeName,
+                    initialAspect: imageCmdCheck.aspectValue,
+                    initialPreset: presetName,
+                  }
+                }
+              };
+              setMessages((prev) => [...prev, botResponseMsg]);
+              setIsLoading(false);
+              return;
+            }
+
+            if (imageCmdCheck.action && imageCmdCheck.action !== 'options' && imageCmdCheck.action !== 'unsupported') {
+              sound.generate();
+              const targetFormat = imageCmdCheck.targetFormat || (imageCmdCheck.action === 'compress' ? 'webp' : imageCmdCheck.action === 'favicon' ? 'png' : imageCmdCheck.action);
+              const quality = imageCmdCheck.quality;
+              const formatToConvert: 'webp' | 'png' | 'jpeg' = targetFormat;
+              
+              const conversionRes = await processImageConversion(activeFile || activeUrl, formatToConvert, quality);
+              sound.success();
+
+              const qualityText = imageCmdCheck.detectedParameters.requestedQualityPercent ? ` (Quality: ${imageCmdCheck.detectedParameters.requestedQualityPercent}%)` : '';
+
+              const botMsgId = `bot-${Date.now()}`;
+              const botResponseMsg: BotMessage = {
+                id: botMsgId,
+                sender: 'bot',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                text: `✅ **Task Completed!**\nYour active image has been converted to **${imageCmdCheck.action === 'compress' ? 'Compressed WebP' : formatToConvert.toUpperCase()}**${qualityText}. Download your processed file below:`,
+                toolState: {
+                  type: 'image_result',
+                  selectedAction: imageCmdCheck.action,
+                  imageInfo: {
+                    name: activeName,
+                    originalSize: prevImageMsg.attachment?.size || 'Attached',
+                    originalUrl: activeUrl,
+                    convertedUrl: conversionRes.dataUrl,
+                    newSize: conversionRes.newSizeStr,
+                    savingsPercent: conversionRes.savings,
+                    format: imageCmdCheck.action === 'compress' ? 'Compressed WebP' : formatToConvert.toUpperCase(),
+                  }
+                }
+              };
+              setMessages((prev) => [...prev, botResponseMsg]);
+              setIsLoading(false);
+              return;
+            }
+          }
+        }
+      }
+
+      // Check YouTube contextual follow-up command on active video in history
+      const ytFollowCheck = parseYouTubeCommandLogic(rawText);
+      if (ytFollowCheck.action && ytFollowCheck.action !== 'options' && ytFollowCheck.action !== 'unsupported') {
+        const prevVideoMsg = [...messages].reverse().find(m => m.toolState?.videoData);
+        if (prevVideoMsg && prevVideoMsg.toolState?.videoData) {
+          const videoData = prevVideoMsg.toolState.videoData;
+          sound.success();
+          const botMsgId = `bot-${Date.now()}`;
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `🎬 **"${videoData.title}" ভিডিওর জন্য ফলাফল:**`,
+            toolState: {
+              type: 'youtube_video_result',
+              videoData: videoData,
+              selectedAction: ytFollowCheck.action,
+            }
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 5. SCENARIO E: Pure Text Command & Smart Logic
+      // ─────────────────────────────────────────────────────────────
       if (pureTextMatch.intent === 'clear_chat') {
         handleClearChat();
+        setIsLoading(false);
+        return;
+      }
+
+      if (pureTextMatch.intent === 'image_cropper_guide') {
+        sound.click();
+        const botMsgId = `bot-${Date.now()}`;
+        const botResponseMsg: BotMessage = {
+          id: botMsgId,
+          sender: 'bot',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: pureTextMatch.replyText || `✂️ **Image Cropper & Aspect Ratio System Ready!**\n\nClick the 📎 button below to attach your image and start cropping to 1:1, 16:9, 9:16, 4:3, or Free!`,
+        };
+        setMessages((prev) => [...prev, botResponseMsg]);
+        saveUserSessionHistory({
+          id: botMsgId,
+          role: 'bot',
+          text: botResponseMsg.text,
+          toolType: 'general_ai'
+        });
         setIsLoading(false);
         return;
       }
@@ -852,6 +1353,12 @@ export default function SmartBot() {
             }
           };
           setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text,
+            toolType: 'text_tool_result'
+          });
           setIsLoading(false);
           return;
         } catch {
@@ -864,17 +1371,61 @@ export default function SmartBot() {
             `10 Secrets About ${topic} Nobody Tells You`
           ];
           const botMsgId = `bot-${Date.now()}`;
-          setMessages((prev) => [
-            ...prev,
-            {
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `💡 **Suggested Title Ideas for "${topic}":**\n\n${fallbackTitles.map((t, idx) => `${idx + 1}. ${t}`).join('\n\n')}`,
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text
+          });
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 6. SCENARIO F: Conversational AI with Persistent Memory Context
+      // ─────────────────────────────────────────────────────────────
+      if (rawText && !pureTextMatch.matched) {
+        sound.scan();
+        try {
+          const resolved = resolveContextualQuery(rawText);
+          const memoryContextPrompt = buildConversationContextPrompt();
+
+          const aiReply = await sendAiChatMessage(
+            [{ role: 'user', content: resolved.resolvedText }],
+            `${memoryContextPrompt}\n\nYou are Naxxivo Smart Bot, a versatile AI assistant with persistent memory and YouTube/image automation capabilities. Answer helpfully, respectfully, and concisely.`
+          );
+
+          if (aiReply) {
+            sound.success();
+            const botMsgId = `bot-${Date.now()}`;
+            const botResponseMsg: BotMessage = {
               id: botMsgId,
               sender: 'bot',
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              text: `💡 **Suggested Title Ideas for "${topic}":**\n\n${fallbackTitles.map((t, idx) => `${idx + 1}. ${t}`).join('\n\n')}`,
-            }
-          ]);
-          setIsLoading(false);
-          return;
+              text: aiReply,
+              toolState: {
+                type: 'general_ai'
+              }
+            };
+            setMessages((prev) => [...prev, botResponseMsg]);
+            saveUserSessionHistory({
+              id: botMsgId,
+              role: 'bot',
+              text: aiReply,
+              toolType: 'general_ai'
+            });
+            setIsLoading(false);
+            return;
+          }
+        } catch {
+          // Graceful fallback to pureTextMatch
         }
       }
 
@@ -885,9 +1436,14 @@ export default function SmartBot() {
         id: botMsgId,
         sender: 'bot',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        text: pureTextMatch.replyText || `🤖 **How can I help you?**\n\n• 🎬 **YouTube Tags & Thumbnails:** Paste any YouTube video or Shorts link.\n• 🖼️ **Image Convert & Compress:** Select an image via the 📎 button or drag & drop.\n• 📄 **Document Tools:** Upload TXT, JSON, or documents for fast word counts & formatting.`,
+        text: pureTextMatch.replyText || `🤖 **How can I help you?**\n\n• 🧠 **Memory & Channels:** Tell me *"Amar channel er nam Rony"* to store your channel and query anytime.\n• 🎬 **YouTube Tags & Thumbnails:** Paste any YouTube video or Shorts link.\n• 🖼️ **Image Convert & Compress:** Select an image via the 📎 button or drag & drop.\n• 📄 **Document Tools:** Upload TXT, JSON, or documents for fast word counts & formatting.`,
       };
       setMessages((prev) => [...prev, botResponseMsg]);
+      saveUserSessionHistory({
+        id: botMsgId,
+        role: 'bot',
+        text: botResponseMsg.text
+      });
     } catch (error: any) {
       sound.error();
       const botMsgId = `bot-${Date.now()}`;
@@ -925,27 +1481,149 @@ export default function SmartBot() {
     );
   };
 
+  // Handle Channel Option Execution
+  const executeChannelAction = (messageId: string, actionKey: string, channelData: ChannelAnalysisData) => {
+    sound.click();
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId && msg.toolState) {
+          return {
+            ...msg,
+            toolState: {
+              ...msg.toolState,
+              type: 'youtube_channel_result',
+              selectedAction: actionKey,
+            }
+          };
+        }
+        return msg;
+      })
+    );
+  };
+
+  // Handle Remembering a Channel from UI
+  const handleRememberChannel = (alias: string, channelData: ChannelAnalysisData) => {
+    const cleanAlias = alias.trim() || channelData.title.split(' ')[0] || 'my_channel';
+    rememberUserChannel(
+      cleanAlias,
+      channelData.id,
+      channelData.title,
+      channelData.handle,
+      {
+        subscribers: channelData.subscribersCount ? String(channelData.subscribersCount) : undefined,
+        views: channelData.viewCount ? String(channelData.viewCount) : undefined,
+        videos: channelData.videoCount ? String(channelData.videoCount) : undefined
+      }
+    );
+    setSavedChannels(getRememberedChannels());
+    setRememberingAliasForChannel(null);
+    sound.success();
+    toast({
+      title: `⭐ Channel Remembered as "${cleanAlias}"`,
+      description: `You can now ask "Amar ${cleanAlias} channel er info dao" anytime!`
+    });
+  };
+
+  // Delete Remembered Channel
+  const handleDeleteChannel = (alias: string) => {
+    removeRememberedChannel(alias);
+    setSavedChannels(getRememberedChannels());
+    sound.click();
+    toast({ title: `Removed "${alias}" from memory` });
+  };
+
+  // Handle Manual Add Channel in Memory Modal
+  const handleManualAddChannel = async () => {
+    if (!newChannelAlias.trim() || !newChannelUrl.trim()) {
+      toast({ title: 'Please provide both Alias and Channel URL/ID' });
+      return;
+    }
+    sound.scan();
+    setIsLoading(true);
+    try {
+      const channelId = parseChannelIdentifier(newChannelUrl.trim())?.value || newChannelUrl.trim();
+      const analysis = await analyzeYouTubeChannel(channelId);
+      rememberUserChannel(
+        newChannelAlias.trim(),
+        analysis.id,
+        analysis.title,
+        analysis.handle,
+        {
+          subscribers: analysis.subscribersCount ? String(analysis.subscribersCount) : undefined,
+          views: analysis.viewCount ? String(analysis.viewCount) : undefined,
+          videos: analysis.videoCount ? String(analysis.videoCount) : undefined
+        }
+      );
+      setSavedChannels(getRememberedChannels());
+      setNewChannelAlias('');
+      setNewChannelUrl('');
+      sound.success();
+      toast({
+        title: `Saved "${analysis.title}" as "${newChannelAlias.trim()}"`,
+        description: 'Successfully saved in persistent memory!'
+      });
+    } catch {
+      // Direct store if live fetch fails
+      rememberUserChannel(newChannelAlias.trim(), newChannelUrl.trim(), newChannelAlias.trim());
+      setSavedChannels(getRememberedChannels());
+      setNewChannelAlias('');
+      setNewChannelUrl('');
+      sound.success();
+      toast({ title: `Saved "${newChannelAlias.trim()}" to memory` });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Handle Image Option Execution
   const executeImageAction = async (
     messageId: string, 
-    action: 'webp' | 'png' | 'jpeg' | 'compress' | 'favicon', 
+    action: 'crop' | 'webp' | 'png' | 'jpeg' | 'compress' | 'favicon', 
     imageInfo: any,
     userMessageWithFile?: BotMessage
   ) => {
+    // If crop action, immediately switch to live in-chat cropper workspace
+    if (action === 'crop') {
+      sound.click();
+      setMessages((prev) =>
+        prev.map((msg) => {
+          if (msg.id === messageId && msg.toolState) {
+            return {
+              ...msg,
+              text: `✂️ **Interactive Image Cropper Workspace Loaded:**\nAdjust aspect ratio presets (1:1, 16:9, 9:16, 4:3, 3:2, Free), zoom, rotate, or flip below, then click **Apply & Crop Image Now**:`,
+              toolState: {
+                ...msg.toolState,
+                type: 'image_crop_workspace',
+                cropWorkspaceInfo: {
+                  imageUrl: imageInfo.originalUrl,
+                  fileName: imageInfo.name,
+                  initialAspect: undefined,
+                  initialPreset: 'Free',
+                }
+              }
+            };
+          }
+          return msg;
+        })
+      );
+      return;
+    }
+
     sound.generate();
     setIsLoading(true);
 
     try {
-      const file = userMessageWithFile?.attachment?.fileObj;
-      if (!file) {
-        toast({ title: "Image file reference expired", description: "Please re-upload your image." });
+      const imageSource = userMessageWithFile?.attachment?.fileObj || imageInfo?.originalUrl;
+      if (!imageSource) {
+        toast({ title: "Image reference missing", description: "Please re-upload your image or provide an image link." });
         setIsLoading(false);
         return;
       }
 
-      if (action === 'webp' || action === 'png' || action === 'jpeg') {
+      if (action === 'webp' || action === 'png' || action === 'jpeg' || action === 'favicon') {
+        const targetFmt = action === 'favicon' ? 'png' : action;
         const quality = action === 'jpeg' ? 0.85 : 0.9;
-        const res = await processImageConversion(file, action, quality);
+        const res = await processImageConversion(imageSource, targetFmt, quality);
         sound.success();
 
         setMessages((prev) =>
@@ -953,6 +1631,7 @@ export default function SmartBot() {
             if (msg.id === messageId && msg.toolState) {
               return {
                 ...msg,
+                text: `✅ **Task Completed!**\nImage converted to **${action === 'favicon' ? 'Favicon PNG (Icon)' : targetFmt.toUpperCase()}**. Download your processed file below:`,
                 toolState: {
                   ...msg.toolState,
                   type: 'image_result',
@@ -962,7 +1641,7 @@ export default function SmartBot() {
                     convertedUrl: res.dataUrl,
                     newSize: res.newSizeStr,
                     savingsPercent: res.savings,
-                    format: action.toUpperCase(),
+                    format: action === 'favicon' ? 'Favicon PNG' : targetFmt.toUpperCase(),
                   }
                 }
               };
@@ -971,7 +1650,7 @@ export default function SmartBot() {
           })
         );
       } else if (action === 'compress') {
-        const res = await processImageConversion(file, 'webp', 0.65);
+        const res = await processImageConversion(imageSource, 'webp', 0.65);
         sound.success();
 
         setMessages((prev) =>
@@ -979,6 +1658,7 @@ export default function SmartBot() {
             if (msg.id === messageId && msg.toolState) {
               return {
                 ...msg,
+                text: `✅ **Task Completed!**\nImage compressed with high visual fidelity. Download your processed file below:`,
                 toolState: {
                   ...msg.toolState,
                   type: 'image_result',
@@ -1003,6 +1683,55 @@ export default function SmartBot() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleCropApplied = (
+    messageId: string, 
+    result: CropResultPayload, 
+    workspaceInfo: { imageUrl: string; fileName: string; initialAspect?: number; initialPreset?: string }
+  ) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            text: `✅ **Image Cropped Successfully!**\nDimensions: **${result.width} × ${result.height}px** (${result.aspectLabel}) • File Size: **${result.sizeStr}** • Format: **${result.format}**`,
+            toolState: {
+              ...msg.toolState,
+              type: 'image_crop_result',
+              cropResult: result,
+              cropWorkspaceInfo: workspaceInfo,
+            }
+          };
+        }
+        return msg;
+      })
+    );
+    saveUserSessionHistory({
+      role: 'bot',
+      text: `✅ Image Cropped: ${result.width}x${result.height} (${result.aspectLabel})`,
+      toolType: 'image_crop_result',
+      metadata: { width: result.width, height: result.height, format: result.format, sizeStr: result.sizeStr }
+    });
+  };
+
+  const handleReCrop = (messageId: string, workspaceInfo: { imageUrl: string; fileName: string; initialAspect?: number; initialPreset?: string }) => {
+    setMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.id === messageId) {
+          return {
+            ...msg,
+            text: `✂️ **Image Cropper Workspace Re-opened:**\nAdjust aspect ratio, zoom, rotate, or flip below, then click **Apply & Crop Image Now**:`,
+            toolState: {
+              ...msg.toolState,
+              type: 'image_crop_workspace',
+              cropWorkspaceInfo: workspaceInfo,
+            }
+          };
+        }
+        return msg;
+      })
+    );
   };
 
   // Handle Document Option Execution
@@ -1214,6 +1943,19 @@ export default function SmartBot() {
               </AnimatePresence>
             </div>
           )}
+
+          {/* Brain Memory & Channels Database Button */}
+          <button
+            onClick={() => setShowMemoryModal(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 transition-all shadow-xs"
+            title="Bot Brain Memory & Saved Channels Database"
+          >
+            <Brain className="w-4 h-4 text-cyan-500" />
+            <span className="hidden sm:inline">Brain Memory</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300">
+              {savedChannels.length}
+            </span>
+          </button>
 
           <button
             onClick={handleClearChat}
@@ -1488,10 +2230,175 @@ export default function SmartBot() {
                   </div>
                 )}
 
-                {/* 3. Image Options Tray */}
+                {/* 2b. YouTube Channel Options Tray */}
+                {msg.toolState?.type === 'youtube_channel_options' && msg.toolState.channelData && (
+                  <div className="pt-2 border-t space-y-3">
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 border">
+                      {msg.toolState.channelData.logoUrl ? (
+                        <img
+                          src={msg.toolState.channelData.logoUrl}
+                          alt={msg.toolState.channelData.title}
+                          className="w-12 h-12 rounded-full border shadow-xs object-cover"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-purple-500/10 text-purple-500 flex items-center justify-center font-bold">
+                          <Radio className="w-6 h-6" />
+                        </div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-xs font-bold truncate text-foreground">{msg.toolState.channelData.title}</p>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground truncate">
+                          {msg.toolState.channelData.handle || msg.toolState.channelData.id} • {msg.toolState.channelData.subscribersCount || '0'} Subs
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      <button
+                        onClick={() => executeChannelAction(msg.id, 'stats', msg.toolState!.channelData!)}
+                        className="p-2 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <BarChart3 className="w-3.5 h-3.5" />
+                        <span>Live Stats</span>
+                      </button>
+
+                      <button
+                        onClick={() => executeChannelAction(msg.id, 'keywords', msg.toolState!.channelData!)}
+                        className="p-2 rounded-xl text-xs font-semibold bg-purple-500/10 text-purple-500 hover:bg-purple-500/20 border border-purple-500/20 flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Hash className="w-3.5 h-3.5" />
+                        <span>Keywords</span>
+                      </button>
+
+                      <button
+                        onClick={() => executeChannelAction(msg.id, 'banner', msg.toolState!.channelData!)}
+                        className="p-2 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Layers className="w-3.5 h-3.5" />
+                        <span>HD Banner</span>
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setRememberingAliasForChannel(msg.toolState!.channelData!.title.toLowerCase().replace(/[^a-z0-9]/g, '_'));
+                          handleRememberChannel(
+                            msg.toolState!.channelData!.title.toLowerCase().replace(/[^a-z0-9]/g, '_'),
+                            msg.toolState!.channelData!
+                          );
+                        }}
+                        className="p-2 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-600 dark:text-amber-400 hover:bg-amber-500/20 border border-amber-500/20 flex items-center justify-center gap-1.5 transition-colors"
+                      >
+                        <Star className="w-3.5 h-3.5 fill-amber-500 text-amber-500" />
+                        <span>Remember</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* 2c. YouTube Channel Result Container */}
+                {msg.toolState?.type === 'youtube_channel_result' && msg.toolState.channelData && (
+                  <div className="pt-2 border-t space-y-3">
+                    {/* Live Stats */}
+                    {msg.toolState.selectedAction === 'stats' && (
+                      <div className="p-3 rounded-xl bg-background/60 border space-y-2.5">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-xs flex items-center gap-1.5 text-foreground">
+                            <BarChart3 className="w-3.5 h-3.5 text-emerald-500" /> Channel Analytics Overview
+                          </span>
+                          <span className="text-[10px] text-muted-foreground font-mono">
+                            ID: {msg.toolState.channelData.id}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div className="p-2 rounded-lg bg-muted/60 border">
+                            <p className="text-[10px] text-muted-foreground">Subscribers</p>
+                            <p className="text-xs sm:text-sm font-bold text-foreground">{msg.toolState.channelData.subscribersCount || 'N/A'}</p>
+                          </div>
+                          <div className="p-2 rounded-lg bg-muted/60 border">
+                            <p className="text-[10px] text-muted-foreground">Total Views</p>
+                            <p className="text-xs sm:text-sm font-bold text-foreground">{msg.toolState.channelData.viewCount || 'N/A'}</p>
+                          </div>
+                          <div className="p-2 rounded-lg bg-muted/60 border">
+                            <p className="text-[10px] text-muted-foreground">Videos</p>
+                            <p className="text-xs sm:text-sm font-bold text-foreground">{msg.toolState.channelData.videoCount || 'N/A'}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Keywords Result */}
+                    {msg.toolState.selectedAction === 'keywords' && (
+                      <div className="p-3 rounded-xl bg-background/60 border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-xs flex items-center gap-1.5 text-foreground">
+                            <Hash className="w-3.5 h-3.5 text-purple-500" /> Channel Target Keywords
+                          </span>
+                          {msg.toolState.channelData.keywords && msg.toolState.channelData.keywords.length > 0 && (
+                            <button
+                              onClick={() => copyToClipboard(msg.toolState!.channelData!.keywords?.join(', ') || '', `ch-kw-${msg.id}`)}
+                              className="text-xs text-primary font-medium hover:underline flex items-center gap-1 cursor-pointer"
+                            >
+                              {copiedId === `ch-kw-${msg.id}` ? <Check className="w-3 h-3 text-emerald-500" /> : <Copy className="w-3 h-3" />}
+                              Copy
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex flex-wrap gap-1.5 p-1">
+                          {msg.toolState.channelData.keywords && msg.toolState.channelData.keywords.length > 0 ? (
+                            msg.toolState.channelData.keywords.map((kw, kidx) => (
+                              <span key={kidx} className="px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 text-[11px] font-medium border border-purple-500/20">
+                                #{kw}
+                              </span>
+                            ))
+                          ) : (
+                            <p className="text-xs text-muted-foreground italic">No channel-level keywords published.</p>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Banner Result */}
+                    {msg.toolState.selectedAction === 'banner' && (
+                      <div className="p-3 rounded-xl bg-background/60 border space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="font-semibold text-xs flex items-center gap-1.5 text-foreground">
+                            <Layers className="w-3.5 h-3.5 text-blue-500" /> Channel Header Banner
+                          </span>
+                          {msg.toolState.channelData.bannerUrl && (
+                            <a
+                              href={msg.toolState.channelData.bannerUrl}
+                              target="_blank"
+                              rel="noreferrer"
+                              download="channel-banner.jpg"
+                              onClick={() => sound.download()}
+                              className="text-xs font-semibold px-2.5 py-1 rounded-md bg-blue-500 text-white flex items-center gap-1 hover:bg-blue-600 transition-colors shadow-xs cursor-pointer"
+                            >
+                              <Download className="w-3 h-3" /> Download HD
+                            </a>
+                          )}
+                        </div>
+                        {msg.toolState.channelData.bannerUrl ? (
+                          <div className="relative rounded-lg overflow-hidden border">
+                            <img
+                              src={msg.toolState.channelData.bannerUrl}
+                              alt="Channel Banner"
+                              className="w-full h-28 object-cover"
+                            />
+                          </div>
+                        ) : (
+                          <p className="text-xs text-muted-foreground italic">No custom banner found for this channel.</p>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* 3. Image Options Card */}
                 {msg.toolState?.type === 'image_options' && msg.toolState.imageInfo && (
                   <div className="pt-2 border-t space-y-3">
-                    <div className="flex items-center gap-3 p-2 rounded-xl bg-muted/40 border">
+                    <div className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 border">
                       <img
                         src={msg.toolState.imageInfo.originalUrl}
                         alt="Uploaded"
@@ -1500,54 +2407,160 @@ export default function SmartBot() {
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-semibold truncate text-foreground">{msg.toolState.imageInfo.name}</p>
                         <p className="text-[10px] text-muted-foreground">Original: {msg.toolState.imageInfo.originalSize}</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-[10px] font-medium border border-emerald-500/20">
+                            <Sparkles className="w-2.5 h-2.5" /> Ready for tools
+                          </span>
+                        </div>
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      {/* Highlighted Crop Action Button */}
                       <button
                         onClick={() => {
                           const userMsg = messages.find(m => m.attachment?.fileObj);
-                          executeImageAction(msg.id, 'webp', msg.toolState!.imageInfo!, userMsg);
+                          executeImageAction(msg.id, 'crop', msg.toolState!.imageInfo!, userMsg);
                         }}
-                        className="p-2.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center gap-1.5"
+                        className="w-full p-2.5 rounded-xl text-xs font-bold bg-gradient-to-r from-emerald-500/15 via-teal-500/15 to-emerald-500/15 text-emerald-600 dark:text-emerald-400 hover:from-emerald-500/25 hover:to-teal-500/25 border border-emerald-500/30 flex items-center justify-center gap-2 shadow-xs transition-all cursor-pointer"
                       >
-                        <Zap className="w-3.5 h-3.5" />
-                        <span>Convert to WebP</span>
+                        <Crop className="w-4 h-4 text-emerald-500" />
+                        <span>✂️ Open Interactive Cropper Workspace</span>
                       </button>
 
-                      <button
-                        onClick={() => {
-                          const userMsg = messages.find(m => m.attachment?.fileObj);
-                          executeImageAction(msg.id, 'compress', msg.toolState!.imageInfo!, userMsg);
-                        }}
-                        className="p-2.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 flex items-center justify-center gap-1.5"
-                      >
-                        <Sliders className="w-3.5 h-3.5" />
-                        <span>Compress Size (65%)</span>
-                      </button>
+                      {/* Quick Aspect Ratio Presets */}
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {[
+                          { label: '1:1 Square', preset: '1:1', aspect: 1 },
+                          { label: '16:9 Video', preset: '16:9', aspect: 16 / 9 },
+                          { label: '9:16 Story', preset: '9:16', aspect: 9 / 16 },
+                          { label: '4:3 Standard', preset: '4:3', aspect: 4 / 3 }
+                        ].map((item) => (
+                          <button
+                            key={item.preset}
+                            onClick={() => {
+                              sound.click();
+                              setMessages((prev) =>
+                                prev.map((m) => {
+                                  if (m.id === msg.id && m.toolState) {
+                                    return {
+                                      ...m,
+                                      text: `✂️ **ইমেজ ক্রপার ওপেন করা হয়েছে (${item.preset}):**\nপ্রয়োজনীয় Frame, Zoom, Rotation বা Flip সেট করে **Apply & Crop Image Now** বাটনে চাপুন:`,
+                                      toolState: {
+                                        ...m.toolState,
+                                        type: 'image_crop_workspace',
+                                        cropWorkspaceInfo: {
+                                          imageUrl: msg.toolState!.imageInfo!.originalUrl,
+                                          fileName: msg.toolState!.imageInfo!.name,
+                                          initialAspect: item.aspect,
+                                          initialPreset: item.preset,
+                                        }
+                                      }
+                                    };
+                                  }
+                                  return m;
+                                })
+                              );
+                            }}
+                            className="py-1.5 px-1 rounded-lg text-[10px] font-semibold bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground border transition-all text-center cursor-pointer"
+                          >
+                            {item.label}
+                          </button>
+                        ))}
+                      </div>
 
-                      <button
-                        onClick={() => {
-                          const userMsg = messages.find(m => m.attachment?.fileObj);
-                          executeImageAction(msg.id, 'png', msg.toolState!.imageInfo!, userMsg);
-                        }}
-                        className="p-2.5 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center gap-1.5"
-                      >
-                        <ImageIcon className="w-3.5 h-3.5" />
-                        <span>Convert to PNG</span>
-                      </button>
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          onClick={() => {
+                            const userMsg = messages.find(m => m.attachment?.fileObj);
+                            executeImageAction(msg.id, 'compress', msg.toolState!.imageInfo!, userMsg);
+                          }}
+                          className="p-2.5 rounded-xl text-xs font-semibold bg-primary/10 text-primary hover:bg-primary/20 border border-primary/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Sliders className="w-3.5 h-3.5" />
+                          <span>🗜️ Compress Size (65%)</span>
+                        </button>
 
-                      <button
-                        onClick={() => {
-                          const userMsg = messages.find(m => m.attachment?.fileObj);
-                          executeImageAction(msg.id, 'jpeg', msg.toolState!.imageInfo!, userMsg);
-                        }}
-                        className="p-2.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 flex items-center justify-center gap-1.5"
-                      >
-                        <Palette className="w-3.5 h-3.5" />
-                        <span>Convert to JPG</span>
-                      </button>
+                        <button
+                          onClick={() => {
+                            const userMsg = messages.find(m => m.attachment?.fileObj);
+                            executeImageAction(msg.id, 'webp', msg.toolState!.imageInfo!, userMsg);
+                          }}
+                          className="p-2.5 rounded-xl text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Zap className="w-3.5 h-3.5" />
+                          <span>⚡ Convert to WebP</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const userMsg = messages.find(m => m.attachment?.fileObj);
+                            executeImageAction(msg.id, 'png', msg.toolState!.imageInfo!, userMsg);
+                          }}
+                          className="p-2.5 rounded-xl text-xs font-semibold bg-blue-500/10 text-blue-500 hover:bg-blue-500/20 border border-blue-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <ImageIcon className="w-3.5 h-3.5" />
+                          <span>🖼️ Convert to PNG</span>
+                        </button>
+
+                        <button
+                          onClick={() => {
+                            const userMsg = messages.find(m => m.attachment?.fileObj);
+                            executeImageAction(msg.id, 'jpeg', msg.toolState!.imageInfo!, userMsg);
+                          }}
+                          className="p-2.5 rounded-xl text-xs font-semibold bg-amber-500/10 text-amber-500 hover:bg-amber-500/20 border border-amber-500/20 flex items-center justify-center gap-1.5 cursor-pointer"
+                        >
+                          <Palette className="w-3.5 h-3.5" />
+                          <span>🎨 Convert to JPG</span>
+                        </button>
+                      </div>
                     </div>
+                  </div>
+                )}
+
+                {/* 3.1. Interactive In-Chat Image Cropper Workspace */}
+                {msg.toolState?.type === 'image_crop_workspace' && msg.toolState.cropWorkspaceInfo && (
+                  <div className="pt-2 border-t">
+                    <InChatCropper
+                      imageUrl={msg.toolState.cropWorkspaceInfo.imageUrl}
+                      fileName={msg.toolState.cropWorkspaceInfo.fileName}
+                      initialAspect={msg.toolState.cropWorkspaceInfo.initialAspect}
+                      initialPreset={msg.toolState.cropWorkspaceInfo.initialPreset}
+                      onApplyCrop={(result) => handleCropApplied(msg.id, result, msg.toolState!.cropWorkspaceInfo!)}
+                      onCancel={() => {
+                        sound.click();
+                        setMessages((prev) =>
+                          prev.map((m) => {
+                            if (m.id === msg.id && m.toolState) {
+                              return {
+                                ...m,
+                                text: `🖼️ **Select an action for your uploaded image:**`,
+                                toolState: {
+                                  ...m.toolState,
+                                  type: 'image_options',
+                                  imageInfo: {
+                                    name: m.toolState.cropWorkspaceInfo!.fileName,
+                                    originalSize: 'Attached',
+                                    originalUrl: m.toolState.cropWorkspaceInfo!.imageUrl,
+                                  }
+                                }
+                              };
+                            }
+                            return m;
+                          })
+                        );
+                      }}
+                    />
+                  </div>
+                )}
+
+                {/* 3.2. Cropped Image Result Card */}
+                {msg.toolState?.type === 'image_crop_result' && msg.toolState.cropResult && (
+                  <div className="pt-2 border-t">
+                    <InChatCropResultCard
+                      result={msg.toolState.cropResult}
+                      onReCrop={() => handleReCrop(msg.id, msg.toolState!.cropWorkspaceInfo!)}
+                    />
                   </div>
                 )}
 
@@ -1910,6 +2923,24 @@ export default function SmartBot() {
                       <span className="text-xs font-semibold text-foreground">Paste Clipboard</span>
                       <span className="text-[10px] text-muted-foreground">Ctrl+V / Screenshot</span>
                     </button>
+
+                    {/* Crop Image Directly */}
+                    <button
+                      onClick={() => {
+                        setShowAttachMenu(false);
+                        setInputVal('Crop image');
+                        imageInputRef.current?.click();
+                      }}
+                      className="p-2.5 rounded-xl border bg-muted/40 hover:bg-emerald-500/10 hover:border-emerald-500/30 text-left transition-all group flex items-center gap-2.5 col-span-2"
+                    >
+                      <div className="p-1.5 rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 w-fit group-hover:scale-105 transition-transform shrink-0">
+                        <Crop className="w-4 h-4" />
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <span className="text-xs font-semibold text-foreground block truncate">✂️ Crop & Aspect Ratio</span>
+                        <span className="text-[10px] text-muted-foreground block truncate">1:1, 16:9, 9:16, 4:3, Zoom, Rotate, Flip</span>
+                      </div>
+                    </button>
                   </div>
 
                   {/* Quick Sample Presets */}
@@ -1995,6 +3026,197 @@ export default function SmartBot() {
           </button>
         </div>
       </div>
+
+      {/* ─── BRAIN MEMORY & SAVED CHANNELS MODAL ────────────────────────────── */}
+      <AnimatePresence>
+        {showMemoryModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-background/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-card border rounded-3xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[88vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-4 sm:p-5 border-b bg-muted/30 flex items-center justify-between shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-cyan-500/10 text-cyan-500 flex items-center justify-center shadow-inner">
+                    <Brain className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h2 className="font-bold text-base sm:text-lg text-foreground">Bot Brain & Memory Layer</h2>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20">
+                        {isSupabaseConfigured() ? 'Cloud Synced' : 'Local Persistence'}
+                      </span>
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Continuous memory of saved channels, aliases & user facts across sessions.
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowMemoryModal(false)}
+                  className="p-1.5 rounded-xl hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-4 sm:p-5 overflow-y-auto space-y-5 custom-scrollbar flex-1">
+                {/* 1. Add New Channel Memory Form */}
+                <div className="p-3.5 rounded-2xl border bg-muted/20 space-y-3">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                    <Plus className="w-4 h-4 text-cyan-500" />
+                    <span>Teach Bot a New Channel (Memory Entry)</span>
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        Channel Alias / Name (e.g. <code>rony</code> or <code>mychannel</code>)
+                      </label>
+                      <input
+                        type="text"
+                        value={newChannelAlias}
+                        onChange={(e) => setNewChannelAlias(e.target.value)}
+                        placeholder="e.g. rony"
+                        className="w-full text-xs px-3 py-2 rounded-xl border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-[11px] font-medium text-muted-foreground block mb-1">
+                        YouTube URL, Handle or ID
+                      </label>
+                      <input
+                        type="text"
+                        value={newChannelUrl}
+                        onChange={(e) => setNewChannelUrl(e.target.value)}
+                        placeholder="e.g. https://youtube.com/@RonyTech"
+                        className="w-full text-xs px-3 py-2 rounded-xl border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-cyan-500/30"
+                      />
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleManualAddChannel}
+                    disabled={!newChannelAlias.trim() || !newChannelUrl.trim()}
+                    className="w-full py-2 px-3 rounded-xl bg-cyan-500 hover:bg-cyan-600 text-white text-xs font-semibold flex items-center justify-center gap-1.5 transition-colors disabled:opacity-50"
+                  >
+                    <Save className="w-3.5 h-3.5" />
+                    <span>Save Channel to AI Brain</span>
+                  </button>
+                </div>
+
+                {/* 2. Remembered YouTube Channels List */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Radio className="w-4 h-4 text-purple-500" />
+                      <h3 className="font-semibold text-xs text-foreground uppercase tracking-wider">
+                        Saved Channels ({savedChannels.length})
+                      </h3>
+                    </div>
+                    <span className="text-[10px] text-muted-foreground">
+                      Ask in chat: <i>"Amar [alias] channel er info dao"</i>
+                    </span>
+                  </div>
+
+                  {savedChannels.length === 0 ? (
+                    <div className="p-4 text-center rounded-2xl border border-dashed text-xs text-muted-foreground bg-muted/10">
+                      No channels remembered yet. Teach the bot by typing <code>"Amar channel er nam Rony"</code> or use the form above!
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {savedChannels.map((item) => (
+                        <div
+                          key={item.alias}
+                          className="p-3 rounded-2xl border bg-card hover:border-cyan-500/30 transition-all flex items-center justify-between gap-3 group shadow-xs"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2">
+                              <span className="font-bold text-xs px-2 py-0.5 rounded-lg bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border border-cyan-500/20 font-mono">
+                                @{item.alias}
+                              </span>
+                              <span className="font-semibold text-xs text-foreground truncate">{item.title}</span>
+                            </div>
+                            <div className="text-[11px] text-muted-foreground mt-1 flex flex-wrap gap-x-3 gap-y-0.5">
+                              {item.lastStats?.subscribers && <span>👥 {item.lastStats.subscribers}</span>}
+                              {item.lastStats?.views && <span>👁️ {item.lastStats.views}</span>}
+                              {item.lastStats?.videos && <span>🎬 {item.lastStats.videos}</span>}
+                              <span className="font-mono text-[10px] opacity-70">ID: {item.channelId}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => {
+                                setShowMemoryModal(false);
+                                handleSendMessage(`Amar ${item.alias} channel er info dao`);
+                              }}
+                              className="px-2.5 py-1.5 rounded-xl bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-600 dark:text-cyan-400 text-xs font-semibold transition-colors flex items-center gap-1"
+                              title="Ask bot for live channel data"
+                            >
+                              <Search className="w-3.5 h-3.5" />
+                              <span>Query</span>
+                            </button>
+
+                            <button
+                              onClick={() => handleDeleteChannel(item.alias)}
+                              className="p-1.5 rounded-xl hover:bg-destructive/10 text-muted-foreground hover:text-destructive transition-colors"
+                              title="Delete from memory"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 3. Learned User Facts / Profile Memory */}
+                <div className="space-y-2.5">
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <h3 className="font-semibold text-xs text-foreground uppercase tracking-wider">
+                      Learned Facts & Preferences
+                    </h3>
+                  </div>
+
+                  {Object.keys(memoryFacts).length === 0 ? (
+                    <div className="p-3 text-center rounded-2xl border border-dashed text-xs text-muted-foreground bg-muted/10">
+                      Say <i>"Amar nam [Name]"</i> or <i>"Amar topic [Topic]"</i> to let the bot remember your identity.
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {Object.entries(memoryFacts).map(([k, v]) => (
+                        <div key={k} className="p-2.5 rounded-xl border bg-muted/20 text-xs flex items-center justify-between">
+                          <span className="font-semibold text-muted-foreground capitalize">{k.replace('_', ' ')}:</span>
+                          <span className="font-bold text-foreground truncate ml-2">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-3 sm:p-4 border-t bg-muted/20 flex items-center justify-between text-xs text-muted-foreground shrink-0">
+                <span className="flex items-center gap-1.5 text-[11px]">
+                  <Database className="w-3.5 h-3.5 text-cyan-500" />
+                  Instant AI Retrieval & YouTube API Sync
+                </span>
+                <button
+                  onClick={() => setShowMemoryModal(false)}
+                  className="px-4 py-1.5 rounded-xl bg-card border hover:bg-muted font-semibold text-foreground text-xs transition-colors"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

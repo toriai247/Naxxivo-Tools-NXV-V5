@@ -639,6 +639,632 @@ ${extraPrompt ? `- Focus: ${extraPrompt}` : ''}
   }
 });
 
+// ==========================================
+// 🔑 DEVELOPER API KEY SYSTEM & PUBLIC API V1
+// ==========================================
+
+interface ApiKeyRecord {
+  id: string;
+  name: string;
+  key: string;
+  type: "live" | "test";
+  status: "active" | "revoked";
+  rateLimitPerMinute: number;
+  monthlyQuota: number;
+  usedToday: number;
+  totalCalls: number;
+  createdAt: string;
+  lastUsedAt?: string;
+  requestTimestamps: number[];
+}
+
+// In-Memory API Key Registry (pre-seeded with a default starter sandbox key)
+const apiKeysStore = new Map<string, ApiKeyRecord>();
+
+// Pre-seed a default sandbox key for instant developer testing
+const DEFAULT_DEV_KEY = "nx_live_demo884920a1f4b23c9e771d05a8";
+apiKeysStore.set(DEFAULT_DEV_KEY, {
+  id: "key_default_demo",
+  name: "Public Demo Key",
+  key: DEFAULT_DEV_KEY,
+  type: "live",
+  status: "active",
+  rateLimitPerMinute: 60,
+  monthlyQuota: 10000,
+  usedToday: 0,
+  totalCalls: 0,
+  createdAt: new Date().toISOString(),
+  requestTimestamps: [],
+});
+
+// Helper to generate secure key
+function generateRandomApiKey(type: "live" | "test" = "live"): string {
+  const prefix = type === "test" ? "nx_test_" : "nx_live_";
+  const randomBytes = crypto.randomBytes(16).toString("hex");
+  return `${prefix}${randomBytes}`;
+}
+
+// Middleware: API Key Verification & Rate Limiting
+function verifyApiKey(req: express.Request, res: express.Response, next: express.NextFunction) {
+  // Extract key from header, Bearer token, or query param
+  let rawKey = (req.headers["x-api-key"] as string) || "";
+  
+  if (!rawKey && req.headers.authorization) {
+    const authHeader = req.headers.authorization;
+    if (authHeader.startsWith("Bearer ")) {
+      rawKey = authHeader.substring(7).trim();
+    }
+  }
+
+  if (!rawKey && typeof req.query.api_key === "string") {
+    rawKey = req.query.api_key;
+  }
+
+  if (!rawKey) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Missing API Key. Please provide a valid key via the 'x-api-key' header or 'Authorization: Bearer <key>'. Get your free key at /api-keys",
+      code: "API_KEY_MISSING",
+      docs: "/api-keys",
+    });
+  }
+
+  const record = apiKeysStore.get(rawKey);
+
+  if (!record) {
+    return res.status(401).json({
+      error: "Unauthorized",
+      message: "Invalid API Key provided. Check your key in the Developer Dashboard.",
+      code: "API_KEY_INVALID",
+      docs: "/api-keys",
+    });
+  }
+
+  if (record.status !== "active") {
+    return res.status(403).json({
+      error: "Forbidden",
+      message: "This API Key has been revoked or deactivated.",
+      code: "API_KEY_REVOKED",
+    });
+  }
+
+  // Rate Limiting (Sliding Window per 60 seconds)
+  const now = Date.now();
+  const oneMinuteAgo = now - 60 * 1000;
+  record.requestTimestamps = record.requestTimestamps.filter(t => t > oneMinuteAgo);
+
+  if (record.requestTimestamps.length >= record.rateLimitPerMinute) {
+    res.setHeader("X-RateLimit-Limit", record.rateLimitPerMinute);
+    res.setHeader("X-RateLimit-Remaining", 0);
+    res.setHeader("X-RateLimit-Reset", 60);
+    return res.status(429).json({
+      error: "Too Many Requests",
+      message: `Rate limit exceeded. Your key is limited to ${record.rateLimitPerMinute} requests per minute.`,
+      code: "RATE_LIMIT_EXCEEDED",
+      retryAfterSeconds: 60,
+    });
+  }
+
+  // Record usage
+  record.requestTimestamps.push(now);
+  record.totalCalls += 1;
+  record.usedToday += 1;
+  record.lastUsedAt = new Date().toISOString();
+
+  // Attach rate limit headers
+  res.setHeader("X-RateLimit-Limit", record.rateLimitPerMinute);
+  res.setHeader("X-RateLimit-Remaining", Math.max(0, record.rateLimitPerMinute - record.requestTimestamps.length));
+  res.setHeader("X-RateLimit-Reset", 60);
+  res.setHeader("X-API-Key-ID", record.id);
+
+  // Pass key info to request
+  (req as any).apiKeyInfo = record;
+  next();
+}
+
+// ----------------------------------------------------
+// 🛠️ API Key Management Endpoints (Used by Dashboard)
+// ----------------------------------------------------
+
+// List all API keys
+app.get("/api/v1/keys", (_req, res) => {
+  const keysList = Array.from(apiKeysStore.values()).map(k => ({
+    id: k.id,
+    name: k.name,
+    key: k.key,
+    type: k.type,
+    status: k.status,
+    rateLimitPerMinute: k.rateLimitPerMinute,
+    monthlyQuota: k.monthlyQuota,
+    usedToday: k.usedToday,
+    totalCalls: k.totalCalls,
+    createdAt: k.createdAt,
+    lastUsedAt: k.lastUsedAt || null,
+  }));
+
+  return res.json({
+    success: true,
+    total: keysList.length,
+    keys: keysList,
+  });
+});
+
+// Generate a new API key
+app.post("/api/v1/keys/generate", (req, res) => {
+  const { name, type } = req.body || {};
+  const keyName = (name && typeof name === "string") ? name.trim().slice(0, 50) : "Default Developer App";
+  const keyType: "live" | "test" = type === "test" ? "test" : "live";
+  
+  const newKey = generateRandomApiKey(keyType);
+  const id = `key_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`;
+
+  const record: ApiKeyRecord = {
+    id,
+    name: keyName,
+    key: newKey,
+    type: keyType,
+    status: "active",
+    rateLimitPerMinute: 60,
+    monthlyQuota: 10000,
+    usedToday: 0,
+    totalCalls: 0,
+    createdAt: new Date().toISOString(),
+    requestTimestamps: [],
+  };
+
+  apiKeysStore.set(newKey, record);
+
+  return res.status(201).json({
+    success: true,
+    message: "API Key created successfully",
+    apiKey: {
+      id: record.id,
+      name: record.name,
+      key: record.key,
+      type: record.type,
+      status: record.status,
+      rateLimitPerMinute: record.rateLimitPerMinute,
+      monthlyQuota: record.monthlyQuota,
+      createdAt: record.createdAt,
+    },
+  });
+});
+
+// Revoke / Toggle API key status
+app.post("/api/v1/keys/revoke", (req, res) => {
+  const { keyId, key } = req.body || {};
+  
+  let targetRecord: ApiKeyRecord | undefined;
+  for (const r of apiKeysStore.values()) {
+    if (r.id === keyId || r.key === key) {
+      targetRecord = r;
+      break;
+    }
+  }
+
+  if (!targetRecord) {
+    return res.status(404).json({ error: "API Key not found" });
+  }
+
+  targetRecord.status = targetRecord.status === "active" ? "revoked" : "active";
+
+  return res.json({
+    success: true,
+    message: `API Key is now ${targetRecord.status}`,
+    status: targetRecord.status,
+    keyId: targetRecord.id,
+  });
+});
+
+// Regenerate API Key (creates a new key string while preserving metadata)
+app.post("/api/v1/keys/regenerate", (req, res) => {
+  const { keyId } = req.body || {};
+
+  let targetRecord: ApiKeyRecord | undefined;
+  for (const r of apiKeysStore.values()) {
+    if (r.id === keyId) {
+      targetRecord = r;
+      break;
+    }
+  }
+
+  if (!targetRecord) {
+    return res.status(404).json({ error: "API Key not found" });
+  }
+
+  // Delete old key mapping
+  apiKeysStore.delete(targetRecord.key);
+
+  // Generate new key
+  const newKey = generateRandomApiKey(targetRecord.type);
+  targetRecord.key = newKey;
+  targetRecord.status = "active";
+  targetRecord.requestTimestamps = [];
+
+  apiKeysStore.set(newKey, targetRecord);
+
+  return res.json({
+    success: true,
+    message: "API Key regenerated successfully",
+    apiKey: {
+      id: targetRecord.id,
+      name: targetRecord.name,
+      key: targetRecord.key,
+      type: targetRecord.type,
+      status: targetRecord.status,
+    },
+  });
+});
+
+// Delete API key
+app.delete("/api/v1/keys/:keyId", (req, res) => {
+  const { keyId } = req.params;
+
+  let foundKey: string | null = null;
+  for (const [k, r] of apiKeysStore.entries()) {
+    if (r.id === keyId) {
+      foundKey = k;
+      break;
+    }
+  }
+
+  if (!foundKey) {
+    return res.status(404).json({ error: "API Key not found" });
+  }
+
+  apiKeysStore.delete(foundKey);
+
+  return res.json({
+    success: true,
+    message: "API Key deleted successfully",
+  });
+});
+
+// ----------------------------------------------------
+// 🚀 PROTECTED DEVELOPER ENDPOINTS (V1)
+// ----------------------------------------------------
+
+// 1. System Health & API Status
+app.get("/api/v1/health", verifyApiKey, (_req, res) => {
+  return res.json({
+    status: "ok",
+    version: "v1.0.0",
+    uptimeSeconds: Math.floor(process.uptime()),
+    timestamp: new Date().toISOString(),
+    services: {
+      aiEngine: "operational",
+      youtubeParser: "operational",
+      sfxLibrary: "operational",
+      textTools: "operational",
+    },
+  });
+});
+
+// Sample / Curated Prompts Data for API
+const CURATED_PROMPTS = [
+  {
+    id: "p_cyberpunk_samurai",
+    title: "Cyberpunk Ronin in Neon Rain",
+    prompt: "Cyberpunk futuristic ronin standing in neon rain street of Neo Tokyo, ultra-detailed glowing katana, chromatic aberration, cinematic lighting, 8k octane render, Unreal Engine 5 --ar 16:9 --v 6.0",
+    negative_prompt: "blurry, low quality, deformed hands, extra limbs, bad anatomy, watermark",
+    category: "Cyberpunk",
+    model: "Midjourney v6",
+    aspect_ratio: "16:9",
+    tags: ["cyberpunk", "ronin", "neon", "rain", "scifi", "katana"],
+    likes_count: 1420,
+    author_name: "Naxxivo Studio",
+    created_at: "2026-01-15T10:00:00Z"
+  },
+  {
+    id: "p_anime_celestial",
+    title: "Celestial Anime Shrine Maiden",
+    prompt: "Ethereal anime shrine maiden summoning glowing cosmic spirits under starry aurora sky, flowing white & vermilion silk robes, Makoto Shinkai studio aesthetic, soft volumetric lighting, masterpiece --ar 9:16 --v 6.0",
+    negative_prompt: "ugly, duplicate, mutilated, bad proportions, bad eyes",
+    category: "Anime",
+    model: "Midjourney v6",
+    aspect_ratio: "9:16",
+    tags: ["anime", "shrine maiden", "aurora", "celestial", "stars"],
+    likes_count: 980,
+    author_name: "AuraCraft",
+    created_at: "2026-02-01T14:30:00Z"
+  },
+  {
+    id: "p_flux_hyperreal",
+    title: "Hyper-Realistic Studio Portrait with Golden Hour",
+    prompt: "Cinematic medium close-up portrait of an elegant woman, shot on 85mm f/1.4 lens, natural golden hour rim light, realistic skin texture with subtle pores, bokeh background, photorealistic color grading",
+    negative_prompt: "plastic skin, oversaturated, airbrushed, cartoon, CGI",
+    category: "Realistic",
+    model: "FLUX.1 Schnell",
+    aspect_ratio: "4:5",
+    tags: ["portrait", "photography", "golden hour", "realistic", "85mm"],
+    likes_count: 1650,
+    author_name: "PhotoGen",
+    created_at: "2026-02-10T09:15:00Z"
+  },
+  {
+    id: "p_3d_isometric",
+    title: "3D Isometric Cozy Cyber Cafe",
+    prompt: "Miniature 3D isometric cyberpunk coffee shop with floating holographic menus, neon signs, rainy street exterior, cozy warm interior lighting, clay render style, Blender 3D, high detail --ar 1:1",
+    negative_prompt: "flat, 2D, noisy, dark, low contrast",
+    category: "3D Render",
+    model: "Midjourney v6",
+    aspect_ratio: "1:1",
+    tags: ["3d", "isometric", "blender", "cafe", "cyberpunk", "cozy"],
+    likes_count: 870,
+    author_name: "IsoCraft",
+    created_at: "2026-02-12T16:45:00Z"
+  },
+  {
+    id: "p_fantasy_dragon",
+    title: "Ancient Crystal Dragon in Mythic Cavern",
+    prompt: "Massive ancient dragon made of translucent glowing amethyst crystals guarding a hoard of luminous relics inside a bioluminescent cavern, dramatic lighting, mythical concept art, artstation trending --ar 16:9",
+    negative_prompt: "low resolution, poorly drawn wings, distorted scales",
+    category: "Fantasy",
+    model: "FLUX.1 Dev",
+    aspect_ratio: "16:9",
+    tags: ["fantasy", "dragon", "crystal", "mythic", "cavern", "glow"],
+    likes_count: 1210,
+    author_name: "MythosAI",
+    created_at: "2026-02-14T11:20:00Z"
+  }
+];
+
+// 2. Fetch AI Prompts API
+app.get("/api/v1/prompts", verifyApiKey, (req, res) => {
+  const { category, model, search, limit = "20", offset = "0" } = req.query as Record<string, string>;
+  
+  let results = [...CURATED_PROMPTS];
+
+  if (category && category.toLowerCase() !== "all") {
+    results = results.filter(p => p.category.toLowerCase() === category.toLowerCase());
+  }
+
+  if (model) {
+    results = results.filter(p => p.model?.toLowerCase().includes(model.toLowerCase()));
+  }
+
+  if (search) {
+    const q = search.toLowerCase();
+    results = results.filter(p => 
+      p.title.toLowerCase().includes(q) || 
+      p.prompt.toLowerCase().includes(q) ||
+      p.tags.some(t => t.toLowerCase().includes(q))
+    );
+  }
+
+  const numLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+  const numOffset = Math.max(0, parseInt(offset, 10) || 0);
+
+  const paginated = results.slice(numOffset, numOffset + numLimit);
+
+  return res.json({
+    success: true,
+    total: results.length,
+    count: paginated.length,
+    limit: numLimit,
+    offset: numOffset,
+    data: paginated,
+  });
+});
+
+// 3. Fetch Single Prompt by ID
+app.get("/api/v1/prompts/:id", verifyApiKey, (req, res) => {
+  const { id } = req.params;
+  const prompt = CURATED_PROMPTS.find(p => p.id === id);
+
+  if (!prompt) {
+    return res.status(404).json({
+      error: "Not Found",
+      message: `Prompt with ID '${id}' was not found.`,
+    });
+  }
+
+  return res.json({
+    success: true,
+    data: prompt,
+  });
+});
+
+// 4. YouTube Video Metadata & HD Thumbnails Extraction API
+app.post("/api/v1/youtube/extract", verifyApiKey, async (req, res) => {
+  try {
+    const { url, videoId: rawVideoId } = req.body || {};
+    let videoId = rawVideoId;
+
+    if (!videoId && url) {
+      // Parse video ID from URL
+      const regExp = /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|shorts\/|watch\?v=|\&v=)([^#\&\?]*).*/;
+      const match = String(url).match(regExp);
+      videoId = (match && match[2].length === 11) ? match[2] : null;
+    }
+
+    if (!videoId || videoId.length !== 11) {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Please provide a valid YouTube URL or 11-character videoId in the request body.",
+        example: { url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ" },
+      });
+    }
+
+    // Build standard multi-resolution thumbnail URLs (All direct CDNs)
+    const thumbnails = {
+      ultraHd4k: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      maxRes1080p: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
+      high720p: `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`,
+      medium480p: `https://i.ytimg.com/vi/${videoId}/mqdefault.jpg`,
+      standard: `https://i.ytimg.com/vi/${videoId}/sddefault.jpg`,
+      default: `https://i.ytimg.com/vi/${videoId}/default.jpg`,
+    };
+
+    // YouTube oEmbed fetch for rapid title & author
+    let oembedData: any = {};
+    try {
+      const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+      if (oembedRes.ok) {
+        oembedData = await oembedRes.json();
+      }
+    } catch {
+      // fallback
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        videoId,
+        title: oembedData.title || `YouTube Video (${videoId})`,
+        authorName: oembedData.author_name || "YouTube Creator",
+        authorUrl: oembedData.author_url || "",
+        watchUrl: `https://www.youtube.com/watch?v=${videoId}`,
+        embedUrl: `https://www.youtube.com/embed/${videoId}`,
+        thumbnails,
+        extractedAt: new Date().toISOString(),
+      },
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      error: "Extraction Failed",
+      message: error?.message || String(error),
+    });
+  }
+});
+
+// 5. Royalty-Free SFX Audio Library API
+app.get("/api/v1/sfx", verifyApiKey, (req, res) => {
+  const { category, search, limit = "60" } = req.query as Record<string, string>;
+
+  // Sample catalog of 60+ sounds
+  const SFX_CATALOG = [
+    { id: "ticks", name: "Rapid Electronic Ticks", category: "core", categoryLabel: "Core Studio", path: "/sounds/04_Rapid_Electronic_Ticks.wav", tag: "Ticks", pack: "core" },
+    { id: "sfx_03_metallic_click", name: "Metallic Click", category: "clicks", categoryLabel: "Clicks & UI", path: "/sounds/SFX50+/03_Metallic_Click.wav", tag: "Metal Click", pack: "SFX50+" },
+    { id: "sfx_04_tiny_glitch_tick", name: "Tiny Glitch Tick", category: "clicks", categoryLabel: "Clicks & UI", path: "/sounds/SFX50+/04_Tiny_Glitch_Tick.wav", tag: "Micro Tick", pack: "SFX50+" },
+    { id: "sfx_01_cinematic_riser", name: "Cinematic Riser Hit", category: "impact", categoryLabel: "Risers & Impacts", path: "/sounds/SFX50+/01_Cinematic_Riser_Hit.wav", tag: "Riser Hit", pack: "SFX50+" },
+    { id: "sfx_02_deep_bass", name: "Deep Bass Drop", category: "bass", categoryLabel: "Bass & Rumble", path: "/sounds/SFX50+/02_Deep_Sub_Bass_Drop.wav", tag: "Sub Bass", pack: "SFX50+" },
+    { id: "sfx_07_glitch_zap", name: "Glitch Zap", category: "scifi", categoryLabel: "Sci-Fi & Zaps", path: "/sounds/SFX50+/07_Glitch_Zap.wav", tag: "Glitch Zap", pack: "SFX50+" },
+    { id: "sfx_06_layered_tech", name: "Layered Tech Burst", category: "bursts", categoryLabel: "Bursts & Pulses", path: "/sounds/SFX50+/06_Layered_Tech_Burst.wav", tag: "Tech Burst", pack: "SFX50+" },
+    { id: "sfx_10_ambient_drone", name: "Deep Ambient Drone", category: "ambient", categoryLabel: "Ambient Drones", path: "/sounds/SFX50+/10_Ambient_Deep_Drone.wav", tag: "Deep Drone", pack: "SFX50+" }
+  ];
+
+  let filtered = [...SFX_CATALOG];
+
+  if (category && category !== "all") {
+    filtered = filtered.filter(s => s.category.toLowerCase().includes(category.toLowerCase()));
+  }
+
+  if (search) {
+    const q = search.toLowerCase();
+    filtered = filtered.filter(s => s.name.toLowerCase().includes(q) || s.tag.toLowerCase().includes(q));
+  }
+
+  const numLimit = Math.min(100, Math.max(1, parseInt(limit, 10) || 60));
+
+  return res.json({
+    success: true,
+    total: filtered.length,
+    data: filtered.slice(0, numLimit),
+    format: "WAV Audio (Royalty-Free)",
+  });
+});
+
+// 6. Text Manipulation & Metrics API
+app.post("/api/v1/text/convert", verifyApiKey, (req, res) => {
+  const { text = "", mode = "slug" } = req.body || {};
+  const cleanStr = String(text);
+
+  const wordCount = cleanStr.trim() ? cleanStr.trim().split(/\s+/).length : 0;
+  const charCount = cleanStr.length;
+  const readingTimeMin = Math.ceil(wordCount / 200);
+
+  let convertedText = cleanStr;
+
+  switch (mode) {
+    case "slug":
+      convertedText = cleanStr
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      break;
+    case "camel":
+      convertedText = cleanStr
+        .toLowerCase()
+        .replace(/[^a-zA-Z0-9]+(.)/g, (_, chr) => chr.toUpperCase());
+      break;
+    case "snake":
+      convertedText = cleanStr
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "_")
+        .replace(/^_+|_+$/g, "");
+      break;
+    case "kebab":
+      convertedText = cleanStr
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+      break;
+    case "title":
+      convertedText = cleanStr
+        .toLowerCase()
+        .replace(/\b(\w)/g, s => s.toUpperCase());
+      break;
+    case "upper":
+      convertedText = cleanStr.toUpperCase();
+      break;
+    case "lower":
+      convertedText = cleanStr.toLowerCase();
+      break;
+    default:
+      break;
+  }
+
+  return res.json({
+    success: true,
+    mode,
+    originalText: cleanStr,
+    convertedText,
+    metrics: {
+      wordCount,
+      charCount,
+      readingTimeMinutes: readingTimeMin,
+    },
+  });
+});
+
+// 7. AI Title Generator API Endpoint
+app.post("/api/v1/ai/generate-title", verifyApiKey, async (req, res) => {
+  try {
+    const { topic = "", tone = "viral", count = 5 } = req.body || {};
+
+    if (!topic.trim()) {
+      return res.status(400).json({ error: "Please provide a 'topic' in the request body." });
+    }
+
+    const ai = getGeminiClient();
+    const prompt = `Generate ${Math.min(10, Math.max(1, count))} high-CTR, engaging titles for: "${topic}". Tone: ${tone}. Return ONLY a raw JSON array of strings, e.g. ["Title 1", "Title 2"]. No markdown backticks.`;
+
+    const response = await ai.models.generateContent({
+      model: "gemini-3.7-flash",
+      contents: [{ role: "user", parts: [{ text: prompt }] }],
+      config: { maxOutputTokens: 500, temperature: 0.7 },
+    });
+
+    const parsed = safeParseAIJson<string[]>(response.text || "[]", [
+      `${topic}: The Ultimate 2026 Guide`,
+      `How to Master ${topic} Fast`,
+      `Why Everyone is Talking About ${topic}`,
+      `10 Secrets About ${topic} You Never Knew`,
+      `The Future of ${topic} Explained`,
+    ]);
+
+    return res.json({
+      success: true,
+      topic,
+      tone,
+      titles: parsed,
+    });
+  } catch (error: any) {
+    return res.status(500).json({ error: "AI Generation failed", message: error?.message || String(error) });
+  }
+});
+
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({

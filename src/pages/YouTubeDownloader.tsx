@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Download, AlertCircle, Image as ImageIcon, Check } from "lucide-react";
 import { SeoContentYouTube } from "@/components/seo/SeoContentYouTube";
 import { FaqSection } from "@/components/seo/FaqSection";
-import { motion } from "framer-motion";
+import { motion } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
 

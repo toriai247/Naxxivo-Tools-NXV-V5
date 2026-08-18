@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { 
   LayoutGrid, 
@@ -24,13 +24,16 @@ import {
   Wand2,
   Minimize2,
   FolderSync,
-  Crop
+  Crop,
+  Music,
+  Key
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { BookmarkBanner } from "@/components/seo/BookmarkBanner";
 import { sound } from "@/lib/sound";
 import { SoundToggleBtn, SoundSettingsModal } from "@/components/SoundEffectsController";
+import { useRecentTools } from "@/hooks/useRecentTools";
 
 interface NavCategory {
   id: string;
@@ -154,6 +157,20 @@ const CATEGORIZED_NAV: NavCategory[] = [
         icon: Type 
       },
       { 
+        href: "/sound-effects", 
+        label: "SFX Audio Library", 
+        icon: Music,
+        badge: "60+ SFX",
+        badgeColor: "bg-amber-500/15 text-amber-600 dark:text-amber-400"
+      },
+      { 
+        href: "/api-keys", 
+        label: "Developer API Keys", 
+        icon: Key,
+        badge: "REST v1",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+      },
+      { 
         href: "/history", 
         label: "Action History", 
         icon: History 
@@ -172,6 +189,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [collapsedCategories, setCollapsedCategories] = useState<Record<string, boolean>>({});
+  const { recordToolUsage } = useRecentTools();
+
+  useEffect(() => {
+    if (location && location !== "/" && location !== "/menu" && location !== "/tools") {
+      recordToolUsage(location);
+    }
+  }, [location, recordToolUsage]);
 
   const toggleCategory = (catId: string) => {
     sound.click();
@@ -216,7 +240,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </Link>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
+          {/* 1-Click Bot Mode Button */}
+          <Link
+            href="/smart-bot"
+            onClick={() => sound.click()}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs ${
+              location === "/smart-bot"
+                ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 active:scale-95"
+            }`}
+            title="Smart AI Bot Mode (1-Click)"
+          >
+            <Bot className="w-4 h-4 text-emerald-500 shrink-0" />
+            <span className="font-bold text-xs">AI Bot</span>
+            <span className="relative flex h-2 w-2">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+            </span>
+          </Link>
+
           <SoundToggleBtn />
           <button
             onClick={() => {
@@ -535,6 +578,61 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-full overflow-hidden relative">
+        {/* Desktop Top Header */}
+        <header className="hidden md:flex items-center justify-between px-6 py-2.5 border-b bg-card/60 backdrop-blur-md shrink-0 z-10">
+          <div className="flex items-center gap-2 text-xs">
+            <Link 
+              href="/" 
+              onClick={() => sound.click()}
+              className="flex items-center gap-1.5 font-semibold text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <LayoutGrid className="w-3.5 h-3.5 text-primary" />
+              <span>Naxxivo Studio</span>
+            </Link>
+            <span className="text-border">/</span>
+            <span className="font-semibold text-foreground capitalize">
+              {location === "/" ? "Home Hub" : location.replace(/^\//, "").replace(/-/g, " ")}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* 1-Click Bot Mode Button */}
+            <Link
+              href="/smart-bot"
+              onClick={() => sound.click()}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs group ${
+                location === "/smart-bot"
+                  ? "bg-primary text-primary-foreground border-primary shadow-xs ring-2 ring-primary/20"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 hover:border-emerald-500/50 hover:shadow-sm active:scale-95"
+              }`}
+              title="Launch Smart AI Bot Mode (1-Click)"
+            >
+              <div className="p-1 rounded-lg bg-emerald-500/15 group-hover:scale-110 transition-transform">
+                <Bot className="w-3.5 h-3.5 text-emerald-500" />
+              </div>
+              <span className="font-bold tracking-tight">AI Bot Mode</span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            </Link>
+
+            <div className="h-4 w-px bg-border/60" />
+
+            <SoundToggleBtn />
+            <button
+              onClick={() => {
+                sound.theme();
+                setTheme(theme === "light" ? "dark" : "light");
+              }}
+              className="flex items-center justify-center w-8 h-8 rounded-xl bg-muted/60 hover:bg-muted text-muted-foreground hover:text-foreground transition-colors border border-border/50 shadow-2xs"
+              title="Toggle theme"
+            >
+              {theme === "light" ? <Moon className="w-3.5 h-3.5" /> : <Sun className="w-3.5 h-3.5" />}
+            </button>
+          </div>
+        </header>
+
         {/* If SmartBot page, render full screen clean chat UI without ads or footer */}
         {location === "/smart-bot" || location === "/ai-bot" || location === "/chatbot" ? (
           <div className="flex-1 h-full w-full overflow-hidden p-0 m-0">

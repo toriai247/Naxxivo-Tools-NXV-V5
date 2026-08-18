@@ -12,7 +12,7 @@ import {
   CheckCircle2
 } from "lucide-react";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
 

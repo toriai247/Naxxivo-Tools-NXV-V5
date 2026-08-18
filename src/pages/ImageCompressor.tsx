@@ -10,7 +10,7 @@ import {
   CheckCircle2,
   Zap
 } from "lucide-react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";

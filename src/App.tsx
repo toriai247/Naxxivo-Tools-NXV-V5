@@ -30,6 +30,8 @@ const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const History = lazy(() => import('@/pages/History'));
 const PromptsHome = lazy(() => import('@/pages/PromptsHome'));
 const PromptDetail = lazy(() => import('@/pages/PromptDetail'));
+const SoundEffectsLibrary = lazy(() => import('@/pages/SoundEffectsLibrary'));
+const ApiKeysDashboard = lazy(() => import('@/pages/ApiKeysDashboard'));
 const AuthPage = lazy(() => import('@/pages/Auth'));
 const ProfilePage = lazy(() => import('@/pages/Profile'));
 const NotFound = lazy(() => import('@/pages/not-found'));
@@ -74,6 +76,12 @@ function Router() {
           <Route path="/menu" component={MenuDirectory} />
           <Route path="/tools" component={MenuDirectory} />
           <Route path="/text-tools" component={TextTools} />
+          <Route path="/sound-effects" component={SoundEffectsLibrary} />
+          <Route path="/sfx" component={SoundEffectsLibrary} />
+          <Route path="/sounds" component={SoundEffectsLibrary} />
+          <Route path="/api-keys" component={ApiKeysDashboard} />
+          <Route path="/developers" component={ApiKeysDashboard} />
+          <Route path="/api-docs" component={ApiKeysDashboard} />
           <Route path="/favicon-generator" component={FaviconGenerator} />
           <Route path="/history" component={History} />
           <Route path="/about-us" component={AboutUs} />

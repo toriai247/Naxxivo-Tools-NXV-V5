@@ -24,6 +24,19 @@ export interface HistoryItem {
 const HISTORY_KEY = 'naxxivo_user_history';
 const MAX_HISTORY_ITEMS = 100;
 
+const TYPE_TO_TOOL_ID: Record<HistoryItemType, string> = {
+  thumbnail: 'thumbnail-downloader',
+  title_gen: 'title-generator',
+  desc_gen: 'description-generator',
+  channel_analysis: 'channel-analyzer',
+  video_analysis: 'video-analyzer',
+  image_conv: 'image-converter',
+  image_compress: 'image-compressor',
+  image_crop: 'image-cropper',
+  text_tool: 'text-tools',
+  favicon: 'favicon-generator'
+};
+
 export function useHistory() {
   const [history, setHistory] = useState<HistoryItem[]>([]);
 
@@ -40,6 +53,28 @@ export function useHistory() {
   }, []);
 
   const addHistoryItem = (item: Omit<HistoryItem, 'id' | 'timestamp'>) => {
+    // Record into recent tools
+    try {
+      const toolId = TYPE_TO_TOOL_ID[item.type];
+      if (toolId) {
+        const raw = localStorage.getItem('naxxivo_recent_tools');
+        const list = raw ? JSON.parse(raw) : [];
+        const existingIdx = list.findIndex((e: { toolId: string }) => e.toolId === toolId);
+        let updated;
+        if (existingIdx >= 0) {
+          updated = [
+            { toolId, lastUsed: Date.now(), count: (list[existingIdx].count || 1) + 1 },
+            ...list.filter((_: unknown, i: number) => i !== existingIdx)
+          ].slice(0, 8);
+        } else {
+          updated = [{ toolId, lastUsed: Date.now(), count: 1 }, ...list].slice(0, 8);
+        }
+        localStorage.setItem('naxxivo_recent_tools', JSON.stringify(updated));
+      }
+    } catch {
+      // ignore
+    }
+
     setHistory((prev) => {
       const newItem: HistoryItem = {
         ...item,

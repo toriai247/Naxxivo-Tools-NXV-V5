@@ -14,12 +14,12 @@ export default defineConfig(() => {
     build: {
       target: 'es2020',
       cssCodeSplit: true,
-      chunkSizeWarningLimit: 1000,
+      chunkSizeWarningLimit: 1200,
       rollupOptions: {
         output: {
           manualChunks(id) {
             if (id.includes('node_modules')) {
-              if (id.includes('react') || id.includes('react-dom') || id.includes('wouter')) {
+              if (id.includes('node_modules/react/') || id.includes('node_modules/react-dom/') || id.includes('node_modules/wouter/')) {
                 return 'vendor-react';
               }
               if (id.includes('@supabase')) {
@@ -28,7 +28,7 @@ export default defineConfig(() => {
               if (id.includes('lucide-react')) {
                 return 'vendor-icons';
               }
-              if (id.includes('framer-motion')) {
+              if (id.includes('motion')) {
                 return 'vendor-motion';
               }
             }
