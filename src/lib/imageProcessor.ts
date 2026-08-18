@@ -87,11 +87,22 @@ export function canvasToBmpBlob(canvas: HTMLCanvasElement): Blob {
 /**
  * Robust, resilient Image element loader supporting File, Blob, DataURL, ObjectURL & Remote URLs
  */
-export async function loadImageElement(source: File | Blob | string): Promise<HTMLImageElement> {
+export async function loadImageElement(source: File | Blob | string | any): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     let resolvedUrl = '';
     let isCreatedBlobUrl = false;
     let isResolved = false;
+
+    // Unwrap object source if an attachment/info object was passed directly
+    let effectiveSource: any = source;
+    if (effectiveSource && typeof effectiveSource === 'object' && !(effectiveSource instanceof Blob)) {
+      const stringDataUrl = effectiveSource.originalUrl || effectiveSource.convertedUrl || effectiveSource.croppedDataUrl || effectiveSource.dataUrl || effectiveSource.previewUrl || effectiveSource.url || effectiveSource.imageUrl || effectiveSource.src;
+      if (typeof stringDataUrl === 'string' && stringDataUrl.trim().length > 0) {
+        effectiveSource = stringDataUrl.trim();
+      } else if (effectiveSource.fileObj instanceof Blob) {
+        effectiveSource = effectiveSource.fileObj;
+      }
+    }
 
     const cleanup = () => {
       if (isCreatedBlobUrl && resolvedUrl) {
@@ -133,8 +144,8 @@ export async function loadImageElement(source: File | Blob | string): Promise<HT
     };
 
     // CASE 1: Blob or File source
-    if (source instanceof Blob) {
-      const blobSource = source;
+    if (effectiveSource instanceof Blob) {
+      const blobSource = effectiveSource;
       // 1. Try Object URL first (fastest, lowest memory overhead)
       try {
         resolvedUrl = URL.createObjectURL(blobSource);
@@ -192,8 +203,8 @@ export async function loadImageElement(source: File | Blob | string): Promise<HT
     }
 
     // CASE 2: String URL / Data URL source
-    if (typeof source === 'string') {
-      resolvedUrl = source.trim();
+    if (typeof effectiveSource === 'string') {
+      resolvedUrl = effectiveSource.trim();
       if (!resolvedUrl) {
         wrapError('Empty image source provided');
         return;
@@ -226,7 +237,7 @@ export async function loadImageElement(source: File | Blob | string): Promise<HT
       return;
     }
 
-    wrapError('Unsupported image source type');
+    wrapError('Unsupported or invalid image source provided. Please re-upload your image.');
   });
 }
 
@@ -243,9 +254,19 @@ export async function convertImage(options: ImageConversionOptions): Promise<Ima
     fallbackOriginalSize = 0
   } = options;
 
+  let effectiveSource: any = source;
+  if (effectiveSource && typeof effectiveSource === 'object' && !(effectiveSource instanceof Blob)) {
+    const stringDataUrl = effectiveSource.originalUrl || effectiveSource.convertedUrl || effectiveSource.croppedDataUrl || effectiveSource.dataUrl || effectiveSource.previewUrl || effectiveSource.url || effectiveSource.imageUrl || effectiveSource.src;
+    if (typeof stringDataUrl === 'string' && stringDataUrl.trim().length > 0) {
+      effectiveSource = stringDataUrl.trim();
+    } else if (effectiveSource.fileObj instanceof Blob) {
+      effectiveSource = effectiveSource.fileObj;
+    }
+  }
+
   let originalSizeBytes = 0;
-  if (source instanceof Blob) {
-    originalSizeBytes = source.size;
+  if (effectiveSource instanceof Blob) {
+    originalSizeBytes = effectiveSource.size;
   } else if (fallbackOriginalSize > 0) {
     originalSizeBytes = fallbackOriginalSize;
   }
@@ -255,9 +276,9 @@ export async function convertImage(options: ImageConversionOptions): Promise<Ima
   let canvasHeight = 0;
   let drawableSource: ImageBitmap | HTMLImageElement | null = null;
 
-  if (source instanceof Blob && typeof window.createImageBitmap === 'function') {
+  if (effectiveSource instanceof Blob && typeof window.createImageBitmap === 'function') {
     try {
-      const bitmap = await createImageBitmap(source);
+      const bitmap = await createImageBitmap(effectiveSource);
       drawableSource = bitmap;
       canvasWidth = bitmap.width;
       canvasHeight = bitmap.height;
@@ -269,7 +290,7 @@ export async function convertImage(options: ImageConversionOptions): Promise<Ima
 
   // 2. Fallback to HTMLImageElement loader if ImageBitmap failed or source is a URL
   if (!drawableSource) {
-    const img = await loadImageElement(source);
+    const img = await loadImageElement(effectiveSource);
     drawableSource = img;
     canvasWidth = img.naturalWidth || img.width;
     canvasHeight = img.naturalHeight || img.height;

@@ -34,6 +34,7 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { sound } from '@/lib/sound';
 import { motion, AnimatePresence } from 'motion/react';
+import { GeminiQuotaDashboard } from '@/components/GeminiQuotaDashboard';
 
 interface ApiKeyItem {
   id: string;

@@ -87,6 +87,9 @@ import {
 import { VideoAnalysisData, ChannelAnalysisData } from '@/types';
 import { InChatCropper, InChatCropResultCard, CropResultPayload } from '@/components/bot/InChatCropper';
 import { convertImage } from '@/lib/imageProcessor';
+import { TypewriterText } from '@/components/bot/TypewriterText';
+import { AiEngineSettingsModal } from '@/components/bot/AiEngineSettingsModal';
+import { getEngineConfig, MODEL_CATALOG, generateOnDeviceResponse } from '@/lib/webLlmEngine';
 
 interface BotMessage {
   id: string;
@@ -180,6 +183,47 @@ const STARTER_PROMPTS = [
   }
 ];
 
+// Helper to reliably extract an active Blob, File, or DataURL string from mixed candidates
+export function resolveValidImageSource(...candidates: any[]): File | Blob | string | null {
+  // First Pass: Prioritize persistent in-memory Data URLs (data:image/...) or web URLs
+  for (const item of candidates) {
+    if (!item) continue;
+
+    if (typeof item === 'string' && item.trim().length > 0) {
+      const trimmed = item.trim();
+      if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+        return trimmed;
+      }
+    }
+
+    if (typeof item === 'object') {
+      const stringUrl = item.originalUrl || item.convertedUrl || item.croppedDataUrl || item.dataUrl || item.previewUrl || item.url || item.imageUrl || item.src;
+      if (typeof stringUrl === 'string' && stringUrl.trim().length > 0) {
+        const trimmed = stringUrl.trim();
+        if (trimmed.startsWith('data:image/') || trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+          return trimmed;
+        }
+      }
+    }
+  }
+
+  // Second Pass: Fallback to active File or Blob handles
+  for (const item of candidates) {
+    if (!item) continue;
+    if (item instanceof Blob || item instanceof File) {
+      if (item.size > 0) return item;
+    }
+    if (typeof item === 'object' && (item.fileObj instanceof Blob || item.fileObj instanceof File)) {
+      if (item.fileObj.size > 0) return item.fileObj;
+    }
+    if (typeof item === 'string' && item.trim().length > 0) {
+      return item.trim();
+    }
+  }
+
+  return null;
+}
+
 export default function SmartBot() {
   const { toast } = useToast();
 
@@ -198,6 +242,21 @@ export default function SmartBot() {
         text: `👋 **Welcome to Naxxivo Smart Bot!**\n\nI am equipped with a **Persistent Memory Layer** & automation engine:\n\n• 🧠 **Persistent Memory & Channels:** Tell me *"Amar channel er nam Rony"* to remember your channel, then say *"Rony channel er info dao"* for real-time stats.\n• 🎬 **Paste YouTube Link:** Extract tags, 1080p HD thumbnails, SEO keywords, and embed codes.\n• 🖼️ **Upload Image (📎 or Drag & Drop):** Convert directly *(e.g., "WebP", "PNG", "Compress size", "90% quality")*.\n• 📄 **Document Tools:** Analyze word counts, case conversions, or format JSON.\n\nHow can I help you today?`,
       }
     ];
+  });
+
+  const [typedMsgIds, setTypedMsgIds] = useState<Set<string>>(() => {
+    const initialSet = new Set<string>();
+    initialSet.add('welcome-1');
+    try {
+      const saved = localStorage.getItem('naxxivo_bot_messages_v1');
+      if (saved) {
+        const parsed: BotMessage[] = JSON.parse(saved);
+        parsed.forEach((m) => initialSet.add(m.id));
+      }
+    } catch {
+      // Storage error ignored
+    }
+    return initialSet;
   });
 
   const [inputVal, setInputVal] = useState('');
@@ -222,6 +281,8 @@ export default function SmartBot() {
   const [savedChannels, setSavedChannels] = useState<BotSavedChannel[]>(() => getRememberedChannels());
   const [memoryFacts, setMemoryFacts] = useState<Record<string, BotMemoryFact>>(() => getBotMemoryFacts());
   const [showMemoryModal, setShowMemoryModal] = useState(false);
+  const [showEngineSettings, setShowEngineSettings] = useState(false);
+  const [activeEngineConfig, setActiveEngineConfig] = useState(() => getEngineConfig());
   const [newChannelAlias, setNewChannelAlias] = useState('');
   const [newChannelUrl, setNewChannelUrl] = useState('');
   const [rememberingAliasForChannel, setRememberingAliasForChannel] = useState<{ id: string; defaultAlias: string } | null>(null);
@@ -812,7 +873,8 @@ export default function SmartBot() {
           const quality = parsedCmd.quality;
           const formatToConvert: 'webp' | 'png' | 'jpeg' = targetFormat;
           
-          const conversionRes = await processImageConversion(currentAttached.file, formatToConvert, quality);
+          const sourceToConvert = currentAttached.file || currentAttached.previewUrl;
+          const conversionRes = await processImageConversion(sourceToConvert, formatToConvert, quality);
           sound.success();
 
           const qualityText = parsedCmd.detectedParameters.requestedQualityPercent ? ` (Quality: ${parsedCmd.detectedParameters.requestedQualityPercent}%)` : '';
@@ -1220,16 +1282,19 @@ export default function SmartBot() {
         );
 
         if (prevImageMsg) {
-          const activeUrl = prevImageMsg.attachment?.url || 
-            prevImageMsg.toolState?.imageInfo?.originalUrl || 
-            prevImageMsg.toolState?.cropWorkspaceInfo?.imageUrl || 
-            prevImageMsg.toolState?.cropResult?.croppedDataUrl;
+          const activeSource = resolveValidImageSource(
+            prevImageMsg.attachment?.fileObj,
+            prevImageMsg.attachment?.url,
+            prevImageMsg.toolState?.imageInfo?.originalUrl,
+            prevImageMsg.toolState?.cropWorkspaceInfo?.imageUrl,
+            prevImageMsg.toolState?.cropResult?.croppedDataUrl
+          );
+          const activeUrl = (typeof activeSource === 'string' ? activeSource : prevImageMsg.attachment?.url || prevImageMsg.toolState?.imageInfo?.originalUrl || prevImageMsg.toolState?.cropWorkspaceInfo?.imageUrl || prevImageMsg.toolState?.cropResult?.croppedDataUrl) || '';
           const activeName = prevImageMsg.attachment?.name || 
             prevImageMsg.toolState?.imageInfo?.name || 
             prevImageMsg.toolState?.cropWorkspaceInfo?.fileName || 'image.png';
-          const activeFile = prevImageMsg.attachment?.fileObj;
 
-          if (activeUrl) {
+          if (activeSource) {
             sound.scan();
             if (imageCmdCheck.action === 'crop') {
               sound.success();
@@ -1264,7 +1329,7 @@ export default function SmartBot() {
               const quality = imageCmdCheck.quality;
               const formatToConvert: 'webp' | 'png' | 'jpeg' = targetFormat;
               
-              const conversionRes = await processImageConversion(activeFile || activeUrl, formatToConvert, quality);
+              const conversionRes = await processImageConversion(activeSource, formatToConvert, quality);
               sound.success();
 
               const qualityText = imageCmdCheck.detectedParameters.requestedQualityPercent ? ` (Quality: ${imageCmdCheck.detectedParameters.requestedQualityPercent}%)` : '';
@@ -1407,18 +1472,36 @@ export default function SmartBot() {
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 6. SCENARIO F: Conversational AI with Persistent Memory Context
+      // 6. SCENARIO F: Conversational AI with Persistent Memory Context & Multi-Engine Support
       // ─────────────────────────────────────────────────────────────
       if (rawText && !pureTextMatch.matched) {
         sound.scan();
         try {
           const resolved = resolveContextualQuery(rawText);
           const memoryContextPrompt = buildConversationContextPrompt();
+          const engineCfg = getEngineConfig();
 
-          const aiReply = await sendAiChatMessage(
-            [{ role: 'user', content: resolved.resolvedText }],
-            `${memoryContextPrompt}\n\nYou are Naxxivo Smart Bot, a versatile AI assistant with persistent memory and YouTube/image automation capabilities. Answer helpfully, respectfully, and concisely.`
-          );
+          let aiReply = '';
+          const activeOpt = MODEL_CATALOG.find((m) => m.id === engineCfg.activeModelId) || MODEL_CATALOG[0];
+
+          if (engineCfg.activeModelId === 'cloud-gemini') {
+            aiReply = await sendAiChatMessage(
+              [{ role: 'user', content: resolved.resolvedText }],
+              `${memoryContextPrompt}\n\nYou are Naxxivo Smart Bot, a versatile AI assistant with persistent memory and YouTube/image automation capabilities. Answer helpfully, respectfully, and concisely.`
+            );
+          } else {
+            // On-Device WebLLM Execution
+            aiReply = await generateOnDeviceResponse(
+              [
+                {
+                  role: 'system',
+                  content: `${memoryContextPrompt}\n\nYou are Naxxivo Smart Bot running 100% offline on-device via ${activeOpt.name}. Answer helpfully, respectfully, and concisely.`,
+                },
+                { role: 'user', content: resolved.resolvedText },
+              ],
+              engineCfg.activeModelId
+            );
+          }
 
           if (aiReply) {
             sound.success();
@@ -1442,7 +1525,8 @@ export default function SmartBot() {
             setIsLoading(false);
             return;
           }
-        } catch {
+        } catch (err: any) {
+          console.warn('AI response generation fallback:', err);
           // Graceful fallback to pureTextMatch
         }
       }
@@ -1631,12 +1715,25 @@ export default function SmartBot() {
     setIsLoading(true);
 
     try {
-      const fallbackUserMsg = [...messages].reverse().find(m => m.attachment?.fileObj || m.attachment?.url);
-      const imageSource = userMessageWithFile?.attachment?.fileObj 
-        || imageInfo?.originalUrl 
-        || userMessageWithFile?.attachment?.url 
-        || fallbackUserMsg?.attachment?.fileObj 
-        || fallbackUserMsg?.attachment?.url;
+      const fallbackUserMsg = [...messages].reverse().find(m => 
+        m.attachment?.type === 'image' || 
+        m.attachment?.fileObj || 
+        m.attachment?.url ||
+        m.toolState?.imageInfo?.originalUrl ||
+        m.toolState?.cropWorkspaceInfo?.imageUrl ||
+        m.toolState?.cropResult?.croppedDataUrl
+      );
+
+      const imageSource = resolveValidImageSource(
+        userMessageWithFile?.attachment?.fileObj,
+        imageInfo?.originalUrl,
+        userMessageWithFile?.attachment?.url,
+        fallbackUserMsg?.attachment?.fileObj,
+        fallbackUserMsg?.attachment?.url,
+        fallbackUserMsg?.toolState?.imageInfo?.originalUrl,
+        fallbackUserMsg?.toolState?.cropWorkspaceInfo?.imageUrl,
+        fallbackUserMsg?.toolState?.cropResult?.croppedDataUrl
+      );
 
       if (!imageSource) {
         toast({ title: "Image reference missing", description: "Please re-upload your image or provide an image link." });
@@ -1981,6 +2078,22 @@ export default function SmartBot() {
             </span>
           </button>
 
+          {/* AI Engine Settings Button */}
+          <button
+            onClick={() => {
+              sound.click();
+              setShowEngineSettings(true);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all shadow-xs"
+            title="AI Engine Settings (Cloud Gemini / Local On-Device AI)"
+          >
+            <Cpu className="w-4 h-4 text-emerald-500" />
+            <span className="hidden sm:inline">AI Engine</span>
+            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
+              {MODEL_CATALOG.find(m => m.id === activeEngineConfig.activeModelId)?.badge || 'GEMINI'}
+            </span>
+          </button>
+
           <button
             onClick={handleClearChat}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent hover:border-destructive/20"
@@ -2098,9 +2211,26 @@ export default function SmartBot() {
                 )}
 
                 {/* Message Body Text */}
-                <div className="whitespace-pre-wrap font-sans text-xs sm:text-[13px] leading-relaxed break-words">
-                  {msg.text}
-                </div>
+                {isUser ? (
+                  <div className="whitespace-pre-wrap font-sans text-xs sm:text-[13px] leading-relaxed break-words">
+                    {msg.text}
+                  </div>
+                ) : (
+                  <TypewriterText
+                    text={msg.text}
+                    enabled={!typedMsgIds.has(msg.id)}
+                    onComplete={() => {
+                      setTypedMsgIds((prev) => {
+                        const next = new Set(prev);
+                        next.add(msg.id);
+                        return next;
+                      });
+                    }}
+                    onTick={() => {
+                      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+                    }}
+                  />
+                )}
 
                 {/* 1. YouTube Video Action Options */}
                 {msg.toolState?.type === 'youtube_video_options' && msg.toolState.videoData && (
@@ -3330,6 +3460,14 @@ export default function SmartBot() {
           </div>
         )}
       </AnimatePresence>
+      {/* AI Engine Settings Modal */}
+      <AiEngineSettingsModal
+        isOpen={showEngineSettings}
+        onClose={() => setShowEngineSettings(false)}
+        onEngineChanged={() => {
+          setActiveEngineConfig(getEngineConfig());
+        }}
+      />
     </div>
   );
 }

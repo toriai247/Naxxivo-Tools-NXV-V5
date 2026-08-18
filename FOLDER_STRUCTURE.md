@@ -143,7 +143,9 @@ graph TD
 │   │   ├── AiOptimizerCard.tsx # Gemini AI optimization card
 │   │   ├── WorkflowScanner.tsx # YouTube inspection progress animation
 │   │   ├── bot/              # SmartBot dedicated chat components
-│   │   │   └── InChatCropper.tsx # Interactive in-chat cropper with aspect ratio presets, zoom, rotate, flip & export
+│   │   │   ├── InChatCropper.tsx # Interactive in-chat cropper with aspect ratio presets, zoom, rotate, flip & export
+│   │   │   ├── TypewriterText.tsx # Smooth typewriter-style response streaming animation component with cursor & skip feature
+│   │   │   └── AiEngineSettingsModal.tsx # On-device local AI & WebLLM engine selection modal with progress bar & cache controls
 │   │   ├── layout/
 │   │   │   └── AppLayout.tsx # Navigation layout shell with categorized menus
 │   │   ├── seo/
@@ -166,6 +168,7 @@ graph TD
 │       ├── botLogic.ts       # SmartBot NLP engine and rule matching
 │       ├── botCommandMatcher.ts # SmartBot command exporter
 │       ├── sound.ts          # Web Audio & sound effect manager
+│       ├── webLlmEngine.ts   # WebLLM & IndexedDB on-device AI model management, download progress & local inference engine
 │       ├── supabase.ts       # Supabase client configuration
 │       ├── notifications.ts  # Push notification triggers
 │       └── utils.ts          # Tailwind cn utility function
