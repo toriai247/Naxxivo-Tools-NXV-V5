@@ -24,41 +24,41 @@ export interface ModelOption {
   badgeColor: string;
 }
 
-// Custom model record list ensuring all SmolLM, Llama, and Qwen models resolve properly
+// Custom model record list with direct /resolve/main URLs preventing Cache.add redirect errors
 const ADDITIONAL_MODELS: ModelRecord[] = [
   {
     model_id: 'SmolLM-135M-Instruct-q4f16_1-MLC',
-    model: 'https://huggingface.co/mlc-ai/SmolLM2-135M-Instruct-q4f16_1-MLC',
+    model: 'https://huggingface.co/rony1234554321/SmolLM2-135M-Instruct-q4f16_1-MLC-bucket/resolve/main',
     model_lib: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/SmolLM2-135M-Instruct-q4f16_1-ctx2k-webgpu.wasm',
     low_resource_required: true,
   },
   {
     model_id: 'SmolLM2-135M-Instruct-q4f16_1-MLC',
-    model: 'https://huggingface.co/mlc-ai/SmolLM2-135M-Instruct-q4f16_1-MLC',
+    model: 'https://huggingface.co/rony1234554321/SmolLM2-135M-Instruct-q4f16_1-MLC-bucket/resolve/main',
     model_lib: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/SmolLM2-135M-Instruct-q4f16_1-ctx2k-webgpu.wasm',
     low_resource_required: true,
   },
   {
     model_id: 'SmolLM-360M-Instruct-q4f16_1-MLC',
-    model: 'https://huggingface.co/mlc-ai/SmolLM2-360M-Instruct-q4f16_1-MLC',
+    model: 'https://huggingface.co/rony1234554321/SmolLM2-360M-Instruct-q4f16_1-MLC-bucket/resolve/main',
     model_lib: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/SmolLM2-360M-Instruct-q4f16_1-ctx2k-webgpu.wasm',
     low_resource_required: true,
   },
   {
     model_id: 'SmolLM2-360M-Instruct-q4f16_1-MLC',
-    model: 'https://huggingface.co/mlc-ai/SmolLM2-360M-Instruct-q4f16_1-MLC',
+    model: 'https://huggingface.co/rony1234554321/SmolLM2-360M-Instruct-q4f16_1-MLC-bucket/resolve/main',
     model_lib: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/SmolLM2-360M-Instruct-q4f16_1-ctx2k-webgpu.wasm',
     low_resource_required: true,
   },
   {
     model_id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
-    model: 'https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC',
+    model: 'https://huggingface.co/rony1234554321/Llama-3.2-1B-Instruct-q4f16_1-MLC-bucket/resolve/main',
     model_lib: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/Llama-3.2-1B-Instruct-q4f16_1-ctx4k-webgpu.wasm',
     low_resource_required: false,
   },
   {
     model_id: 'Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
-    model: 'https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC',
+    model: 'https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC/resolve/main',
     model_lib: 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/Qwen2.5-0.5B-Instruct-q4f16_1-ctx4k-webgpu.wasm',
     low_resource_required: true,
   },
@@ -224,18 +224,29 @@ export async function downloadAndInitModel(
     });
   };
 
+  // Determine appropriate WebGPU WASM library
+  let wasmLib = 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/SmolLM2-135M-Instruct-q4f16_1-ctx2k-webgpu.wasm';
+  if (modelId.includes('360m')) {
+    wasmLib = 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/SmolLM2-360M-Instruct-q4f16_1-ctx2k-webgpu.wasm';
+  } else if (modelId.includes('1b') || modelId.includes('llama')) {
+    wasmLib = 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/Llama-3.2-1B-Instruct-q4f16_1-ctx4k-webgpu.wasm';
+  } else if (modelId.includes('qwen')) {
+    wasmLib = 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/Qwen2.5-0.5B-Instruct-q4f16_1-ctx4k-webgpu.wasm';
+  }
+
   // Build appConfig with custom URL if user provided Supabase / HuggingFace link
   const appConfigToUse: AppConfig = { ...CUSTOM_APP_CONFIG };
 
   if (customUrlInput && customUrlInput.trim()) {
-    const url = customUrlInput.trim();
-    // Dynamically insert or replace model_list entry
+    let cleanUrl = customUrlInput.trim().replace(/\/+$/, '');
+    if (cleanUrl.includes('huggingface.co') && !cleanUrl.includes('/resolve/')) {
+      cleanUrl += '/resolve/main';
+    }
+
     const customRecord: ModelRecord = {
       model_id: mlcModelId,
-      model: url,
-      model_lib: url.endsWith('.wasm')
-        ? url
-        : 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/web-llm-models/v0_2_48/SmolLM2-135M-Instruct-q4f16_1-ctx2k-webgpu.wasm',
+      model: cleanUrl,
+      model_lib: wasmLib,
       low_resource_required: true,
     };
     appConfigToUse.model_list = [customRecord, ...(appConfigToUse.model_list || [])];
@@ -264,9 +275,54 @@ export async function downloadAndInitModel(
 
     onProgress?.({ progress: 1.0, text: `${modelOpt?.name || modelId} loaded & ready!` });
     return engine;
-  } catch (err: any) {
-    console.error('Failed to initialize WebLLM engine:', err);
-    throw new Error(err?.message || `Failed to download or load model.`);
+  } catch (primaryErr: any) {
+    console.warn('Primary model download failed, attempting automatic fallback to verified MLC CDN:', primaryErr);
+    onProgress?.({ progress: 0.1, text: 'Connecting to official verified MLC CDN repository...' });
+
+    let fallbackRepo = 'https://huggingface.co/mlc-ai/SmolLM2-135M-Instruct-q4f16_1-MLC/resolve/main';
+    if (modelId.includes('360m')) {
+      fallbackRepo = 'https://huggingface.co/mlc-ai/SmolLM2-360M-Instruct-q4f16_1-MLC/resolve/main';
+    } else if (modelId.includes('1b') || modelId.includes('llama')) {
+      fallbackRepo = 'https://huggingface.co/mlc-ai/Llama-3.2-1B-Instruct-q4f16_1-MLC/resolve/main';
+    } else if (modelId.includes('qwen')) {
+      fallbackRepo = 'https://huggingface.co/mlc-ai/Qwen2.5-0.5B-Instruct-q4f16_1-MLC/resolve/main';
+    }
+
+    const fallbackAppConfig: AppConfig = {
+      ...prebuiltAppConfig,
+      model_list: [
+        {
+          model_id: mlcModelId,
+          model: fallbackRepo,
+          model_lib: wasmLib,
+          low_resource_required: true,
+        },
+        ...(prebuiltAppConfig.model_list || []),
+      ],
+    };
+
+    try {
+      const engine = await CreateMLCEngine(mlcModelId, {
+        appConfig: fallbackAppConfig,
+        initProgressCallback: progressHandler,
+      });
+
+      engineInstance = engine;
+      currentLoadedModelId = modelId;
+
+      const config = getEngineConfig();
+      if (!config.downloadedModelIds.includes(modelId)) {
+        config.downloadedModelIds.push(modelId);
+      }
+      config.activeModelId = modelId;
+      saveEngineConfig(config);
+
+      onProgress?.({ progress: 1.0, text: `${modelOpt?.name || modelId} loaded & ready!` });
+      return engine;
+    } catch (fallbackErr: any) {
+      console.error('All model download sources failed:', fallbackErr);
+      throw new Error(fallbackErr?.message || `Failed to download ${modelOpt?.name || modelId}. Please check your internet connection.`);
+    }
   }
 }
 
