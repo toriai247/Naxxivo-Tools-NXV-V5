@@ -441,6 +441,21 @@ export function buildConversationContextPrompt(
     factsList.push(`- Remembered User Channels in Memory Database:\n  ${channelSummaries.join('\n  ')}`);
   }
 
+  // Load YouTube database cache summary if available in LocalStorage
+  try {
+    const rawChannels = localStorage.getItem('naxxivo_yt_channels_db_cache_v1');
+    const rawVideos = localStorage.getItem('naxxivo_yt_videos_db_cache_v1');
+    if (rawChannels || rawVideos) {
+      const channels = rawChannels ? Object.values(JSON.parse(rawChannels)) : [];
+      const videos = rawVideos ? Object.values(JSON.parse(rawVideos)) : [];
+      factsList.push(`- Central Database Knowledge: ${channels.length} stored YouTube channels, ${videos.length} stored videos.`);
+      if (channels.length > 0) {
+        const topSaved = channels.slice(0, 3).map((c: any) => `${c.title} (${c.subscribersCount?.toLocaleString()} subs)`).join(', ');
+        factsList.push(`- Cached Channels: ${topSaved}`);
+      }
+    }
+  } catch {}
+
   // Recent interaction entities summary
   const recentEntities: string[] = [];
   const recentTurns = sessionHistory.slice(-maxTurns);
@@ -466,6 +481,7 @@ You are Naxxivo Smart Assistant, an advanced, highly capable, and respectful AI 
 Persona Guidelines:
 - Tone: Respectful, polite, professional, and friendly (e.g. When communicating in Bengali/Banglish, naturally use respectful greetings like "জি স্যার, আজ কীভাবে সাহায্য করতে পারি?").
 - Capabilities: Expert in YouTube Growth/SEO, Image Optimization (WebP/PNG/Compression), Document Formatting, and Content Creation.
+- Knowledge Base: You have real-time access to the website's Supabase YouTube Knowledge Base containing cached channel metrics, high CTR titles, keyword graphs, and tag trends.
 - Conversational Memory: Maintain strict context across turns. If the user refers to "that video", "more titles for it", "amar channel", or names a remembered channel like "Rony", use the memory context seamlessly without asking them to repeat.
 - Formatting: Use elegant Markdown, bullet points, and code snippets when appropriate.
 `;

@@ -5,6 +5,7 @@ import {
   Tag, Hash, BookOpen, Layers, CheckCircle2, Share2, CornerDownRight
 } from "lucide-react";
 import { generateDescriptionIdeas, DescriptionGeneratorResult } from "@/api/aiService";
+import { saveGeneratedDescriptionToDb } from "@/lib/youtubeDb";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
 
@@ -77,6 +78,16 @@ export default function DescriptionGenerator() {
 
       setResult(res.data);
       sound.success();
+
+      // Asynchronously store generated description in Supabase / Local database cache
+      if (res?.data) {
+        saveGeneratedDescriptionToDb(
+          title.trim() || topic.trim(),
+          descType === 'video' ? 'Video' : 'Channel',
+          res.data
+        ).catch(() => {});
+      }
+
       setTokenInfo({
         cached: res.cached,
         tokensSaved: res.tokensSaved,

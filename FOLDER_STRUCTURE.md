@@ -54,17 +54,17 @@ graph TD
     ICR -->|Canvas Transforms & Export| CROPUTIL[src/lib/cropImage.ts - getCroppedImg with Rotate & Flip]
     SB -->|Auto-detects YouTube URLs| YT[src/api/youtubeApi.ts]
     SB -->|In-Chat Image Processing| CANVAS[Browser Canvas - WebP/PNG/JPG/Compress]
-    SB -->|Gemini 3.7 Chat & Intelligence| AI[src/api/aiService.ts]
+    SB -->|Gemini AI & Knowledge Base Query| YTDB[src/lib/youtubeDb.ts - Tiered Supabase & Local DB Storage]
     CH & VA & TG & DG --> YT
-    CH & VA & TG & DG --> AI
-    AI -->|1. Try Express Endpoint| SRV[server.ts - Express Endpoints /api/ai/chat, /api/ai/optimize]
-    AI -->|2. Direct Browser Fallback| GEMINI[Gemini AI Engine - Direct Client API Call]
-    YT --> KEY[src/api/apiKeys.ts - YouTube Permanent API Key]
+    CH & VA & TG & DG --> YTDB
+    YT -->|1. Check DB Cache & Quota Saver| YTDB
+    YT -->|2. Live API Call & Token Save| KEY[src/api/apiKeys.ts - YouTube Permanent API Key]
+    YTDB -->|Persistent Storage & Bot Memory| SUPA[Supabase Cloud Database Tables yt_channels, yt_videos, yt_generated_titles, yt_generated_descriptions]
 
-    CH --> M1[Channel Banner, Handle, ID, Stats, Account Age, Keywords]
-    CH --> M2[Gemini AI Channel Optimizer - SEO Name, Description, Tags]
-    VA --> V1[Video Thumbnail + 1080p HD Download, Metrics, SEO Keywords]
-    VA --> V2[Gemini AI Video Optimizer - High CTR Titles, SEO Description, Hashtags]
+    CH --> M1[Channel Banner, Handle, ID, Stats, Account Age, Keywords, Database Cache]
+    CH --> M2[AI Channel Optimizer - SEO Name, Description, Tags]
+    VA --> V1[Video Thumbnail + 1080p HD Download, Metrics, SEO Keywords, Database Cache]
+    VA --> V2[AI Video Optimizer - High CTR Titles, SEO Description, Hashtags]
 ```
 
 ### 🔁 Data & Execution Flow Summary
@@ -162,6 +162,7 @@ graph TD
 │   │   └── useToast.ts       # Toast notification hook
 │   │
 │   └── lib/                  # Helper utilities
+│       ├── youtubeDb.ts      # YouTube persistent cache & knowledge base engine (Supabase & Local storage)
 │       ├── imageProcessor.ts # Universal in-browser image decoding, format conversion & compression engine
 │       ├── cropImage.ts      # Canvas image cropping, rotation, flip & export engine
 │       ├── botLogic.ts       # SmartBot NLP engine and rule matching
@@ -179,6 +180,7 @@ graph TD
 
 | File / Directory | Purpose & Functionality |
 | :--- | :--- |
+| **`src/lib/youtubeDb.ts`** | Central database & persistent cache layer for YouTube Tools (`yt_channels`, `yt_videos`, `yt_generated_titles`, `yt_generated_descriptions`). Features tiered caching (Memory -> LocalStorage -> Supabase), token-saving cache lookups, and the SmartBot Brain Knowledge Aggregation Engine (`queryKnowledgeForBot`, `getDatabaseKnowledgeSummary`). |
 | **`src/pages/ApiKeysDashboard.tsx`** | Complete Developer Portal with API key creation, activation/revocation, live interactive request sandbox/tester, status code matrix, and multi-language code snippets (cURL, JavaScript Fetch, Python Requests, Node.js Axios, PHP cURL). |
 | **`server.ts`** | Express backend server containing the API Key Registry, `verifyApiKey` rate limiter (60 req/min), and public v1 REST endpoints (`/api/v1/prompts`, `/api/v1/youtube/extract`, `/api/v1/sfx`, `/api/v1/text/convert`, `/api/v1/ai/generate-title`, `/api/v1/health`, `/api/v1/keys`). |
 | **`src/components/RecentlyUsedTools.tsx`** | Horizontal clickable list/carousel of recently visited tools with relative timestamps, category tags, horizontal scrolling, and quick removal. |

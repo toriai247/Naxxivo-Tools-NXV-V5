@@ -23,6 +23,7 @@ import {
   RotateCcw
 } from "lucide-react";
 import { generateTitleIdeas, GeneratedTitleItem, TitleGeneratorApiResponse } from "@/api/aiService";
+import { saveGeneratedTitlesToDb } from "@/lib/youtubeDb";
 import { useToast } from "@/hooks/use-toast";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
@@ -126,6 +127,18 @@ export default function TitleGenerator() {
 
       setApiResponse(response);
       sound.success();
+
+      // Asynchronously store generated titles in Supabase / Local database cache
+      if (response?.data?.titles && response.data.titles.length > 0) {
+        saveGeneratedTitlesToDb(
+          topic.trim() || currentTitle.trim(),
+          category,
+          tone,
+          language,
+          response.data.titles
+        ).catch(() => {});
+      }
+
       toast({
         title: "Titles Generated!",
         description: `Created ${response.data.titles.length} high-CTR title variations.`,

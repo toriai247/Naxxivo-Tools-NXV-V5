@@ -6,7 +6,7 @@ async function callGeminiDirectlyInBrowser<T>(systemPrompt: string, userContent:
     const apiKey = API_CONFIG.geminiApiKey;
     if (!apiKey) return fallbackData;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
     const res = await fetch(url, {
       method: 'POST',
@@ -437,7 +437,7 @@ export async function sendAiChatMessage(
       parts: [{ text: msg.content || '' }],
     }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
 
     const res = await fetch(url, {
       method: 'POST',
@@ -453,6 +453,24 @@ export async function sendAiChatMessage(
     });
 
     if (!res.ok) {
+      // Try fallback to gemini-3.7-flash
+      const fallbackUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`;
+      const resFallback = await fetch(fallbackUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: formattedContents,
+          systemInstruction: { parts: [{ text: defaultSysPrompt }] },
+          generationConfig: {
+            maxOutputTokens: 2500,
+            temperature: 0.7,
+          },
+        }),
+      });
+      if (resFallback.ok) {
+        const jsonFallback = await resFallback.json();
+        return jsonFallback?.candidates?.[0]?.content?.parts?.[0]?.text || "I processed your request. How else can I assist you?";
+      }
       throw new Error(`Gemini API returned status ${res.status}`);
     }
 

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import {
   Search, Download, ExternalLink, Eye, ThumbsUp, MessageSquare, Calendar,
   Tag, Link2, AlertCircle, Sparkles, Youtube, Copy, Check, Clock, Film,
-  Globe, Shield, Hash, Layers, Share2, Percent
+  Globe, Shield, Hash, Layers, Share2, Percent, Database, RefreshCw, Zap
 } from 'lucide-react';
 import { analyzeYouTubeVideo } from '@/api/youtubeApi';
 import { VideoAnalysisData } from '@/types';
@@ -22,7 +22,7 @@ export default function VideoAnalyzer() {
   // Copy feedback state
   const [copiedType, setCopiedType] = useState<string | null>(null);
 
-  const handleAnalyze = async (e?: React.FormEvent) => {
+  const handleAnalyze = async (e?: React.FormEvent, forceFresh: boolean = false) => {
     if (e) e.preventDefault();
     if (!videoUrl.trim()) return;
 
@@ -31,7 +31,7 @@ export default function VideoAnalyzer() {
     setError(null);
 
     try {
-      const result = await analyzeYouTubeVideo(videoUrl);
+      const result = await analyzeYouTubeVideo(videoUrl, forceFresh);
       setData(result);
       sound.success();
       
@@ -149,6 +149,29 @@ export default function VideoAnalyzer() {
       {/* Results Section */}
       {data && (
         <div className="flex flex-col gap-6">
+          {/* Database Cache Banner & Quick Refresh */}
+          {data.fromCache && (
+            <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-xl p-3.5 flex items-center justify-between gap-3 text-xs md:text-sm">
+              <div className="flex items-center gap-2 text-emerald-700 dark:text-emerald-300">
+                <span className="p-1 rounded-lg bg-emerald-500/20">
+                  <Zap className="w-4 h-4 text-emerald-500" />
+                </span>
+                <span>
+                  <strong>Database Instant Cache:</strong> Loaded from persistent database (Saved YouTube API Quota tokens).
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => handleAnalyze(undefined, true)}
+                disabled={loading}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-500 text-white font-semibold hover:bg-emerald-600 active:scale-95 transition-all text-xs shrink-0 disabled:opacity-50 shadow-sm"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                <span>Fetch Live API</span>
+              </button>
+            </div>
+          )}
+
           {/* Main Card: Thumbnail + Info */}
           <div className="bg-card border border-border rounded-xl p-5 md:p-6 shadow-sm flex flex-col md:flex-row gap-6">
             {/* Left: Thumbnail Preview & Actions */}

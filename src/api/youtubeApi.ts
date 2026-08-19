@@ -1,5 +1,6 @@
 import { API_CONFIG } from './apiKeys';
 import { ChannelAnalysisData, VideoAnalysisData, ThumbnailItem } from '@/types';
+import { getChannelFromDb, saveChannelToDb, getVideoFromDb, saveVideoToDb } from '@/lib/youtubeDb';
 
 // Helper to extract clean URL host / domain name
 function extractDomain(url: string): string {
@@ -130,15 +131,30 @@ function calculateAccountAge(publishedAt: string): string {
 }
 
 // Analyze YouTube Channel
-export async function analyzeYouTubeChannel(input: string): Promise<ChannelAnalysisData> {
-  const apiKey = API_CONFIG.youtubeApiKey;
-  if (!apiKey) {
-    throw new Error('YouTube API Key is missing.');
-  }
-
+export async function analyzeYouTubeChannel(input: string, forceFresh: boolean = false): Promise<ChannelAnalysisData> {
   const parsed = parseChannelIdentifier(input);
   if (!parsed.value) {
     throw new Error('Please enter a valid YouTube channel URL, handle (@username), or channel ID.');
+  }
+
+  // 1. Check Supabase / Local Database Cache first to save API tokens
+  if (!forceFresh) {
+    try {
+      const cached = await getChannelFromDb(parsed.value);
+      if (cached) {
+        return {
+          ...cached,
+          fromCache: true
+        };
+      }
+    } catch {
+      // Cache lookup failed, continue with live API fetch
+    }
+  }
+
+  const apiKey = API_CONFIG.youtubeApiKey;
+  if (!apiKey) {
+    throw new Error('YouTube API Key is missing.');
   }
 
   let channelData: any = null;
@@ -302,7 +318,7 @@ export async function analyzeYouTubeChannel(input: string): Promise<ChannelAnaly
   const unsubscribedTrailerId = branding.channel?.unsubscribedTrailer || undefined;
   const trailerUrl = unsubscribedTrailerId ? `https://www.youtube.com/watch?v=${unsubscribedTrailerId}` : undefined;
 
-  return {
+  const channelResult: ChannelAnalysisData = {
     id: channelId,
     title: snippet.title || 'YouTube Channel',
     handle: customUrl,
@@ -329,8 +345,14 @@ export async function analyzeYouTubeChannel(input: string): Promise<ChannelAnaly
     successRate: successRate,
     isActive: isActive,
     lastActivityDate: lastActivityDate,
-    topVideos: topVideos
+    topVideos: topVideos,
+    fromCache: false
   };
+
+  // Asynchronously save to Supabase / Local database cache in background
+  saveChannelToDb(channelResult).catch(() => {});
+
+  return channelResult;
 }
 
 // Category Map Helper
@@ -403,15 +425,30 @@ function cleanTopicCategories(topics: string[]): string[] {
 }
 
 // Analyze YouTube Video
-export async function analyzeYouTubeVideo(input: string): Promise<VideoAnalysisData> {
-  const apiKey = API_CONFIG.youtubeApiKey;
-  if (!apiKey) {
-    throw new Error('YouTube API Key is missing.');
-  }
-
+export async function analyzeYouTubeVideo(input: string, forceFresh: boolean = false): Promise<VideoAnalysisData> {
   const videoId = extractVideoId(input);
   if (!videoId) {
     throw new Error('Please enter a valid YouTube Video URL or Video ID.');
+  }
+
+  // 1. Check Supabase / Local Database Cache first to save API tokens
+  if (!forceFresh) {
+    try {
+      const cached = await getVideoFromDb(videoId);
+      if (cached) {
+        return {
+          ...cached,
+          fromCache: true
+        };
+      }
+    } catch {
+      // Cache lookup failed, continue with live API fetch
+    }
+  }
+
+  const apiKey = API_CONFIG.youtubeApiKey;
+  if (!apiKey) {
+    throw new Error('YouTube API Key is missing.');
   }
 
   const res = await fetch(`https://www.googleapis.com/youtube/v3/videos?part=snippet,statistics,contentDetails,topicDetails,status,player&id=${videoId}&key=${apiKey}`);
@@ -479,7 +516,7 @@ export async function analyzeYouTubeVideo(input: string): Promise<VideoAnalysisD
     }
   ];
 
-  return {
+  const videoResult: VideoAnalysisData = {
     id: videoId,
     title: snippet.title || 'YouTube Video',
     description: snippet.description || 'No video description available.',
@@ -508,6 +545,12 @@ export async function analyzeYouTubeVideo(input: string): Promise<VideoAnalysisD
     extractedLinks: extractedLinks,
     topicCategories: cleanTopicCategories(topicDetails.topicCategories || []),
     embeddable: status.embeddable ?? true,
-    privacyStatus: status.privacyStatus || 'public'
+    privacyStatus: status.privacyStatus || 'public',
+    fromCache: false
   };
+
+  // Asynchronously save to Supabase / Local database cache in background
+  saveVideoToDb(videoResult).catch(() => {});
+
+  return videoResult;
 }

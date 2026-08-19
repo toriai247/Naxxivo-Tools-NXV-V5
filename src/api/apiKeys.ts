@@ -7,10 +7,10 @@ export const API_CONFIG = {
     ? import.meta.env.VITE_YOUTUBE_API_KEY
     : 'AIzaSyAg9E9e1UEg8PEGCSqU7l1nI5pzCmlLWvg',
 
-  // Gemini AI Key (Primary Website Permanent Key)
+  // Gemini AI Key (Environment configuration)
   geminiApiKey: (typeof process !== 'undefined' && process.env?.GEMINI_API_KEY)
     ? process.env.GEMINI_API_KEY
-    : 'AIzaSyAE9TerFp7AyHlSd7q1bab6ne0G09LVQAc',
+    : (typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_GEMINI_API_KEY || '' : ''),
   
   // Supabase Configuration
   supabaseUrl: typeof import.meta !== 'undefined' && import.meta.env ? import.meta.env.VITE_SUPABASE_URL || '' : '',

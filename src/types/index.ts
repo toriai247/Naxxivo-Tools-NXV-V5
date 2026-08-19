@@ -61,6 +61,8 @@ export interface ChannelAnalysisData {
     publishedAt: string;
     url: string;
   }[];
+  fromCache?: boolean;
+  cachedAt?: string;
 }
 
 export interface VideoAnalysisData {
@@ -93,4 +95,6 @@ export interface VideoAnalysisData {
   topicCategories: string[];
   embeddable: boolean;
   privacyStatus: string;
+  fromCache?: boolean;
+  cachedAt?: string;
 }
