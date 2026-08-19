@@ -64,6 +64,28 @@ const TOOLS_LIST: ToolItem[] = [
     tags: ['FLUX.1 & Midjourney', '1-Click Copy', 'Negative Prompts']
   },
   {
+    id: 'tiktok-downloader',
+    title: 'TikTok Video Downloader (No Watermark)',
+    description: 'Download TikTok videos without watermark in Full HD, extract MP3 background music and HD cover photos.',
+    category: 'youtube',
+    href: '/tiktok-downloader',
+    icon: Video,
+    badge: 'HOT 🔥',
+    badgeType: 'emerald',
+    tags: ['No Watermark', 'HD MP4 & MP3', 'Photo Slideshows']
+  },
+  {
+    id: 'facebook-downloader',
+    title: 'Facebook Video & Reels Downloader',
+    description: 'Download Facebook Reels, Watch videos, and Feed clips in 1080p Full HD & extract MP3 sound.',
+    category: 'youtube',
+    href: '/facebook-downloader',
+    icon: Video,
+    badge: 'NEW ⚡',
+    badgeType: 'primary',
+    tags: ['1080p Full HD', 'Reels & Watch', 'MP3 Extract', '100% Free']
+  },
+  {
     id: 'thumbnail-downloader',
     title: 'YouTube Thumbnail Downloader',
     description: 'Download MaxRes 4K, 1080p, and HD thumbnails from any YouTube video or Shorts link.',

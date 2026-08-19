@@ -110,6 +110,22 @@ const MENU_CATEGORIES: MenuCategory[] = [
         badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400"
       },
       {
+        href: "/tiktok-downloader",
+        title: "TikTok Video Downloader",
+        desc: "Download TikTok videos without watermark in HD, extract MP3 audio and covers.",
+        icon: Video,
+        badge: "NO WATERMARK ⚡",
+        badgeColor: "bg-pink-500/15 text-pink-600 dark:text-pink-400"
+      },
+      {
+        href: "/facebook-downloader",
+        title: "Facebook Video Downloader",
+        desc: "Download Facebook Reels, Watch videos, and Feed clips in 1080p Full HD & MP3 audio.",
+        icon: Video,
+        badge: "HD / MP3 🚀",
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+      },
+      {
         href: "/thumbnail-downloader",
         title: "Thumbnail Downloader",
         desc: "Download HD, 4K, and standard YouTube thumbnails instantly.",

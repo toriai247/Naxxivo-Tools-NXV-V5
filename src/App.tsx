@@ -4,6 +4,9 @@ import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { Route, Switch, Router as WouterRouter } from 'wouter';
 import { ThemeProvider } from '@/components/theme-provider';
+import { TaskProgressProvider } from '@/context/TaskProgressContext';
+import { GlobalTopProgressBar } from '@/components/GlobalTopProgressBar';
+import { GlobalTaskHUD } from '@/components/GlobalTaskHUD';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { NotificationBanner } from '@/components/NotificationBanner';
 import { initNotifications } from '@/lib/notifications';
@@ -14,6 +17,8 @@ import HomePage from '@/pages/Home';
 // Lazy load other routes to keep initial bundle tiny and fast on mobile
 const SmartBot = lazy(() => import('@/pages/SmartBot'));
 const YouTubeDownloader = lazy(() => import('@/pages/YouTubeDownloader'));
+const TikTokDownloader = lazy(() => import('@/pages/TikTokDownloader'));
+const FacebookDownloader = lazy(() => import('@/pages/FacebookDownloader'));
 const TitleGenerator = lazy(() => import('@/pages/TitleGenerator'));
 const DescriptionGenerator = lazy(() => import('@/pages/DescriptionGenerator'));
 const ChannelAnalyzer = lazy(() => import('@/pages/ChannelAnalyzer'));
@@ -60,6 +65,15 @@ function Router() {
           <Route path="/chatbot" component={SmartBot} />
           <Route path="/thumbnail-downloader" component={YouTubeDownloader} />
           <Route path="/youtube-thumbnail-downloader" component={YouTubeDownloader} />
+          <Route path="/tiktok-downloader" component={TikTokDownloader} />
+          <Route path="/tiktok" component={TikTokDownloader} />
+          <Route path="/tiktok-video-downloader" component={TikTokDownloader} />
+          <Route path="/tiktok-audio-downloader" component={TikTokDownloader} />
+          <Route path="/facebook-downloader" component={FacebookDownloader} />
+          <Route path="/facebook" component={FacebookDownloader} />
+          <Route path="/fb-downloader" component={FacebookDownloader} />
+          <Route path="/facebook-video-downloader" component={FacebookDownloader} />
+          <Route path="/fb" component={FacebookDownloader} />
           <Route path="/prompts" component={PromptsHome} />
           <Route path="/prompts/:id" component={PromptDetail} />
           <Route path="/auth" component={AuthPage} />
@@ -111,11 +125,15 @@ function App() {
     <ThemeProvider defaultTheme="dark">
       <QueryClientProvider client={queryClient}>
         <TooltipProvider>
-          <WouterRouter base={(import.meta.env.BASE_URL || '/').replace(/\/$/, '')}>
-            <Router />
-            <NotificationBanner />
-          </WouterRouter>
-          <Toaster />
+          <TaskProgressProvider>
+            <GlobalTopProgressBar />
+            <WouterRouter base={(import.meta.env.BASE_URL || '/').replace(/\/$/, '')}>
+              <Router />
+              <NotificationBanner />
+            </WouterRouter>
+            <GlobalTaskHUD />
+            <Toaster />
+          </TaskProgressProvider>
         </TooltipProvider>
       </QueryClientProvider>
     </ThemeProvider>

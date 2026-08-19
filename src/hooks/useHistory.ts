@@ -10,7 +10,9 @@ export type HistoryItemType =
   | 'image_compress'
   | 'image_crop'
   | 'text_tool' 
-  | 'favicon';
+  | 'favicon'
+  | 'tiktok_download'
+  | 'fb_download';
 
 export interface HistoryItem {
   id: string;
@@ -19,6 +21,7 @@ export interface HistoryItem {
   description: string;
   timestamp: number;
   url?: string;
+  metadata?: Record<string, any>;
 }
 
 const HISTORY_KEY = 'naxxivo_user_history';
@@ -34,7 +37,9 @@ const TYPE_TO_TOOL_ID: Record<HistoryItemType, string> = {
   image_compress: 'image-compressor',
   image_crop: 'image-cropper',
   text_tool: 'text-tools',
-  favicon: 'favicon-generator'
+  favicon: 'favicon-generator',
+  tiktok_download: 'tiktok-downloader',
+  fb_download: 'facebook-downloader'
 };
 
 export function useHistory() {

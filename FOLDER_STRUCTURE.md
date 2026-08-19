@@ -21,6 +21,8 @@ graph TD
     H --> RUT[src/components/RecentlyUsedTools.tsx - Horizontal Quick List]
     RUT --> REC
     
+    F -->|/facebook-downloader| FBD[pages/FacebookDownloader.tsx - Full HD 1080p Video & MP3 Downloader]
+    F -->|/tiktok-downloader| TKD[pages/TikTokDownloader.tsx - No Watermark HD & MP3 Downloader]
     F -->|/smart-bot| SB[pages/SmartBot.tsx - All-in-One Smart AI Assistant]
     F -->|/sound-effects| SFX[pages/SoundEffectsLibrary.tsx - 60+ Royalty-Free SFX Studio Hub]
     F -->|/api-keys| KEYS[pages/ApiKeysDashboard.tsx - Developer API Keys & Live Sandbox]
@@ -104,13 +106,20 @@ graph TD
 │   ├── App.tsx               # Main Router and page layout routes
 │   ├── index.css             # Global CSS and Tailwind directives
 │   │
+│   ├── data/                 # Static datasets and JSON knowledge stores
+│   │   └── chatdata.json     # Pre-loaded SmartBot Banglish/Bangla conversational dataset with categories (greetings, capabilities, conversational, youtube, downloaders, images, memory, bye) and randomized response variations
+│   │
 │   ├── api/                  # API clients and key configurations
 │   │   ├── apiKeys.ts        # YouTube and Gemini API key constants
 │   │   ├── aiService.ts      # Gemini AI client handler
+│   │   ├── facebookApi.ts    # Facebook Video & Reels extraction, stream proxy URLs, quality options (1080p/720p/480p/360p), and MP3 audio downloader helper
+│   │   ├── tiktokApi.ts      # TikTok Video & Audio extraction, format conversion (MP4/WebM/MP3/M4A/WAV), quality options (1080p/720p/480p/360p), and blob download API helper
 │   │   └── youtubeApi.ts     # YouTube Data API v3 helper functions
 │   │
 │   ├── pages/                # Application page views
 │   │   ├── Home.tsx              # Main Creator Studio Hub with categorized tool search & Recently Used section
+│   │   ├── FacebookDownloader.tsx # Facebook Video & Reels Downloader with Full HD 1080p/720p/480p quality options, MP3 audio extraction, live stream progress, and thumbnail saver
+│   │   ├── TikTokDownloader.tsx  # TikTok Video Downloader with Quality (1080p/720p/480p/360p) & Format (MP4/WebM/MP3/M4A/WAV) dropdown controls, watermark removal, audio preview, and cover extractor
 │   │   ├── SmartBot.tsx          # Full-screen Smart AI Bot & Automation chat
 │   │   ├── SoundEffectsLibrary.tsx # SFX Audio Studio Hub with 60+ previewable and downloadable WAV sound effects
 │   │   ├── ApiKeysDashboard.tsx  # Developer API Keys Hub, Code Generators (cURL, Python, JS, PHP), and Live Sandbox
@@ -136,6 +145,9 @@ graph TD
 │   │   └── not-found.tsx         # 404 error page
 │   │
 │   ├── components/           # Reusable UI components
+│   │   ├── GlobalTopProgressBar.tsx # Global slim top-of-screen progress bar indicator for running tasks
+│   │   ├── GlobalTaskHUD.tsx        # Floating interactive task HUD panel showing active/completed downloads and processing jobs
+│   │   ├── TaskProgressCard.tsx     # Reusable animated progress card with byte metrics, speeds, and step descriptions
 │   │   ├── SmartBotTour.tsx      # Interactive popover & tooltip onboarding tour for Smart Bot & proactive features
 │   │   ├── RecentlyUsedTools.tsx # Horizontal clickable list of recently interacted tools with scroll & clear
 │   │   ├── SoundEffectsController.tsx # Global audio toggle and volume modal
@@ -144,6 +156,8 @@ graph TD
 │   │   ├── WorkflowScanner.tsx # YouTube inspection progress animation
 │   │   ├── bot/              # SmartBot dedicated chat components
 │   │   │   ├── InChatCropper.tsx # Interactive in-chat cropper with aspect ratio presets, zoom, rotate, flip & export
+│   │   │   ├── TikTokBotCard.tsx # TikTok video/audio downloader result card for SmartBot with 1080p No-Watermark, MP3 preview & download controls
+│   │   │   ├── FacebookBotCard.tsx # Facebook video/audio downloader result card for SmartBot with HD 1080p, MP3 preview & download controls
 │   │   │   └── TypewriterText.tsx # Smooth typewriter-style response streaming animation component with cursor & skip feature
 │   │   ├── layout/
 │   │   │   └── AppLayout.tsx # Navigation layout shell with categorized menus
@@ -156,6 +170,9 @@ graph TD
 │   │   ├── ui/               # Base UI primitives (buttons, inputs, cards)
 │   │   └── theme-provider.tsx # Dark/Light theme provider
 │   │
+│   ├── context/              # React Context Providers
+│   │   └── TaskProgressContext.tsx # Global background task state, streaming download progress tracking, and task cancellation
+│   │
 │   ├── hooks/                # Custom React hooks
 │   │   ├── useRecentTools.ts # Tracks interacted tools, timestamps, and localStorage persistence
 │   │   ├── useHistory.ts     # Action and download history tracker
@@ -163,6 +180,7 @@ graph TD
 │   │
 │   └── lib/                  # Helper utilities
 │       ├── youtubeDb.ts      # YouTube persistent cache & knowledge base engine (Supabase & Local storage)
+│       ├── smartBotMemory.ts # SmartBot persistent Local Memory engine for storing & retrieving user links, YouTube/TikTok/Facebook URLs, uploaded images, and chatdata.json queries
 │       ├── imageProcessor.ts # Universal in-browser image decoding, format conversion & compression engine
 │       ├── cropImage.ts      # Canvas image cropping, rotation, flip & export engine
 │       ├── botLogic.ts       # SmartBot NLP engine and rule matching
@@ -180,15 +198,25 @@ graph TD
 
 | File / Directory | Purpose & Functionality |
 | :--- | :--- |
+| **`src/pages/FacebookDownloader.tsx`** | Facebook Video & Reels Downloader tool supporting 1080p/720p Full HD video saving, MP3 audio extraction, HD cover image saving, and streaming download progress indicators. |
+| **`src/api/facebookApi.ts`** | Facebook media extraction engine with direct HTML parser, JSON-LD meta inspector, fallback public API client, and stream progress blob downloader. |
+| **`src/context/TaskProgressContext.tsx`** | Global background task management context with streaming download progress reader (`ReadableStreamDefaultReader`), byte/speed calculation, task cancellation (`AbortController`), and task state updates. |
+| **`src/components/GlobalTopProgressBar.tsx`** | Global slim top-of-screen animated progress bar indicator for all active downloads, transcoding, and compression operations. |
+| **`src/components/GlobalTaskHUD.tsx`** | Interactive floating bottom-right task monitor HUD providing live progress bars, speed metrics, cancel buttons, and auto-dismissing completed task notifications. |
+| **`src/components/TaskProgressCard.tsx`** | Reusable in-page animated progress bar card displaying task title, step message, percentage, transferred bytes, and cancel trigger. |
 | **`src/lib/youtubeDb.ts`** | Central database & persistent cache layer for YouTube Tools (`yt_channels`, `yt_videos`, `yt_generated_titles`, `yt_generated_descriptions`). Features tiered caching (Memory -> LocalStorage -> Supabase), token-saving cache lookups, and the SmartBot Brain Knowledge Aggregation Engine (`queryKnowledgeForBot`, `getDatabaseKnowledgeSummary`). |
-| **`src/pages/ApiKeysDashboard.tsx`** | Complete Developer Portal with API key creation, activation/revocation, live interactive request sandbox/tester, status code matrix, and multi-language code snippets (cURL, JavaScript Fetch, Python Requests, Node.js Axios, PHP cURL). |
-| **`server.ts`** | Express backend server containing the API Key Registry, `verifyApiKey` rate limiter (60 req/min), and public v1 REST endpoints (`/api/v1/prompts`, `/api/v1/youtube/extract`, `/api/v1/sfx`, `/api/v1/text/convert`, `/api/v1/ai/generate-title`, `/api/v1/health`, `/api/v1/keys`). |
+| **`src/pages/ApiKeysDashboard.tsx`** | Complete Developer Portal with secret API key generation/revocation/regeneration, 1-click AI Copilot Prompt Generator (for ChatGPT, Claude, Cursor), live interactive request sandbox/tester with latency metrics, status code matrix, and multi-language code snippets (cURL, JS Fetch, Python, Node.js Axios, PHP, Flutter). |
+| **`server.ts`** | Express backend server containing the API Key Registry with pre-seeded demo keys, `verifyApiKey` rate limiter (60 req/min), and public v1 REST endpoints (`/api/v1/tiktok/extract`, `/api/v1/facebook/extract`, `/api/v1/youtube/extract`, `/api/v1/prompts`, `/api/v1/sfx`, `/api/v1/text/convert`, `/api/v1/ai/generate-title`, `/api/v1/health`, `/api/v1/keys`). |
 | **`src/components/RecentlyUsedTools.tsx`** | Horizontal clickable list/carousel of recently visited tools with relative timestamps, category tags, horizontal scrolling, and quick removal. |
 | **`src/components/SmartBotTour.tsx`** | Lightweight interactive onboarding tour & spotlight tooltip system guiding new homepage visitors through the Smart Bot launcher, proactive attachment workflow, and interactive cropper. |
 | **`src/hooks/useRecentTools.ts`** | Custom React hook managing recently used tools, localStorage persistence, visit counts, and relative time formatting. |
+| **`src/data/chatdata.json`** | Pre-loaded SmartBot conversational dataset in JSON format containing over **33,000+ unique keyword/phrase trigger variations** in Bangla, Banglish, and English paired with randomized reply variations and console slash commands to deliver instant offline conversational responses. |
+| **`src/lib/smartBotMemory.ts`** | SmartBot persistent Memory Engine that automatically parses user chat messages, extracts YouTube/TikTok/Facebook links and image attachments, saves them into local persistent memory, answers user history queries (e.g. *"amar YouTube link gulo deo"*, *"amar all images gulo deo"*), and features dynamic round-robin response variation selection for `chatdata.json` to prevent repetitive answers. |
 | **`src/lib/botLogic.ts`** | Central AI Bot brain & persistent memory orchestration layer with proactive media detection (`detectMediaTypeFromInput`, `getPoliteOptionsPrompt`), contextual follow-up parsing, channel memory, conversational context builder, and zero-API-key regex parsers. |
 | **`src/lib/webLlmService.ts`** | Client-side WebGPU WebLLM engine service supporting `rony1234554321/SmolLM2-135M-Instruct-q4f16_1-MLC-bucket` and official MLC SmolLM2-135M on-device models with streaming tokens and loading progress tracking. |
-| **`src/pages/SmartBot.tsx`** | Interactive Smart AI Bot & Automation chat with AI model engine switcher (Gemini Cloud vs local WebGPU SmolLM2), proactive attachment options, contextual media follow-ups, 1-click Brain Memory management modal, persistent conversation history, live YouTube querying, and interactive in-chat image cropper/converters. |
+| **`src/pages/SmartBot.tsx`** | Interactive Smart AI Bot & Automation chat with automatic TikTok & Facebook video link detection, AI model engine switcher (Gemini Cloud vs local WebGPU SmolLM2), proactive attachment options, contextual media follow-ups, 1-click Brain Memory management modal, persistent conversation history, live YouTube querying, interactive in-chat image cropper/converters, a dynamic, auto-summarized 'Context Card' highlighting discussed links, and a live, real-time **AI Chat Metrics & Analytics Dashboard** tracking exchange volumes, response latency, match accuracy, memory sizes, and feature breakdown counts. |
+| **`src/components/bot/TikTokBotCard.tsx`** | Dedicated TikTok result card component for SmartBot with author info, play/like/share stats, 1080p No-Watermark MP4 download, MP3 audio player & download, and cover photo saver. |
+| **`src/components/bot/FacebookBotCard.tsx`** | Dedicated Facebook result card component for SmartBot with public video/reel metadata, 1080p/720p HD MP4 download, MP3 audio player & download, and thumbnail saver. |
 | **`src/components/bot/InChatCropper.tsx`** | Rich in-chat interactive cropper component embedded directly in conversation flow with aspect presets (1:1, 16:9, 9:16, 4:3, 3:2, Free), real-time zoom (1x-3x), rotation (0°-360°), horizontal/vertical flip, and multi-format export. |
 | **`src/pages/Home.tsx`** | Ultra-lightweight, minimal, and fast-loading Creator Studio homepage with instant search, compact category filter pills, direct 1-click tool launcher cards, and fast Recently Used integration. |
 | **`src/pages/ImageCropper.tsx`** | Dedicated Image Cropper with `react-easy-crop`, aspect presets (Free, 1:1, 4:3, 16:9, 9:16, 3:2), zoom, rotation, flip, and sound feedback. |

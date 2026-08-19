@@ -2,8 +2,18 @@
 
 export const SITE_CONFIG = {
   name: "Web Utility Hub",
-  description: "Naxxivo Free Web Utility Hub - YouTube Thumbnail Downloader, Image Converter, Text Case Converter, and Favicon Generator.",
+  description: "Naxxivo Free Web Utility Hub - Facebook Video Downloader, TikTok Video Downloader, YouTube Thumbnail Downloader, Image Tools, and AI Prompts.",
   navLinks: [
+    {
+      name: "Facebook Video Downloader",
+      href: "/facebook-downloader",
+      description: "Download Facebook Reels and Watch videos in 1080p Full HD & MP3 audio."
+    },
+    {
+      name: "TikTok Downloader",
+      href: "/tiktok-downloader",
+      description: "Download TikTok videos without watermark in Full HD & extract MP3 audio."
+    },
     {
       name: "YouTube Thumbnail Downloader",
       href: "/",

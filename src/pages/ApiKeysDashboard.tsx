@@ -60,6 +60,45 @@ const CODE_LANGUAGES = [
 
 const ENDPOINT_DOCS = [
   {
+    id: 'tiktok_extract',
+    name: 'TikTok Video & Audio Extractor (No Watermark)',
+    method: 'POST',
+    path: '/api/v1/tiktok/extract',
+    description: 'Extract 1080p No-Watermark MP4 video, background sound MP3, cover photo, and play/like stats from any TikTok URL.',
+    defaultPayload: JSON.stringify({ url: "https://www.tiktok.com/@tiktok/video/7123456789012345678" }, null, 2),
+    sampleResponse: {
+      success: true,
+      data: {
+        id: "7123456789012345678",
+        title: "Trending TikTok Dance",
+        videoHdUrl: "https://www.tiktok.com/video_hd.mp4",
+        videoUrl: "https://www.tiktok.com/video_sd.mp4",
+        audioUrl: "https://www.tiktok.com/audio.mp3",
+        cover: "https://www.tiktok.com/cover.jpg",
+        stats: { playCount: 150000, diggCount: 25000 }
+      }
+    }
+  },
+  {
+    id: 'facebook_extract',
+    name: 'Facebook HD Video & Reels Extractor',
+    method: 'POST',
+    path: '/api/v1/facebook/extract',
+    description: 'Extract HD 1080p MP4 videos, Reels, thumbnail images, and MP3 audio streams from public Facebook links.',
+    defaultPayload: JSON.stringify({ url: "https://www.facebook.com/watch/?v=123456789" }, null, 2),
+    sampleResponse: {
+      success: true,
+      data: {
+        id: "123456789",
+        title: "Viral Facebook Reel",
+        videoHdUrl: "https://www.facebook.com/fb_hd.mp4",
+        videoSdUrl: "https://www.facebook.com/fb_sd.mp4",
+        thumbnail: "https://www.facebook.com/thumb.jpg",
+        author: { name: "Creator Page" }
+      }
+    }
+  },
+  {
     id: 'youtube_extract',
     name: 'YouTube HD Metadata & Thumbnails Extractor',
     method: 'POST',
@@ -185,6 +224,10 @@ export default function ApiKeysDashboard() {
   // Docs state
   const [selectedLanguage, setSelectedLanguage] = useState('curl');
   const [selectedDocEndpoint, setSelectedDocEndpoint] = useState(ENDPOINT_DOCS[0].id);
+
+  // AI Prompt Guide state
+  const [promptTarget, setPromptTarget] = useState<string>('all');
+  const [promptFramework, setPromptFramework] = useState<string>('react');
 
   // Live Sandbox state
   const [sandboxEndpointId, setSandboxEndpointId] = useState(ENDPOINT_DOCS[0].id);
@@ -493,6 +536,52 @@ print_r($data);
     }
   }, [selectedLanguage, currentDocEndpoint, activeKeyString]);
 
+  // Generate Master AI Integration Prompt for ChatGPT / Claude / Cursor
+  const generatedAiPrompt = useMemo(() => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com';
+    const key = activeKeyString;
+
+    let endpointInfo = '';
+    if (promptTarget === 'all') {
+      endpointInfo = ENDPOINT_DOCS.map(ep => `
+• [${ep.method}] ${ep.path}
+  Name: ${ep.name}
+  Description: ${ep.description}
+  Sample Payload: ${ep.defaultPayload ? ep.defaultPayload.replace(/\n/g, ' ') : 'None (GET)'}
+`).join('\n');
+    } else {
+      const ep = ENDPOINT_DOCS.find(e => e.id === promptTarget) || ENDPOINT_DOCS[0];
+      endpointInfo = `
+• [${ep.method}] ${ep.path}
+  Name: ${ep.name}
+  Description: ${ep.description}
+  Sample Payload: ${ep.defaultPayload ? ep.defaultPayload.replace(/\n/g, ' ') : 'None (GET)'}
+`;
+    }
+
+    return `You are an expert full-stack developer assistant. I am connecting my application to the Naxxivo Developer REST API v1.
+
+Here is the complete API Specification & Authorization details:
+
+- Base URL: ${origin}
+- Authentication Header: x-api-key: ${key}
+- Alternative Auth: Authorization: Bearer ${key}
+- Rate Limit: 60 requests per minute
+- Target Framework/Language: ${promptFramework.toUpperCase()}
+
+Target Endpoint Specification:
+${endpointInfo}
+
+INSTRUCTIONS FOR AI ASSISTANT:
+Please generate clean, production-ready, robust code for my ${promptFramework.toUpperCase()} project that connects to the endpoint(s) above.
+
+Include:
+1. Complete TypeScript interfaces / type definitions (or class data structures) for request payload and response JSON.
+2. An async API client module or custom hook with retry logic for HTTP 429 (Rate Limit Exceeded) and 401 (Invalid Key).
+3. Clear error handling and logging.
+4. A short working usage example showing how to invoke the API function and handle the returned data.`;
+  }, [promptTarget, promptFramework, activeKeyString]);
+
   // Execute Live API Sandbox Request
   const handleRunSandbox = async () => {
     const ep = ENDPOINT_DOCS.find(e => e.id === sandboxEndpointId) || ENDPOINT_DOCS[0];
@@ -632,11 +721,11 @@ print_r($data);
 
       {/* Main Tabs */}
       <Tabs defaultValue="keys" className="space-y-4">
-        <TabsList className="grid grid-cols-3 h-10 p-1 bg-muted/60 rounded-xl border border-border">
+        <TabsList className="grid grid-cols-2 sm:grid-cols-4 h-auto p-1 bg-muted/60 rounded-xl border border-border gap-1">
           <TabsTrigger 
             value="keys" 
             onClick={() => sound.tab()}
-            className="text-xs font-bold gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
+            className="text-xs font-bold gap-1.5 py-2 data-[state=active]:bg-card data-[state=active]:shadow-xs"
           >
             <Key className="w-3.5 h-3.5" />
             <span>API Keys & Tester</span>
@@ -644,15 +733,23 @@ print_r($data);
           <TabsTrigger 
             value="quickstart" 
             onClick={() => sound.tab()}
-            className="text-xs font-bold gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
+            className="text-xs font-bold gap-1.5 py-2 data-[state=active]:bg-card data-[state=active]:shadow-xs"
           >
             <Code2 className="w-3.5 h-3.5" />
-            <span>Code Examples & SDKs</span>
+            <span>Code Examples</span>
+          </TabsTrigger>
+          <TabsTrigger 
+            value="ai_prompt_guide" 
+            onClick={() => sound.tab()}
+            className="text-xs font-bold gap-1.5 py-2 data-[state=active]:bg-card data-[state=active]:shadow-xs text-primary"
+          >
+            <Sparkles className="w-3.5 h-3.5" />
+            <span>AI Integration Prompt</span>
           </TabsTrigger>
           <TabsTrigger 
             value="endpoints" 
             onClick={() => sound.tab()}
-            className="text-xs font-bold gap-1.5 data-[state=active]:bg-card data-[state=active]:shadow-xs"
+            className="text-xs font-bold gap-1.5 py-2 data-[state=active]:bg-card data-[state=active]:shadow-xs"
           >
             <BookOpen className="w-3.5 h-3.5" />
             <span>API Reference (v1)</span>
@@ -1068,7 +1165,124 @@ print_r($data);
           </div>
         </TabsContent>
 
-        {/* TAB 3: API Reference (v1) */}
+        {/* TAB 3: AI Integration Prompt & Guide */}
+        <TabsContent value="ai_prompt_guide" className="space-y-6 mt-0">
+          <Card className="p-5 rounded-2xl border bg-card space-y-4 shadow-xs">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-purple-500/15 text-purple-500 border border-purple-500/20">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">AI Copilot Prompt Generator</h3>
+                  <p className="text-xs text-muted-foreground">
+                    Copy this pre-configured prompt into ChatGPT, Claude, Gemini, Cursor, or Copilot to automatically generate your integration code!
+                  </p>
+                </div>
+              </div>
+
+              <Button
+                onClick={() => {
+                  navigator.clipboard.writeText(generatedAiPrompt);
+                  sound.copy();
+                  toast({
+                    title: 'AI Prompt Copied! 📋',
+                    description: 'Paste this prompt directly into ChatGPT / Cursor / Claude to generate your code.',
+                  });
+                }}
+                className="h-9 text-xs font-bold gap-1.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white shadow-sm"
+              >
+                <Copy className="w-4 h-4" />
+                <span>Copy AI Prompt</span>
+              </Button>
+            </div>
+
+            {/* Prompt Customizer Options */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 border-t">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Target Framework / Language</label>
+                <select
+                  value={promptFramework}
+                  onChange={(e) => {
+                    sound.click();
+                    setPromptFramework(e.target.value);
+                  }}
+                  className="w-full h-9 text-xs rounded-xl bg-muted/40 border border-border px-3 text-foreground font-semibold"
+                >
+                  <option value="react">React / Next.js (TypeScript)</option>
+                  <option value="node">Node.js / Express (Backend)</option>
+                  <option value="python">Python (Requests / FastAPI / Django)</option>
+                  <option value="php">PHP (cURL / Laravel)</option>
+                  <option value="flutter">Flutter / Dart (Mobile)</option>
+                  <option value="curl">cURL / Shell Script</option>
+                </select>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-foreground">Target API Endpoint</label>
+                <select
+                  value={promptTarget}
+                  onChange={(e) => {
+                    sound.click();
+                    setPromptTarget(e.target.value);
+                  }}
+                  className="w-full h-9 text-xs rounded-xl bg-muted/40 border border-border px-3 text-foreground font-semibold"
+                >
+                  <option value="all">🌟 All Endpoints (Complete API SDK)</option>
+                  {ENDPOINT_DOCS.map(doc => (
+                    <option key={doc.id} value={doc.id}>
+                      {doc.name} ({doc.method})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {/* Prompt Display Box */}
+            <div className="relative rounded-xl bg-slate-950 border border-slate-800 overflow-hidden shadow-inner">
+              <div className="flex items-center justify-between px-4 py-2 bg-slate-900/80 border-b border-slate-800 text-xs text-slate-400">
+                <span className="font-mono flex items-center gap-1.5">
+                  <Terminal className="w-3.5 h-3.5 text-purple-400" />
+                  Ready-to-Paste Prompt for ChatGPT / Cursor / Claude
+                </span>
+                <span className="text-[10px] text-purple-300 font-mono">Auto-Filled with API Key</span>
+              </div>
+
+              <pre className="p-4 text-xs font-mono text-purple-300 overflow-x-auto max-h-80 leading-relaxed custom-scrollbar whitespace-pre-wrap">
+                {generatedAiPrompt}
+              </pre>
+            </div>
+
+            {/* How to use steps */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-xs">
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                <div className="font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-center leading-5 text-[11px] font-mono">1</span>
+                  <span>Copy Prompt</span>
+                </div>
+                <p className="text-muted-foreground text-[11px]">Click the purple "Copy AI Prompt" button above.</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                <div className="font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-center leading-5 text-[11px] font-mono">2</span>
+                  <span>Paste to any AI</span>
+                </div>
+                <p className="text-muted-foreground text-[11px]">Open ChatGPT, Claude, Gemini, or Cursor IDE and paste it.</p>
+              </div>
+
+              <div className="p-3 rounded-xl bg-muted/30 border border-border/50 space-y-1">
+                <div className="font-bold text-foreground flex items-center gap-1.5">
+                  <span className="w-5 h-5 rounded-full bg-primary/20 text-primary text-center leading-5 text-[11px] font-mono">3</span>
+                  <span>Get Ready Code</span>
+                </div>
+                <p className="text-muted-foreground text-[11px]">The AI will write error-handled code matching your exact stack!</p>
+              </div>
+            </div>
+          </Card>
+        </TabsContent>
+
+        {/* TAB 4: API Reference (v1) */}
         <TabsContent value="endpoints" className="space-y-4 mt-0">
           <div className="p-4 rounded-xl bg-muted/20 border border-border/60 text-xs space-y-2">
             <div className="flex items-center gap-2 font-bold text-foreground">

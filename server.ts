@@ -737,6 +737,588 @@ ${extraPrompt ? `- Focus: ${extraPrompt}` : ''}
 });
 
 // ==========================================
+// 🎵 TIKTOK VIDEO DOWNLOADER ENGINE & PROXY
+// ==========================================
+
+// Helper to extract TikTok Video Metadata via multiple resilient public backends
+async function fetchTikTokVideoData(rawUrl: string) {
+  const cleanUrl = rawUrl.trim();
+
+  // 1. Primary Engine: TikWM API
+  try {
+    const tikwmRes = await fetch(`https://www.tikwm.com/api/?url=${encodeURIComponent(cleanUrl)}&hd=1`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+        "Accept": "application/json",
+      },
+    });
+
+    if (tikwmRes.ok) {
+      const json: any = await tikwmRes.json();
+      if (json && (json.code === 0 || json.msg === "success") && json.data) {
+        const d = json.data;
+        
+        // Construct clean absolute URLs
+        const makeAbsolute = (pathStr: string) => {
+          if (!pathStr) return "";
+          if (pathStr.startsWith("http://") || pathStr.startsWith("https://")) return pathStr;
+          return `https://www.tikwm.com${pathStr.startsWith("/") ? "" : "/"}${pathStr}`;
+        };
+
+        return {
+          id: d.id || "",
+          title: d.title || "TikTok Video",
+          duration: d.duration || 0,
+          cover: makeAbsolute(d.cover || d.origin_cover),
+          originCover: makeAbsolute(d.origin_cover || d.cover),
+          dynamicCover: makeAbsolute(d.dynamic_cover || ""),
+          videoUrl: makeAbsolute(d.play || d.hdplay || d.wmplay),
+          videoHdUrl: makeAbsolute(d.hdplay || d.play),
+          videoWmUrl: makeAbsolute(d.wmplay || d.play),
+          audioUrl: makeAbsolute(d.music || ""),
+          musicInfo: {
+            id: d.music_info?.id || "",
+            title: d.music_info?.title || d.music_info?.album || "Original Sound",
+            author: d.music_info?.author || d.author?.nickname || "TikTok Creator",
+            duration: d.music_info?.duration || d.duration || 0,
+            cover: makeAbsolute(d.music_info?.cover || d.cover),
+          },
+          author: {
+            id: d.author?.id || "",
+            uniqueId: d.author?.unique_id || "tiktok_user",
+            nickname: d.author?.nickname || "TikTok User",
+            avatar: makeAbsolute(d.author?.avatar || ""),
+          },
+          stats: {
+            playCount: Number(d.play_count) || 0,
+            diggCount: Number(d.digg_count) || 0,
+            commentCount: Number(d.comment_count) || 0,
+            shareCount: Number(d.share_count) || 0,
+            downloadCount: Number(d.download_count) || 0,
+          },
+          size: {
+            nowm: d.size || 0,
+            hd: d.hd_size || d.size || 0,
+            wm: d.wm_size || 0,
+          },
+          images: Array.isArray(d.images) ? d.images.map((img: string) => makeAbsolute(img)) : [],
+          isSlideShow: Array.isArray(d.images) && d.images.length > 0,
+          sourceUrl: cleanUrl,
+          fetchedAt: new Date().toISOString(),
+        };
+      }
+    }
+  } catch (err) {
+    console.warn("TikWM extraction failed, attempting Tiklydown fallback:", err);
+  }
+
+  // 2. Secondary Engine: Tiklydown API Fallback
+  try {
+    const tiklyRes = await fetch(`https://api.tiklydown.eu.org/api/download?url=${encodeURIComponent(cleanUrl)}`, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+      },
+    });
+
+    if (tiklyRes.ok) {
+      const json: any = await tiklyRes.json();
+      if (json && json.video) {
+        return {
+          id: json.id || String(Date.now()),
+          title: json.title || "TikTok Video",
+          duration: json.duration || 0,
+          cover: json.video?.cover || json.video?.dynamicCover || "",
+          originCover: json.video?.cover || "",
+          dynamicCover: json.video?.dynamicCover || "",
+          videoUrl: json.video?.noWatermark || json.video?.watermark || "",
+          videoHdUrl: json.video?.noWatermarkHd || json.video?.noWatermark || "",
+          videoWmUrl: json.video?.watermark || "",
+          audioUrl: json.music?.play_url || "",
+          musicInfo: {
+            id: json.music?.id || "",
+            title: json.music?.title || "Original Sound",
+            author: json.music?.author || "TikTok Creator",
+            duration: json.music?.duration || 0,
+            cover: json.music?.cover_large || "",
+          },
+          author: {
+            id: json.author?.id || "",
+            uniqueId: json.author?.unique_id || "tiktok_user",
+            nickname: json.author?.nickname || "TikTok User",
+            avatar: json.author?.avatar || "",
+          },
+          stats: {
+            playCount: Number(json.stats?.playCount) || 0,
+            diggCount: Number(json.stats?.likeCount) || 0,
+            commentCount: Number(json.stats?.commentCount) || 0,
+            shareCount: Number(json.stats?.shareCount) || 0,
+            downloadCount: 0,
+          },
+          size: { nowm: 0, hd: 0, wm: 0 },
+          images: Array.isArray(json.images) ? json.images.map((img: any) => img.url || img) : [],
+          isSlideShow: Array.isArray(json.images) && json.images.length > 0,
+          sourceUrl: cleanUrl,
+          fetchedAt: new Date().toISOString(),
+        };
+      }
+    }
+  } catch (err2) {
+    console.warn("Tiklydown fallback failed:", err2);
+  }
+
+  throw new Error("Unable to extract video. Please ensure the TikTok link is public and valid.");
+}
+
+// Route: Extract TikTok Video Details (JSON)
+app.post("/api/tiktok/extract", async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== "string" || !url.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide a valid TikTok video URL (e.g., https://vt.tiktok.com/... or https://www.tiktok.com/@user/video/...)",
+      });
+    }
+
+    const data = await fetchTikTokVideoData(url);
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    console.error("TikTok Extraction API Error:", error?.message || error);
+    return res.status(400).json({
+      success: false,
+      error: error?.message || "Failed to extract TikTok video. Please check the URL and try again.",
+    });
+  }
+});
+
+// Route: TikTok Video & Audio Direct Streaming Proxy for 1-Click Clean Downloads
+app.get(["/api/tiktok/download", "/api/v1/tiktok/download"], async (req, res) => {
+  try {
+    const mediaUrl = req.query.url as string;
+    const requestedName = (req.query.filename as string) || "tiktok_naxxivo_download";
+    const mediaType = (req.query.type as string) || "video";
+    const requestedFormat = ((req.query.format as string) || "").toLowerCase();
+    const requestedQuality = (req.query.quality as string) || "1080p";
+
+    if (!mediaUrl) {
+      return res.status(400).send("Media URL parameter 'url' is required.");
+    }
+
+    let ext = ".mp4";
+    let contentType = "video/mp4";
+
+    if (requestedFormat === "webm") {
+      ext = ".webm";
+      contentType = "video/webm";
+    } else if (requestedFormat === "mp3" || mediaType === "audio") {
+      ext = ".mp3";
+      contentType = "audio/mpeg";
+    } else if (requestedFormat === "m4a") {
+      ext = ".m4a";
+      contentType = "audio/mp4";
+    } else if (requestedFormat === "wav") {
+      ext = ".wav";
+      contentType = "audio/wav";
+    } else if (requestedFormat === "jpg" || mediaType === "image") {
+      ext = ".jpg";
+      contentType = "image/jpeg";
+    } else {
+      ext = ".mp4";
+      contentType = "video/mp4";
+    }
+
+    let safeFilename = requestedName
+      .replace(/[^a-zA-Z0-9_\.-]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 80);
+
+    if (!safeFilename.toLowerCase().endsWith(ext)) {
+      safeFilename = safeFilename.replace(/\.[a-zA-Z0-9]+$/i, "");
+      safeFilename = `${safeFilename}_${requestedQuality}${ext}`;
+    }
+
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+      "Referer": "https://www.tiktok.com/",
+      "Accept": "*/*",
+    };
+
+    const mediaRes = await fetch(mediaUrl, { headers });
+
+    if (!mediaRes.ok || !mediaRes.body) {
+      // Fallback: Redirect directly to the CDN url if stream proxy is blocked
+      return res.redirect(mediaUrl);
+    }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`);
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    const contentLength = mediaRes.headers.get("content-length");
+    if (contentLength) {
+      res.setHeader("Content-Length", contentLength);
+    }
+
+    const arrayBuffer = await mediaRes.arrayBuffer();
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    console.error("TikTok Download Proxy Error:", err);
+    if (req.query.url) {
+      return res.redirect(String(req.query.url));
+    }
+    return res.status(500).send("Download stream failed.");
+  }
+});
+
+// ==========================================
+// 📘 FACEBOOK VIDEO & REELS EXTRACTION ENGINE
+// ==========================================
+
+function decodeFbEscapes(str: string): string {
+  if (!str) return "";
+  return str
+    .replace(/\\u0025/g, "%")
+    .replace(/\\u0026/g, "&")
+    .replace(/\\\//g, "/")
+    .replace(/&amp;/g, "&")
+    .replace(/\\"/g, '"');
+}
+
+async function resolveFacebookRedirect(url: string): Promise<string> {
+  let currentUrl = url;
+  
+  // Try up to 3 redirection hops
+  for (let hop = 0; hop < 3; hop++) {
+    try {
+      const res = await fetch(currentUrl, {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        }
+      });
+
+      // If it's a 3xx redirect, get the Location header
+      if (res.status >= 300 && res.status < 400) {
+        const location = res.headers.get("location");
+        if (location) {
+          const resolvedUrl = new URL(location, currentUrl).toString();
+          if (resolvedUrl && resolvedUrl !== currentUrl) {
+            currentUrl = resolvedUrl;
+            continue;
+          }
+        }
+      }
+
+      // If it's a 200 OK, scan for meta tags
+      if (res.status === 200) {
+        const html = await res.text();
+        
+        // 1. Look for og:url
+        const ogUrlMatch = html.match(/<meta\s+property=["']og:url["']\s+content=["']([^"']+)["']/i) ||
+                           html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:url["']/i);
+        if (ogUrlMatch && ogUrlMatch[1] && !ogUrlMatch[1].includes("/share/")) {
+          return ogUrlMatch[1];
+        }
+
+        // 2. Look for canonical url
+        const canonicalMatch = html.match(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/i);
+        if (canonicalMatch && canonicalMatch[1] && !canonicalMatch[1].includes("/share/")) {
+          return canonicalMatch[1];
+        }
+
+        // 3. Look for meta refresh URL
+        const refreshMatch = html.match(/<meta\s+http-equiv=["']refresh["']\s+content=["']\d+;\s*url=([^"']+)["']/i);
+        if (refreshMatch && refreshMatch[1]) {
+          const resolvedUrl = new URL(refreshMatch[1], currentUrl).toString();
+          if (resolvedUrl && resolvedUrl !== currentUrl) {
+            currentUrl = resolvedUrl;
+            continue;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Error resolving hop for Facebook redirect:", e);
+    }
+    break;
+  }
+  
+  return currentUrl;
+}
+
+async function fetchFacebookVideoData(inputUrl: string) {
+  let cleanUrl = (inputUrl || "").trim();
+  if (!cleanUrl) {
+    throw new Error("Please provide a valid Facebook video URL.");
+  }
+
+  // 1. Resolve redirect for shortlinks (fb.watch, facebook.com/share/r/...) using our robust resolver
+  const targetUrl = await resolveFacebookRedirect(cleanUrl);
+
+  // 2. Primary Engine: Direct Facebook HTML & JSON-LD parser
+  try {
+    const htmlRes = await fetch(targetUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept-Language": "en-US,en;q=0.9",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "sec-ch-ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+        "sec-ch-ua-mobile": "?0",
+        "sec-ch-ua-platform": '"Windows"',
+      },
+    });
+
+    if (htmlRes.ok) {
+      const html = await htmlRes.text();
+
+      // Extract HD Video Stream
+      let hdMatch = html.match(/"playable_url_quality_hd"\s*:\s*"([^"]+)"/) ||
+                    html.match(/"browser_native_hd_url"\s*:\s*"([^"]+)"/) ||
+                    html.match(/hd_src\s*:\s*"([^"]+)"/) ||
+                    html.match(/hd_src_no_ratelimit\s*:\s*"([^"]+)"/);
+
+      // Extract SD Video Stream
+      let sdMatch = html.match(/"playable_url"\s*:\s*"([^"]+)"/) ||
+                    html.match(/"browser_native_sd_url"\s*:\s*"([^"]+)"/) ||
+                    html.match(/sd_src\s*:\s*"([^"]+)"/) ||
+                    html.match(/sd_src_no_ratelimit\s*:\s*"([^"]+)"/) ||
+                    html.match(/<meta\s+property="og:video(?::secure_url|:url)?"\s+content="([^"]+)"/i) ||
+                    html.match(/<meta\s+property="og:video"\s+content="([^"]+)"/i);
+
+      // Extract Thumbnail
+      let thumbMatch = html.match(/<meta\s+property="og:image"\s+content="([^"]+)"/i) ||
+                        html.match(/"preferred_thumbnail"\s*:\s*\{"image"\s*:\s*\{"uri"\s*:\s*"([^"]+)"/) ||
+                        html.match(/"thumbnailImage"\s*:\s*\{"uri"\s*:\s*"([^"]+)"/);
+
+      // Extract Title & Description
+      let titleMatch = html.match(/<meta\s+property="og:title"\s+content="([^"]+)"/i) ||
+                       html.match(/<title>([^<]+)<\/title>/i);
+
+      let descMatch = html.match(/<meta\s+property="og:description"\s+content="([^"]+)"/i) ||
+                      html.match(/<meta\s+name="description"\s+content="([^"]+)"/i);
+
+      let authorMatch = html.match(/"ownerName"\s*:\s*"([^"]+)"/) ||
+                        html.match(/"author"\s*:\s*\{"name"\s*:\s*"([^"]+)"/) ||
+                        html.match(/"owner"\s*:\s*\{"name"\s*:\s*"([^"]+)"/);
+
+      const rawHd = hdMatch ? decodeFbEscapes(hdMatch[1]) : "";
+      const rawSd = sdMatch ? decodeFbEscapes(sdMatch[1]) : "";
+      const rawThumb = thumbMatch ? decodeFbEscapes(thumbMatch[1]) : "";
+      let rawTitle = titleMatch ? decodeFbEscapes(titleMatch[1]) : "Facebook Video";
+      rawTitle = rawTitle.replace(/\s*\|\s*Facebook$/i, "").replace(/^Watch\s*\|\s*/i, "").trim();
+
+      const rawDesc = descMatch ? decodeFbEscapes(descMatch[1]) : "";
+      const rawAuthor = authorMatch ? decodeFbEscapes(authorMatch[1]) : "Facebook Creator";
+
+      if (rawHd || rawSd) {
+        const primaryVideo = rawHd || rawSd;
+        const qualityOptions = [];
+        if (rawHd) {
+          qualityOptions.push({
+            label: "HD 1080p / 720p",
+            resolution: "1080p",
+            url: rawHd,
+            format: "mp4",
+            isHd: true,
+          });
+        }
+        if (rawSd) {
+          qualityOptions.push({
+            label: "SD 480p / 360p",
+            resolution: "480p",
+            url: rawSd,
+            format: "mp4",
+            isHd: false,
+          });
+        }
+
+        return {
+          id: String(Date.now()),
+          title: rawTitle || "Facebook Video",
+          description: rawDesc,
+          duration: 0,
+          thumbnail: rawThumb,
+          videoHdUrl: rawHd || undefined,
+          videoSdUrl: rawSd || rawHd,
+          audioUrl: primaryVideo,
+          author: {
+            name: rawAuthor,
+            avatar: "",
+          },
+          sourceUrl: cleanUrl,
+          isVideo: true,
+          qualityOptions,
+          fetchedAt: new Date().toISOString(),
+        };
+      }
+    }
+  } catch (directErr) {
+    console.warn("Direct Facebook HTML extraction failed, attempting public mirror fallback:", directErr);
+  }
+
+  // 3. Secondary Engine: Multi-API Public Scraper Fallback
+  const fallbackEndpoints = [
+    `https://api.tiklydown.eu.org/api/download?url=${encodeURIComponent(cleanUrl)}`,
+    `https://api.agatz.xyz/api/facebook?url=${encodeURIComponent(cleanUrl)}`,
+    `https://aemt.me/facebook?url=${encodeURIComponent(cleanUrl)}`
+  ];
+
+  for (const endpoint of fallbackEndpoints) {
+    try {
+      const fallbackRes = await fetch(endpoint, {
+        headers: { "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36" },
+        signal: AbortSignal.timeout(6000),
+      });
+
+      if (fallbackRes.ok) {
+        const json: any = await fallbackRes.json();
+        const r = json.result || json.data || json;
+        if (r) {
+          const hdUrl = r.hd || r.video_hd || r.hd_url || r.videoHD || "";
+          const sdUrl = r.sd || r.video_sd || r.sd_url || r.videoSD || r.video || r.url || "";
+
+          if (hdUrl || sdUrl) {
+            return {
+              id: String(Date.now()),
+              title: r.title || r.caption || "Facebook Video",
+              description: r.desc || r.description || "",
+              duration: Number(r.duration) || 0,
+              thumbnail: r.thumbnail || r.thumb || r.cover || "",
+              videoHdUrl: hdUrl || undefined,
+              videoSdUrl: sdUrl || hdUrl,
+              audioUrl: r.audio || r.music || sdUrl || hdUrl,
+              author: {
+                name: r.author || r.creator || "Facebook Creator",
+                avatar: r.author_avatar || "",
+              },
+              sourceUrl: cleanUrl,
+              isVideo: true,
+              qualityOptions: [
+                ...(hdUrl ? [{ label: "HD 720p/1080p", resolution: "1080p", url: hdUrl, format: "mp4", isHd: true }] : []),
+                ...(sdUrl ? [{ label: "SD 360p/480p", resolution: "480p", url: sdUrl, format: "mp4", isHd: false }] : []),
+              ],
+              fetchedAt: new Date().toISOString(),
+            };
+          }
+        }
+      }
+    } catch {
+      // Quietly ignore failed fallback API attempts
+    }
+  }
+
+  throw new Error("Unable to extract Facebook video. Please make sure the video is public and the link is valid.");
+}
+
+// Route: Extract Facebook Video Details (JSON)
+app.post(["/api/facebook/extract", "/api/v1/facebook/extract"], async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== "string" || !url.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide a valid Facebook video URL (e.g., https://www.facebook.com/reel/... or https://fb.watch/...)",
+      });
+    }
+
+    const data = await fetchFacebookVideoData(url);
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    console.error("Facebook Extraction API Error:", error?.message || error);
+    return res.status(400).json({
+      success: false,
+      error: error?.message || "Failed to extract Facebook video. Please check the URL and try again.",
+    });
+  }
+});
+
+// Route: Facebook Video & Audio Direct Streaming Proxy for 1-Click Clean Downloads
+app.get(["/api/facebook/download", "/api/v1/facebook/download"], async (req, res) => {
+  try {
+    const mediaUrl = req.query.url as string;
+    const requestedName = (req.query.filename as string) || "facebook_naxxivo_download";
+    const mediaType = (req.query.type as string) || "video";
+    const requestedFormat = ((req.query.format as string) || "").toLowerCase();
+    const requestedQuality = (req.query.quality as string) || "1080p";
+
+    if (!mediaUrl) {
+      return res.status(400).send("Media URL parameter 'url' is required.");
+    }
+
+    let ext = ".mp4";
+    let contentType = "video/mp4";
+
+    if (requestedFormat === "webm") {
+      ext = ".webm";
+      contentType = "video/webm";
+    } else if (requestedFormat === "mp3" || mediaType === "audio") {
+      ext = ".mp3";
+      contentType = "audio/mpeg";
+    } else if (requestedFormat === "m4a") {
+      ext = ".m4a";
+      contentType = "audio/mp4";
+    } else if (requestedFormat === "wav") {
+      ext = ".wav";
+      contentType = "audio/wav";
+    } else if (requestedFormat === "jpg" || mediaType === "image") {
+      ext = ".jpg";
+      contentType = "image/jpeg";
+    } else {
+      ext = ".mp4";
+      contentType = "video/mp4";
+    }
+
+    let safeFilename = requestedName
+      .replace(/[^a-zA-Z0-9_\.-]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 80);
+
+    if (!safeFilename.toLowerCase().endsWith(ext)) {
+      safeFilename = safeFilename.replace(/\.[a-zA-Z0-9]+$/i, "");
+      safeFilename = `${safeFilename}_${requestedQuality}${ext}`;
+    }
+
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "Referer": "https://www.facebook.com/",
+      "Accept": "*/*",
+    };
+
+    const mediaRes = await fetch(mediaUrl, { headers });
+
+    if (!mediaRes.ok || !mediaRes.body) {
+      return res.redirect(mediaUrl);
+    }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`);
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    const contentLength = mediaRes.headers.get("content-length");
+    if (contentLength) {
+      res.setHeader("Content-Length", contentLength);
+    }
+
+    const arrayBuffer = await mediaRes.arrayBuffer();
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    console.error("Facebook Download Proxy Error:", err);
+    if (req.query.url) {
+      return res.redirect(String(req.query.url));
+    }
+    return res.status(500).send("Download stream failed.");
+  }
+});
+
+// ==========================================
 // 🔑 DEVELOPER API KEY SYSTEM & PUBLIC API V1
 // ==========================================
 
@@ -1359,6 +1941,54 @@ app.post("/api/v1/ai/generate-title", verifyApiKey, async (req, res) => {
     });
   } catch (error: any) {
     return res.status(500).json({ error: "AI Generation failed", message: error?.message || String(error) });
+  }
+});
+
+// 8. TikTok Video Extractor API Endpoint (V1)
+app.post("/api/v1/tiktok/extract", verifyApiKey, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Please provide a valid TikTok video URL in the request body.",
+      });
+    }
+
+    const data = await fetchTikTokVideoData(url);
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      error: "Extraction Failed",
+      message: error?.message || String(error),
+    });
+  }
+});
+
+// 9. Facebook Video Extractor API Endpoint (V1)
+app.post("/api/v1/facebook/extract", verifyApiKey, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Please provide a valid Facebook video URL in the request body.",
+      });
+    }
+
+    const data = await fetchFacebookVideoData(url);
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      error: "Extraction Failed",
+      message: error?.message || String(error),
+    });
   }
 });
 

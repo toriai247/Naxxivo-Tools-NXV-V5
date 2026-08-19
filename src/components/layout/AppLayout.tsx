@@ -105,6 +105,20 @@ const CATEGORIZED_NAV: NavCategory[] = [
         badgeColor: "bg-rose-500/15 text-rose-600 dark:text-rose-400" 
       },
       { 
+        href: "/tiktok-downloader", 
+        label: "TikTok Downloader", 
+        icon: Video, 
+        badge: "NO WM ⚡", 
+        badgeColor: "bg-pink-500/15 text-pink-600 dark:text-pink-400" 
+      },
+      { 
+        href: "/facebook-downloader", 
+        label: "Facebook Downloader", 
+        icon: Video, 
+        badge: "HD / MP3 ⚡", 
+        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400" 
+      },
+      { 
         href: "/thumbnail-downloader", 
         label: "Thumbnail Downloader", 
         icon: Youtube, 

@@ -15,6 +15,8 @@ import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { useTaskProgress } from "@/context/TaskProgressContext";
+import { TaskProgressCard } from "@/components/TaskProgressCard";
 import { convertImage } from "@/lib/imageProcessor";
 
 export type SupportedTargetFormat = "image/jpeg" | "image/png" | "image/webp" | "image/avif" | "image/bmp";
@@ -107,12 +109,18 @@ export function ImageConverter() {
   const [selectedFormat, setSelectedFormat] = useState<SupportedTargetFormat>("image/webp");
   const [quality, setQuality] = useState<number>(85);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [convertProgress, setConvertProgress] = useState<{
+    progress: number;
+    subtitle: string;
+    stepMessage: string;
+  } | null>(null);
   const [result, setResult] = useState<ConvertedResult | null>(null);
   const [processError, setProcessError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addHistoryItem } = useHistory();
+  const { startTask, updateTask, completeTask, failTask } = useTaskProgress();
 
   const convertImageUsingCanvas = useCallback(
     async (
@@ -124,6 +132,21 @@ export function ImageConverter() {
       setIsProcessing(true);
       setProcessError(null);
 
+      const formatConfig = FORMAT_OPTIONS.find((f) => f.value === targetFormat) || FORMAT_OPTIONS[2];
+      const taskTitle = `Converting ${sourceFile?.name || 'Image'} to ${formatConfig.label}`;
+      const taskId = startTask({
+        title: taskTitle,
+        subtitle: `Encoding into ${formatConfig.label} format...`,
+        category: "conversion",
+        initialProgress: 20,
+      });
+
+      setConvertProgress({
+        progress: 20,
+        subtitle: `Reading image buffer...`,
+        stepMessage: "Step 1/3: Reading image bitmap",
+      });
+
       try {
         const fmtKey = targetFormat === "image/jpeg" ? "jpeg"
           : targetFormat === "image/png" ? "png"
@@ -132,6 +155,17 @@ export function ImageConverter() {
           : "bmp";
 
         const qualityRatio = Math.min(Math.max(targetQuality / 100, 0.1), 1.0);
+
+        updateTask(taskId, {
+          progress: 60,
+          subtitle: `Transcoding pixel channels into ${formatConfig.label}...`,
+          stepMessage: `Step 2/3: Applying ${formatConfig.label} encoder`,
+        });
+        setConvertProgress({
+          progress: 60,
+          subtitle: `Transcoding pixel channels into ${formatConfig.label}...`,
+          stepMessage: `Step 2/3: Applying ${formatConfig.label} encoder`,
+        });
 
         const convRes = await convertImage({
           source: sourceFile || sourceDataUrl,
@@ -144,7 +178,16 @@ export function ImageConverter() {
         const naturalHeight = convRes.height;
         setDimensions({ width: naturalWidth, height: naturalHeight });
 
-        const formatConfig = FORMAT_OPTIONS.find((f) => f.value === targetFormat) || FORMAT_OPTIONS[2];
+        updateTask(taskId, {
+          progress: 90,
+          subtitle: `Generating ${formatConfig.extension.toUpperCase()} file blob (${(convRes.newSizeBytes / 1024).toFixed(1)} KB)...`,
+          stepMessage: "Step 3/3: Constructing final output",
+        });
+        setConvertProgress({
+          progress: 90,
+          subtitle: `Generating ${formatConfig.extension.toUpperCase()} file blob...`,
+          stepMessage: "Step 3/3: Constructing final output",
+        });
 
         const converted: ConvertedResult = {
           originalSize: sourceFile ? sourceFile.size : convRes.newSizeBytes * 1.5,
@@ -160,6 +203,13 @@ export function ImageConverter() {
         setResult(converted);
         sound.success();
 
+        completeTask(taskId, `Converted to ${formatConfig.label} (${(convRes.newSizeBytes / 1024).toFixed(1)} KB)`);
+        setConvertProgress({
+          progress: 100,
+          subtitle: `Done! Converted to ${formatConfig.label}`,
+          stepMessage: "Conversion Completed",
+        });
+
         // Track action in history
         addHistoryItem({
           type: "image_conv",
@@ -170,11 +220,13 @@ export function ImageConverter() {
         console.error("Image conversion error:", error);
         sound.error();
         setProcessError("Failed to convert image. Please try another file.");
+        failTask(taskId, error.message || "Failed to convert image.");
       } finally {
         setIsProcessing(false);
+        setTimeout(() => setConvertProgress(null), 2500);
       }
     },
-    [addHistoryItem]
+    [addHistoryItem, startTask, updateTask, completeTask, failTask]
   );
 
   const handleFile = (selectedFile: File) => {
@@ -376,8 +428,21 @@ export function ImageConverter() {
               </div>
 
               {/* Canvas Preview Area */}
-              <div className="p-6 flex items-center justify-center min-h-[340px] bg-black/5 dark:bg-black/20 relative overflow-hidden checkerboard-bg">
-                {isProcessing && !result ? (
+              <div className="p-6 flex flex-col items-center justify-center min-h-[340px] bg-black/5 dark:bg-black/20 relative overflow-hidden checkerboard-bg">
+                {convertProgress && (
+                  <div className="w-full max-w-md my-4">
+                    <TaskProgressCard
+                      progress={convertProgress.progress}
+                      title={file.name}
+                      subtitle={convertProgress.subtitle}
+                      stepMessage={convertProgress.stepMessage}
+                      status={convertProgress.progress === 100 ? "completed" : "running"}
+                      accentColor="teal"
+                    />
+                  </div>
+                )}
+
+                {isProcessing && !result && !convertProgress ? (
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <RefreshCw className="w-8 h-8 animate-spin text-emerald-500" />
                     <span className="text-sm font-medium">Converting image...</span>

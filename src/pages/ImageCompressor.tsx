@@ -13,6 +13,8 @@ import {
 import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { useTaskProgress } from "@/context/TaskProgressContext";
+import { TaskProgressCard } from "@/components/TaskProgressCard";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { convertImage } from "@/lib/imageProcessor";
 
@@ -39,11 +41,17 @@ export function ImageCompressor() {
   
   // States
   const [isCompressing, setIsCompressing] = useState(false);
+  const [compressProgress, setCompressProgress] = useState<{
+    progress: number;
+    subtitle: string;
+    stepMessage: string;
+  } | null>(null);
   const [result, setResult] = useState<CompressedImageResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addHistoryItem } = useHistory();
+  const { startTask, updateTask, completeTask, failTask } = useTaskProgress();
 
   const compressImage = useCallback(
     async (
@@ -55,6 +63,20 @@ export function ImageCompressor() {
     ) => {
       setIsCompressing(true);
       setErrorMsg(null);
+
+      const taskTitle = `Compressing ${sourceFile.name}`;
+      const taskId = startTask({
+        title: taskTitle,
+        subtitle: `Optimizing image at ${targetQuality}% quality...`,
+        category: "compression",
+        initialProgress: 15,
+      });
+
+      setCompressProgress({
+        progress: 15,
+        subtitle: "Initializing canvas buffer...",
+        stepMessage: "Step 1/4: Loading image source",
+      });
 
       try {
         let fmtKey: "jpeg" | "webp" | "png" = "jpeg";
@@ -69,6 +91,18 @@ export function ImageCompressor() {
         }
 
         const qualityRatio = Math.min(Math.max(targetQuality / 100, 0.05), 1.0);
+
+        // Progress step 2
+        updateTask(taskId, {
+          progress: 45,
+          subtitle: `Encoding pixels to ${fmtKey.toUpperCase()} buffer...`,
+          stepMessage: "Step 2/4: Applying quantization & compression matrix",
+        });
+        setCompressProgress({
+          progress: 45,
+          subtitle: `Encoding pixels to ${fmtKey.toUpperCase()} buffer...`,
+          stepMessage: "Step 2/4: Applying quantization matrix",
+        });
 
         const convRes = await convertImage({
           source: sourceFile || sourceDataUrl,
@@ -88,6 +122,17 @@ export function ImageCompressor() {
         let finalSize = convRes.newSizeBytes;
 
         if (targetScale < 100) {
+          updateTask(taskId, {
+            progress: 75,
+            subtitle: `Scaling image down to ${targetScale}% (${scaledWidth}x${scaledHeight})...`,
+            stepMessage: "Step 3/4: Scaling raster resolution",
+          });
+          setCompressProgress({
+            progress: 75,
+            subtitle: `Scaling image down to ${targetScale}% (${scaledWidth}x${scaledHeight})...`,
+            stepMessage: "Step 3/4: Scaling raster resolution",
+          });
+
           const scaledRes = await convertImage({
             source: convRes.blob,
             targetFormat: fmtKey,
@@ -98,6 +143,17 @@ export function ImageCompressor() {
           finalDataUrl = scaledRes.dataUrl;
           finalSize = scaledRes.newSizeBytes;
         }
+
+        updateTask(taskId, {
+          progress: 92,
+          subtitle: `Analyzing savings: ${(sourceFile.size / 1024).toFixed(1)} KB → ${(finalSize / 1024).toFixed(1)} KB...`,
+          stepMessage: "Step 4/4: Finalizing metadata & savings",
+        });
+        setCompressProgress({
+          progress: 92,
+          subtitle: `Analyzing savings: ${(sourceFile.size / 1024).toFixed(1)} KB → ${(finalSize / 1024).toFixed(1)} KB...`,
+          stepMessage: "Step 4/4: Finalizing metadata",
+        });
 
         const extension = fmtKey === "webp" ? "webp" : fmtKey === "png" ? "png" : "jpg";
         const mimeType = fmtKey === "webp" ? "image/webp" : fmtKey === "png" ? "image/png" : "image/jpeg";
@@ -115,21 +171,32 @@ export function ImageCompressor() {
         setResult(resObj);
         sound.success();
 
+        const savedPct = Math.round(((sourceFile.size - finalSize) / sourceFile.size) * 100);
+        completeTask(taskId, `Saved ${savedPct > 0 ? `${savedPct}%` : 'optimized'} (${(finalSize / 1024).toFixed(1)} KB)`);
+
+        setCompressProgress({
+          progress: 100,
+          subtitle: `Finished! Reduced by ${savedPct > 0 ? `${savedPct}%` : '0%'}`,
+          stepMessage: "Compression Complete",
+        });
+
         // Add history log
         addHistoryItem({
           type: "image_compress",
           title: `Compressed ${sourceFile.name}`,
-          description: `Original: ${(sourceFile.size / 1024).toFixed(1)} KB → Output: ${(finalSize / 1024).toFixed(1)} KB (${Math.round(((sourceFile.size - finalSize) / sourceFile.size) * 100)}% saved)`,
+          description: `Original: ${(sourceFile.size / 1024).toFixed(1)} KB → Output: ${(finalSize / 1024).toFixed(1)} KB (${savedPct}% saved)`,
         });
       } catch (err: any) {
         sound.error();
         console.error("Compression error:", err);
         setErrorMsg(err.message || "Failed to compress image.");
+        failTask(taskId, err.message || "Failed to compress image.");
       } finally {
         setIsCompressing(false);
+        setTimeout(() => setCompressProgress(null), 2500);
       }
     },
-    [addHistoryItem]
+    [addHistoryItem, startTask, updateTask, completeTask, failTask]
   );
 
   const handleFileSelect = (selectedFile: File) => {
@@ -341,8 +408,21 @@ export function ImageCompressor() {
               </div>
 
               {/* Canvas Preview Area */}
-              <div className="p-6 flex items-center justify-center min-h-[340px] bg-black/5 dark:bg-black/20 relative overflow-hidden checkerboard-pattern">
-                {isCompressing && !result ? (
+              <div className="p-6 flex flex-col items-center justify-center min-h-[340px] bg-black/5 dark:bg-black/20 relative overflow-hidden checkerboard-pattern">
+                {compressProgress && (
+                  <div className="w-full max-w-md my-4">
+                    <TaskProgressCard
+                      progress={compressProgress.progress}
+                      title={file.name}
+                      subtitle={compressProgress.subtitle}
+                      stepMessage={compressProgress.stepMessage}
+                      status={compressProgress.progress === 100 ? "completed" : "running"}
+                      accentColor="emerald"
+                    />
+                  </div>
+                )}
+
+                {isCompressing && !result && !compressProgress ? (
                   <div className="flex flex-col items-center gap-3 text-muted-foreground">
                     <RefreshCw className="w-8 h-8 animate-spin text-emerald-500" />
                     <span className="text-sm font-medium">Compressing and processing image...</span>
