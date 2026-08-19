@@ -34,8 +34,29 @@ export const SUPPORTED_LOCAL_MODELS: WebLlmModelConfig[] = [
 let engineInstance: MLCEngine | null = null;
 let currentLoadedModelId: string | null = null;
 
-export function isWebGpuSupported(): boolean {
-  return typeof navigator !== 'undefined' && 'gpu' in navigator && !!navigator.gpu;
+export async function checkWebGpuSupport(): Promise<{ supported: boolean; reason?: string }> {
+  if (typeof navigator === 'undefined' || !('gpu' in navigator) || !(navigator as any).gpu) {
+    return {
+      supported: false,
+      reason: "Your browser does not support WebGPU API. Please use Google Chrome, Microsoft Edge, or Brave on Desktop, or enable WebGPU flags on Chrome Mobile."
+    };
+  }
+
+  try {
+    const adapter = await (navigator as any).gpu.requestAdapter();
+    if (!adapter) {
+      return {
+        supported: false,
+        reason: "WebGPU is available in your browser, but no compatible WebGPU hardware adapter was found on your device."
+      };
+    }
+    return { supported: true };
+  } catch (err: any) {
+    return {
+      supported: false,
+      reason: `WebGPU adapter initialization failed: ${err?.message || "Unknown WebGPU driver error"}`
+    };
+  }
 }
 
 export async function getOrInitLlmEngine(
@@ -56,20 +77,27 @@ export async function getOrInitLlmEngine(
     currentLoadedModelId = null;
   }
 
-  const appConfig: AppConfig = {
-    model_list: [
-      {
-        model_id: selectedModel.id,
-        model: selectedModel.modelUrl,
-        model_lib: selectedModel.wasmUrl || 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/SmolLM2-135M-Instruct/SmolLM2-135M-Instruct-q4f16_1-ctx2k-webgpu.wasm',
-        overrides: {
-          context_window_size: 2048,
-        }
-      }
-    ]
-  };
+  // Check WebGPU hardware & driver support before initializing
+  const gpuCheck = await checkWebGpuSupport();
+  if (!gpuCheck.supported) {
+    throw new Error(gpuCheck.reason || "WebGPU is not supported on this device/browser.");
+  }
 
+  // Attempt 1: Try custom appConfig
   try {
+    const appConfig: AppConfig = {
+      model_list: [
+        {
+          model_id: selectedModel.id,
+          model: selectedModel.modelUrl,
+          model_lib: selectedModel.wasmUrl || 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/SmolLM2-135M-Instruct/SmolLM2-135M-Instruct-q4f16_1-ctx2k-webgpu.wasm',
+          overrides: {
+            context_window_size: 2048,
+          }
+        }
+      ]
+    };
+
     engineInstance = await CreateMLCEngine(selectedModel.id, {
       appConfig,
       initProgressCallback: (report: InitProgressReport) => {
@@ -78,33 +106,22 @@ export async function getOrInitLlmEngine(
     });
     currentLoadedModelId = selectedModel.id;
     return engineInstance;
-  } catch (err) {
-    console.warn(`Failed to load ${selectedModel.id}, trying fallback official model...`, err);
-    // Fallback to pre-built official SmolLM2-135M-Instruct-q4f16_1-MLC if custom repo fails
-    if (selectedModel.id !== 'smollm2-135m-official') {
-      const fallbackModel = SUPPORTED_LOCAL_MODELS[1];
-      const fallbackAppConfig: AppConfig = {
-        model_list: [
-          {
-            model_id: fallbackModel.id,
-            model: fallbackModel.modelUrl,
-            model_lib: fallbackModel.wasmUrl || 'https://raw.githubusercontent.com/mlc-ai/binary-mlc-llm-libs/main/SmolLM2-135M-Instruct/SmolLM2-135M-Instruct-q4f16_1-ctx2k-webgpu.wasm',
-            overrides: {
-              context_window_size: 2048,
-            }
-          }
-        ]
-      };
-      engineInstance = await CreateMLCEngine(fallbackModel.id, {
-        appConfig: fallbackAppConfig,
+  } catch (err1: any) {
+    console.warn(`Custom model load failed (${selectedModel.id}), attempting official built-in SmolLM2 model:`, err1);
+
+    // Attempt 2: Try prebuilt official SmolLM2-135M-Instruct-q4f16_1-MLC ID directly
+    try {
+      engineInstance = await CreateMLCEngine("SmolLM2-135M-Instruct-q4f16_1-MLC", {
         initProgressCallback: (report: InitProgressReport) => {
           if (onProgress) onProgress(report);
         }
       });
-      currentLoadedModelId = fallbackModel.id;
+      currentLoadedModelId = "SmolLM2-135M-Instruct-q4f16_1-MLC";
       return engineInstance;
+    } catch (err2: any) {
+      console.error("All WebLLM initialization attempts failed:", err2);
+      throw new Error(`WebGPU Engine Failed: ${err2?.message || err1?.message || "Could not load SmolLM2 model weights"}`);
     }
-    throw err;
   }
 }
 

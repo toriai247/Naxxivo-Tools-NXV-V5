@@ -6,7 +6,7 @@ async function callGeminiDirectlyInBrowser<T>(systemPrompt: string, userContent:
     const apiKey = API_CONFIG.geminiApiKey;
     if (!apiKey) return fallbackData;
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const res = await fetch(url, {
       method: 'POST',
@@ -437,7 +437,7 @@ export async function sendAiChatMessage(
       parts: [{ text: msg.content || '' }],
     }));
 
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.7-flash:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
 
     const res = await fetch(url, {
       method: 'POST',

@@ -89,7 +89,7 @@ import { VideoAnalysisData, ChannelAnalysisData } from '@/types';
 import { InChatCropper, InChatCropResultCard, CropResultPayload } from '@/components/bot/InChatCropper';
 import { convertImage } from '@/lib/imageProcessor';
 import { TypewriterText } from '@/components/bot/TypewriterText';
-import { isWebGpuSupported, sendLocalLlmChatMessage, SUPPORTED_LOCAL_MODELS, WebLlmModelConfig } from '@/lib/webLlmService';
+import { checkWebGpuSupport, sendLocalLlmChatMessage, SUPPORTED_LOCAL_MODELS, WebLlmModelConfig } from '@/lib/webLlmService';
 
 interface BotMessage {
   id: string;
@@ -1503,91 +1503,77 @@ export default function SmartBot() {
           const resolved = resolveContextualQuery(rawText);
           const memoryContextPrompt = buildConversationContextPrompt();
 
-          // Check if local WebGPU SmolLM2 model is selected
-          if (selectedModelId !== 'gemini') {
-            const selectedConfig = SUPPORTED_LOCAL_MODELS.find(m => m.id === selectedModelId) || SUPPORTED_LOCAL_MODELS[0];
+          // SmolLM2 WebGPU Engine ONLY (Gemini completely deactivated)
+          const selectedConfig = SUPPORTED_LOCAL_MODELS.find(m => m.id === selectedModelId) || SUPPORTED_LOCAL_MODELS[0];
+          const gpuCheck = await checkWebGpuSupport();
 
-            if (!isWebGpuSupported()) {
-              toast({
-                title: "WebGPU Not Available",
-                description: "Your browser or device does not support WebGPU. Falling back to Gemini Cloud AI."
-              });
-            } else {
-              const botMsgId = `bot-${Date.now()}`;
-              const initialBotMsg: BotMessage = {
-                id: botMsgId,
-                sender: 'bot',
-                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                text: '🤖 *SmolLM2 WebGPU thinking...*',
-                toolState: { type: 'general_ai' }
-              };
-              setMessages((prev) => [...prev, initialBotMsg]);
-
-              try {
-                const finalLocalReply = await sendLocalLlmChatMessage(
-                  [
-                    { role: 'system', content: `You are Naxxivo Smart Bot powered by SmolLM2. ${memoryContextPrompt}` },
-                    { role: 'user', content: resolved.resolvedText }
-                  ],
-                  selectedConfig,
-                  (streamedText) => {
-                    setMessages((prev) =>
-                      prev.map((msg) =>
-                        msg.id === botMsgId ? { ...msg, text: streamedText || '...' } : msg
-                      )
-                    );
-                  },
-                  (progressReport) => {
-                    setWebLlmProgress(progressReport.text);
-                  }
-                );
-
-                setWebLlmProgress(null);
-                sound.success();
-                saveUserSessionHistory({
-                  id: botMsgId,
-                  role: 'bot',
-                  text: finalLocalReply,
-                  toolType: 'general_ai'
-                });
-                setIsLoading(false);
-                return;
-              } catch (webLlmErr: any) {
-                setWebLlmProgress(null);
-                console.warn("Local WebGPU SmolLM2 engine failed, falling back to Gemini:", webLlmErr);
-                toast({
-                  title: "SmolLM2 WebGPU Error",
-                  description: "Model load error. Falling back to Gemini Cloud AI."
-                });
-              }
-            }
-          }
-
-          // Fallback / Default: Gemini Cloud AI
-          const aiReply = await sendAiChatMessage(
-            [{ role: 'user', content: resolved.resolvedText }],
-            `${memoryContextPrompt}\n\nYou are Naxxivo Smart Bot, a versatile AI assistant with persistent memory and YouTube/image automation capabilities. Answer helpfully, respectfully, and concisely.`
-          );
-
-          if (aiReply) {
+          if (!gpuCheck.supported) {
             sound.success();
             const botMsgId = `bot-${Date.now()}`;
-            const botResponseMsg: BotMessage = {
+            const errorNoticeMsg: BotMessage = {
               id: botMsgId,
               sender: 'bot',
               timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-              text: aiReply,
-              toolState: {
-                type: 'general_ai'
-              }
+              text: `🤖 **SmolLM2-135M On-Device Engine (Exclusive AI)**\n\n⚠️ **WebGPU Notice**: ${gpuCheck.reason || "WebGPU is disabled or unsupported on this browser."}\n\n👉 **To run SmolLM2 on Chrome Mobile:**\n1. Open \`chrome://flags/#enable-unsafe-webgpu\` in your mobile address bar.\n2. Set it to **Enabled** and restart Chrome.\n3. Or test on Google Chrome / Edge on Desktop PC where WebGPU is active by default.`,
+              toolState: { type: 'general_ai' }
             };
-            setMessages((prev) => [...prev, botResponseMsg]);
+            setMessages((prev) => [...prev, errorNoticeMsg]);
+            setIsLoading(false);
+            return;
+          }
+
+          const botMsgId = `bot-${Date.now()}`;
+          const initialBotMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: '🤖 *SmolLM2 WebGPU thinking...*',
+            toolState: { type: 'general_ai' }
+          };
+          setMessages((prev) => [...prev, initialBotMsg]);
+
+          try {
+            const finalLocalReply = await sendLocalLlmChatMessage(
+              [
+                { role: 'system', content: `You are Naxxivo Smart Bot powered strictly by SmolLM2. ${memoryContextPrompt}` },
+                { role: 'user', content: resolved.resolvedText }
+              ],
+              selectedConfig,
+              (streamedText) => {
+                setMessages((prev) =>
+                  prev.map((msg) =>
+                    msg.id === botMsgId ? { ...msg, text: streamedText || '...' } : msg
+                  )
+                );
+              },
+              (progressReport) => {
+                setWebLlmProgress(progressReport.text);
+              }
+            );
+
+            setWebLlmProgress(null);
+            sound.success();
             saveUserSessionHistory({
               id: botMsgId,
               role: 'bot',
-              text: aiReply,
+              text: finalLocalReply,
               toolType: 'general_ai'
             });
+            setIsLoading(false);
+            return;
+          } catch (webLlmErr: any) {
+            setWebLlmProgress(null);
+            console.warn("Local WebGPU SmolLM2 engine error:", webLlmErr);
+            setMessages((prev) =>
+              prev.map((msg) =>
+                msg.id === botMsgId 
+                  ? { 
+                      ...msg, 
+                      text: `🤖 **SmolLM2-135M On-Device Engine**\n\n⚠️ **Model Load Error**: ${webLlmErr?.message || "Could not initialize SmolLM2 WebGPU engine."}\n\n👉 Please ensure WebGPU hardware acceleration is enabled or test on Desktop Chrome/Edge.` 
+                    } 
+                  : msg
+              )
+            );
             setIsLoading(false);
             return;
           }
@@ -2117,22 +2103,15 @@ export default function SmartBot() {
                       </p>
                     </button>
 
-                    <button
-                      onClick={() => handleModelChange('gemini')}
-                      className={`w-full text-left p-2.5 rounded-xl border transition-all text-xs flex flex-col gap-0.5 ${
-                        selectedModelId === 'gemini'
-                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-900 dark:text-emerald-200'
-                          : 'hover:bg-muted/80 border-transparent hover:border-border'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between font-bold">
+                    <div className="w-full text-left p-2.5 rounded-xl border border-muted opacity-50 text-xs flex flex-col gap-0.5 bg-muted/20 cursor-not-allowed">
+                      <div className="flex items-center justify-between font-bold text-muted-foreground">
                         <span className="flex items-center gap-1">⚡ Gemini Cloud AI</span>
-                        <span className="text-[9px] bg-emerald-500 text-white font-semibold px-1.5 py-0.2 rounded-full">Cloud</span>
+                        <span className="text-[9px] bg-amber-500/80 text-white font-semibold px-1.5 py-0.2 rounded-full">Deactivated</span>
                       </div>
                       <p className="text-[10px] text-muted-foreground">
-                        High-capability multimodal cloud engine for complex reasoning
+                        Gemini Cloud is currently turned off. SmartBot is running exclusively on SmolLM2-135M.
                       </p>
-                    </button>
+                    </div>
                   </div>
                 </motion.div>
               )}
