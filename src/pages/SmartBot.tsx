@@ -17,6 +17,7 @@ import {
   Sliders, 
   Cpu, 
   Zap, 
+  Loader2,
   X, 
   Layers, 
   Hash, 
@@ -88,8 +89,7 @@ import { VideoAnalysisData, ChannelAnalysisData } from '@/types';
 import { InChatCropper, InChatCropResultCard, CropResultPayload } from '@/components/bot/InChatCropper';
 import { convertImage } from '@/lib/imageProcessor';
 import { TypewriterText } from '@/components/bot/TypewriterText';
-import { AiEngineSettingsModal } from '@/components/bot/AiEngineSettingsModal';
-import { getEngineConfig, MODEL_CATALOG, generateOnDeviceResponse } from '@/lib/webLlmEngine';
+import { isWebGpuSupported, sendLocalLlmChatMessage, SUPPORTED_LOCAL_MODELS, WebLlmModelConfig } from '@/lib/webLlmService';
 
 interface BotMessage {
   id: string;
@@ -281,8 +281,6 @@ export default function SmartBot() {
   const [savedChannels, setSavedChannels] = useState<BotSavedChannel[]>(() => getRememberedChannels());
   const [memoryFacts, setMemoryFacts] = useState<Record<string, BotMemoryFact>>(() => getBotMemoryFacts());
   const [showMemoryModal, setShowMemoryModal] = useState(false);
-  const [showEngineSettings, setShowEngineSettings] = useState(false);
-  const [activeEngineConfig, setActiveEngineConfig] = useState(() => getEngineConfig());
   const [newChannelAlias, setNewChannelAlias] = useState('');
   const [newChannelUrl, setNewChannelUrl] = useState('');
   const [rememberingAliasForChannel, setRememberingAliasForChannel] = useState<{ id: string; defaultAlias: string } | null>(null);
@@ -299,6 +297,31 @@ export default function SmartBot() {
   });
   const [historyIndex, setHistoryIndex] = useState<number>(-1);
   const [showHistorySheet, setShowHistorySheet] = useState<boolean>(false);
+
+  // AI Model Selection State (Gemini Cloud vs Local SmolLM2 WebGPU)
+  const [selectedModelId, setSelectedModelId] = useState<string>(() => {
+    return localStorage.getItem('naxxivo_bot_selected_ai_model') || 'smollm2-135m-rony';
+  });
+  const [webLlmProgress, setWebLlmProgress] = useState<string | null>(null);
+  const [showModelSelector, setShowModelSelector] = useState<boolean>(false);
+
+  const handleModelChange = (modelId: string) => {
+    setSelectedModelId(modelId);
+    localStorage.setItem('naxxivo_bot_selected_ai_model', modelId);
+    setShowModelSelector(false);
+    sound.click();
+    const modelName = modelId === 'gemini' 
+      ? 'Gemini Cloud AI' 
+      : modelId === 'smollm2-135m-rony' 
+        ? 'SmolLM2-135M User Bucket' 
+        : 'SmolLM2-135M Official MLC';
+    toast({
+      title: `AI Model Switched: ${modelName}`,
+      description: modelId !== 'gemini' 
+        ? "Using client-side browser WebGPU inference with 0 server latency." 
+        : "Using high-intelligence Gemini Cloud engine."
+    });
+  };
 
   // File Inputs Refs
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -1472,36 +1495,79 @@ export default function SmartBot() {
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 6. SCENARIO F: Conversational AI with Persistent Memory Context & Multi-Engine Support
+      // 6. SCENARIO F: Conversational AI with Persistent Memory Context
       // ─────────────────────────────────────────────────────────────
       if (rawText && !pureTextMatch.matched) {
         sound.scan();
         try {
           const resolved = resolveContextualQuery(rawText);
           const memoryContextPrompt = buildConversationContextPrompt();
-          const engineCfg = getEngineConfig();
 
-          let aiReply = '';
-          const activeOpt = MODEL_CATALOG.find((m) => m.id === engineCfg.activeModelId) || MODEL_CATALOG[0];
+          // Check if local WebGPU SmolLM2 model is selected
+          if (selectedModelId !== 'gemini') {
+            const selectedConfig = SUPPORTED_LOCAL_MODELS.find(m => m.id === selectedModelId) || SUPPORTED_LOCAL_MODELS[0];
 
-          if (engineCfg.activeModelId === 'cloud-gemini') {
-            aiReply = await sendAiChatMessage(
-              [{ role: 'user', content: resolved.resolvedText }],
-              `${memoryContextPrompt}\n\nYou are Naxxivo Smart Bot, a versatile AI assistant with persistent memory and YouTube/image automation capabilities. Answer helpfully, respectfully, and concisely.`
-            );
-          } else {
-            // On-Device WebLLM Execution
-            aiReply = await generateOnDeviceResponse(
-              [
-                {
-                  role: 'system',
-                  content: `${memoryContextPrompt}\n\nYou are Naxxivo Smart Bot running 100% offline on-device via ${activeOpt.name}. Answer helpfully, respectfully, and concisely.`,
-                },
-                { role: 'user', content: resolved.resolvedText },
-              ],
-              engineCfg.activeModelId
-            );
+            if (!isWebGpuSupported()) {
+              toast({
+                title: "WebGPU Not Available",
+                description: "Your browser or device does not support WebGPU. Falling back to Gemini Cloud AI."
+              });
+            } else {
+              const botMsgId = `bot-${Date.now()}`;
+              const initialBotMsg: BotMessage = {
+                id: botMsgId,
+                sender: 'bot',
+                timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                text: '🤖 *SmolLM2 WebGPU thinking...*',
+                toolState: { type: 'general_ai' }
+              };
+              setMessages((prev) => [...prev, initialBotMsg]);
+
+              try {
+                const finalLocalReply = await sendLocalLlmChatMessage(
+                  [
+                    { role: 'system', content: `You are Naxxivo Smart Bot powered by SmolLM2. ${memoryContextPrompt}` },
+                    { role: 'user', content: resolved.resolvedText }
+                  ],
+                  selectedConfig,
+                  (streamedText) => {
+                    setMessages((prev) =>
+                      prev.map((msg) =>
+                        msg.id === botMsgId ? { ...msg, text: streamedText || '...' } : msg
+                      )
+                    );
+                  },
+                  (progressReport) => {
+                    setWebLlmProgress(progressReport.text);
+                  }
+                );
+
+                setWebLlmProgress(null);
+                sound.success();
+                saveUserSessionHistory({
+                  id: botMsgId,
+                  role: 'bot',
+                  text: finalLocalReply,
+                  toolType: 'general_ai'
+                });
+                setIsLoading(false);
+                return;
+              } catch (webLlmErr: any) {
+                setWebLlmProgress(null);
+                console.warn("Local WebGPU SmolLM2 engine failed, falling back to Gemini:", webLlmErr);
+                toast({
+                  title: "SmolLM2 WebGPU Error",
+                  description: "Model load error. Falling back to Gemini Cloud AI."
+                });
+              }
+            }
           }
+
+          // Fallback / Default: Gemini Cloud AI
+          const aiReply = await sendAiChatMessage(
+            [{ role: 'user', content: resolved.resolvedText }],
+            `${memoryContextPrompt}\n\nYou are Naxxivo Smart Bot, a versatile AI assistant with persistent memory and YouTube/image automation capabilities. Answer helpfully, respectfully, and concisely.`
+          );
 
           if (aiReply) {
             sound.success();
@@ -1525,8 +1591,7 @@ export default function SmartBot() {
             setIsLoading(false);
             return;
           }
-        } catch (err: any) {
-          console.warn('AI response generation fallback:', err);
+        } catch {
           // Graceful fallback to pureTextMatch
         }
       }
@@ -1967,8 +2032,8 @@ export default function SmartBot() {
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 sm:gap-2">
               <h1 className="font-bold text-sm sm:text-base tracking-tight truncate text-foreground">Naxxivo Smart Bot</h1>
-              <span className="text-[9px] sm:text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
-                100% Local Engine
+              <span className="text-[9px] sm:text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-purple-500/10 text-purple-600 dark:text-purple-400 border border-purple-500/20 shrink-0 flex items-center gap-1">
+                <Cpu className="w-3 h-3 text-purple-500" /> SmolLM2-135M Active
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground truncate">
@@ -1978,6 +2043,102 @@ export default function SmartBot() {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+          {/* AI Model Selector Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowModelSelector(!showModelSelector)}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all border shadow-xs ${
+                selectedModelId !== 'gemini'
+                  ? 'bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/30'
+                  : 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30'
+              }`}
+              title="Select AI Model Engine (Cloud or On-Device WebGPU)"
+            >
+              <Cpu className="w-4 h-4 text-purple-500" />
+              <span className="hidden md:inline font-mono text-[11px]">
+                {selectedModelId === 'smollm2-135m-rony' ? 'SmolLM2 (User)' : selectedModelId === 'smollm2-135m-official' ? 'SmolLM2 (MLC)' : 'Gemini Cloud'}
+              </span>
+              <span className="md:hidden font-mono text-[10px]">AI Model</span>
+            </button>
+
+            <AnimatePresence>
+              {showModelSelector && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.95 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.95 }}
+                  className="absolute right-0 top-full mt-2 w-72 bg-card border rounded-2xl shadow-xl z-50 p-3 space-y-2"
+                >
+                  <div className="flex items-center justify-between border-b pb-2 px-1">
+                    <span className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                      <Cpu className="w-3.5 h-3.5 text-purple-500" />
+                      Select AI Model Engine
+                    </span>
+                    <button
+                      onClick={() => setShowModelSelector(false)}
+                      className="text-muted-foreground hover:text-foreground p-0.5 rounded"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <button
+                      onClick={() => handleModelChange('smollm2-135m-rony')}
+                      className={`w-full text-left p-2.5 rounded-xl border transition-all text-xs flex flex-col gap-0.5 ${
+                        selectedModelId === 'smollm2-135m-rony'
+                          ? 'bg-purple-500/10 border-purple-500/40 text-purple-900 dark:text-purple-200'
+                          : 'hover:bg-muted/80 border-transparent hover:border-border'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="flex items-center gap-1">🤖 SmolLM2-135M User Bucket</span>
+                        <span className="text-[9px] bg-purple-500 text-white font-semibold px-1.5 py-0.2 rounded-full">WebGPU</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        rony1234554321/SmolLM2-135M-Instruct-q4f16_1-MLC-bucket
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={() => handleModelChange('smollm2-135m-official')}
+                      className={`w-full text-left p-2.5 rounded-xl border transition-all text-xs flex flex-col gap-0.5 ${
+                        selectedModelId === 'smollm2-135m-official'
+                          ? 'bg-purple-500/10 border-purple-500/40 text-purple-900 dark:text-purple-200'
+                          : 'hover:bg-muted/80 border-transparent hover:border-border'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="flex items-center gap-1">🌐 SmolLM2-135M Official MLC</span>
+                        <span className="text-[9px] bg-purple-500 text-white font-semibold px-1.5 py-0.2 rounded-full">WebGPU</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        mlc-ai/SmolLM2-135M-Instruct-q4f16_1-MLC
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={() => handleModelChange('gemini')}
+                      className={`w-full text-left p-2.5 rounded-xl border transition-all text-xs flex flex-col gap-0.5 ${
+                        selectedModelId === 'gemini'
+                          ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-900 dark:text-emerald-200'
+                          : 'hover:bg-muted/80 border-transparent hover:border-border'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between font-bold">
+                        <span className="flex items-center gap-1">⚡ Gemini Cloud AI</span>
+                        <span className="text-[9px] bg-emerald-500 text-white font-semibold px-1.5 py-0.2 rounded-full">Cloud</span>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground">
+                        High-capability multimodal cloud engine for complex reasoning
+                      </p>
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+
           {commandHistory.length > 0 && (
             <div className="relative">
               <button
@@ -2078,22 +2239,6 @@ export default function SmartBot() {
             </span>
           </button>
 
-          {/* AI Engine Settings Button */}
-          <button
-            onClick={() => {
-              sound.click();
-              setShowEngineSettings(true);
-            }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/20 transition-all shadow-xs"
-            title="AI Engine Settings (Cloud Gemini / Local On-Device AI)"
-          >
-            <Cpu className="w-4 h-4 text-emerald-500" />
-            <span className="hidden sm:inline">AI Engine</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-emerald-500/20 text-emerald-700 dark:text-emerald-300">
-              {MODEL_CATALOG.find(m => m.id === activeEngineConfig.activeModelId)?.badge || 'GEMINI'}
-            </span>
-          </button>
-
           <button
             onClick={handleClearChat}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent hover:border-destructive/20"
@@ -2104,6 +2249,14 @@ export default function SmartBot() {
           </button>
         </div>
       </div>
+
+      {/* WebLLM Model Download / Load Progress Banner */}
+      {webLlmProgress && (
+        <div className="bg-purple-500/10 border-b border-purple-500/20 px-4 py-2 flex items-center gap-3 text-xs text-purple-700 dark:text-purple-300 font-medium animate-pulse shrink-0">
+          <Loader2 className="w-4 h-4 animate-spin shrink-0 text-purple-500" />
+          <span className="truncate">{webLlmProgress}</span>
+        </div>
+      )}
 
       {/* ─── MESSAGES SCROLL AREA (MOBILE APP CHAT UI) ────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-3 py-4 md:px-6 md:py-5 space-y-4 md:space-y-5 max-w-4xl mx-auto w-full">
@@ -3460,14 +3613,6 @@ export default function SmartBot() {
           </div>
         )}
       </AnimatePresence>
-      {/* AI Engine Settings Modal */}
-      <AiEngineSettingsModal
-        isOpen={showEngineSettings}
-        onClose={() => setShowEngineSettings(false)}
-        onEngineChanged={() => {
-          setActiveEngineConfig(getEngineConfig());
-        }}
-      />
     </div>
   );
 }

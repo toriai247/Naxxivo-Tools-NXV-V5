@@ -17,29 +17,37 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
   onComplete,
   onTick
 }) => {
-  // If not enabled or empty, render full text immediately
   const [displayedLength, setDisplayedLength] = useState<number>(() => {
     return enabled ? 0 : text.length;
   });
   const [isDone, setIsDone] = useState<boolean>(!enabled || text.length === 0);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Synchronize if text changes or animation disabled
+  // Keep latest callbacks in refs to avoid useEffect dependency churn
+  const onCompleteRef = useRef(onComplete);
+  const onTickRef = useRef(onTick);
+
   useEffect(() => {
-    if (!enabled) {
+    onCompleteRef.current = onComplete;
+    onTickRef.current = onTick;
+  }, [onComplete, onTick]);
+
+  // Main typing effect
+  useEffect(() => {
+    if (!enabled || text.length === 0) {
       setDisplayedLength(text.length);
       setIsDone(true);
-      return;
+      // Defer callback to avoid setting parent state during render
+      const timer = setTimeout(() => {
+        onCompleteRef.current?.();
+      }, 0);
+      return () => clearTimeout(timer);
     }
 
-    if (displayedLength >= text.length) {
-      setIsDone(true);
-      return;
-    }
-
+    // Reset for new text or enabled
+    setDisplayedLength(0);
     setIsDone(false);
 
-    // Dynamic chunking: scale chunk size so longer responses type fast & smooth
     const totalChars = text.length;
     let chunkSize = 1;
     if (totalChars > 500) chunkSize = 4;
@@ -49,18 +57,25 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
     const interval = setInterval(() => {
       setDisplayedLength((prev) => {
         const next = Math.min(prev + chunkSize, text.length);
+        
+        // Defer ticks and completion out of React's state reducer phase
+        if (onTickRef.current) {
+          setTimeout(() => onTickRef.current?.(), 0);
+        }
+
         if (next >= text.length) {
           clearInterval(interval);
           setIsDone(true);
-          if (onComplete) onComplete();
+          if (onCompleteRef.current) {
+            setTimeout(() => onCompleteRef.current?.(), 0);
+          }
         }
-        if (onTick) onTick();
         return next;
       });
     }, speed);
 
     return () => clearInterval(interval);
-  }, [text, enabled, speed, onComplete, onTick]);
+  }, [text, enabled, speed]);
 
   // Click to instant-skip animation and reveal full text
   const handleSkip = (e: React.MouseEvent) => {
@@ -68,7 +83,9 @@ export const TypewriterText: React.FC<TypewriterTextProps> = ({
       e.stopPropagation();
       setDisplayedLength(text.length);
       setIsDone(true);
-      if (onComplete) onComplete();
+      if (onCompleteRef.current) {
+        setTimeout(() => onCompleteRef.current?.(), 0);
+      }
     }
   };
 

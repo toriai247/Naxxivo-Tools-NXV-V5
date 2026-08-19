@@ -144,8 +144,7 @@ graph TD
 │   │   ├── WorkflowScanner.tsx # YouTube inspection progress animation
 │   │   ├── bot/              # SmartBot dedicated chat components
 │   │   │   ├── InChatCropper.tsx # Interactive in-chat cropper with aspect ratio presets, zoom, rotate, flip & export
-│   │   │   ├── TypewriterText.tsx # Smooth typewriter-style response streaming animation component with cursor & skip feature
-│   │   │   └── AiEngineSettingsModal.tsx # On-device local AI & WebLLM engine selection modal with progress bar & cache controls
+│   │   │   └── TypewriterText.tsx # Smooth typewriter-style response streaming animation component with cursor & skip feature
 │   │   ├── layout/
 │   │   │   └── AppLayout.tsx # Navigation layout shell with categorized menus
 │   │   ├── seo/
@@ -167,8 +166,8 @@ graph TD
 │       ├── cropImage.ts      # Canvas image cropping, rotation, flip & export engine
 │       ├── botLogic.ts       # SmartBot NLP engine and rule matching
 │       ├── botCommandMatcher.ts # SmartBot command exporter
+│       ├── webLlmService.ts   # WebGPU WebLLM engine helper for client-side SmolLM2-135M model execution
 │       ├── sound.ts          # Web Audio & sound effect manager
-│       ├── webLlmEngine.ts   # WebLLM & IndexedDB on-device AI model management, download progress & local inference engine
 │       ├── supabase.ts       # Supabase client configuration
 │       ├── notifications.ts  # Push notification triggers
 │       └── utils.ts          # Tailwind cn utility function
@@ -186,7 +185,8 @@ graph TD
 | **`src/components/SmartBotTour.tsx`** | Lightweight interactive onboarding tour & spotlight tooltip system guiding new homepage visitors through the Smart Bot launcher, proactive attachment workflow, and interactive cropper. |
 | **`src/hooks/useRecentTools.ts`** | Custom React hook managing recently used tools, localStorage persistence, visit counts, and relative time formatting. |
 | **`src/lib/botLogic.ts`** | Central AI Bot brain & persistent memory orchestration layer with proactive media detection (`detectMediaTypeFromInput`, `getPoliteOptionsPrompt`), contextual follow-up parsing, channel memory, conversational context builder, and zero-API-key regex parsers. |
-| **`src/pages/SmartBot.tsx`** | Interactive Smart AI Bot & Automation chat with proactive attachment options, contextual media follow-ups ("crop 1:1", "compress koro"), 1-click Brain Memory management modal, persistent conversation history, live YouTube querying, and interactive in-chat image cropper/converters. |
+| **`src/lib/webLlmService.ts`** | Client-side WebGPU WebLLM engine service supporting `rony1234554321/SmolLM2-135M-Instruct-q4f16_1-MLC-bucket` and official MLC SmolLM2-135M on-device models with streaming tokens and loading progress tracking. |
+| **`src/pages/SmartBot.tsx`** | Interactive Smart AI Bot & Automation chat with AI model engine switcher (Gemini Cloud vs local WebGPU SmolLM2), proactive attachment options, contextual media follow-ups, 1-click Brain Memory management modal, persistent conversation history, live YouTube querying, and interactive in-chat image cropper/converters. |
 | **`src/components/bot/InChatCropper.tsx`** | Rich in-chat interactive cropper component embedded directly in conversation flow with aspect presets (1:1, 16:9, 9:16, 4:3, 3:2, Free), real-time zoom (1x-3x), rotation (0°-360°), horizontal/vertical flip, and multi-format export. |
 | **`src/pages/Home.tsx`** | Ultra-lightweight, minimal, and fast-loading Creator Studio homepage with instant search, compact category filter pills, direct 1-click tool launcher cards, and fast Recently Used integration. |
 | **`src/pages/ImageCropper.tsx`** | Dedicated Image Cropper with `react-easy-crop`, aspect presets (Free, 1:1, 4:3, 16:9, 9:16, 3:2), zoom, rotation, flip, and sound feedback. |
