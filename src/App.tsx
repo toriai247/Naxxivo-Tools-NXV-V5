@@ -65,6 +65,10 @@ function Router() {
           <Route path="/chatbot" component={SmartBot} />
           <Route path="/thumbnail-downloader" component={YouTubeDownloader} />
           <Route path="/youtube-thumbnail-downloader" component={YouTubeDownloader} />
+          <Route path="/youtube-downloader" component={YouTubeDownloader} />
+          <Route path="/youtube" component={YouTubeDownloader} />
+          <Route path="/yt-downloader" component={YouTubeDownloader} />
+          <Route path="/yt" component={YouTubeDownloader} />
           <Route path="/tiktok-downloader" component={TikTokDownloader} />
           <Route path="/tiktok" component={TikTokDownloader} />
           <Route path="/tiktok-video-downloader" component={TikTokDownloader} />

@@ -126,11 +126,11 @@ const MENU_CATEGORIES: MenuCategory[] = [
         badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400"
       },
       {
-        href: "/thumbnail-downloader",
-        title: "Thumbnail Downloader",
-        desc: "Download HD, 4K, and standard YouTube thumbnails instantly.",
+        href: "/youtube-downloader",
+        title: "YouTube Downloader",
+        desc: "Download YouTube videos in 1080p, extract premium MP3 audio tracks, and save HD video thumbnails instantly without an API key.",
         icon: Youtube,
-        badge: "MAX HD",
+        badge: "VIDEO & MP3 ⚡",
         badgeColor: "bg-red-500/15 text-red-600 dark:text-red-400"
       },
       {

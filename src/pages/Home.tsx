@@ -87,14 +87,14 @@ const TOOLS_LIST: ToolItem[] = [
   },
   {
     id: 'thumbnail-downloader',
-    title: 'YouTube Thumbnail Downloader',
-    description: 'Download MaxRes 4K, 1080p, and HD thumbnails from any YouTube video or Shorts link.',
+    title: 'YouTube Video & MP3 Downloader',
+    description: 'Download YouTube videos in 1080p Full HD, extract high-quality MP3 audio tracks, and save HD thumbnails.',
     category: 'youtube',
-    href: '/thumbnail-downloader',
+    href: '/youtube-downloader',
     icon: Youtube,
-    badge: 'POPULAR',
+    badge: 'POPULAR ⚡',
     badgeType: 'red',
-    tags: ['4K Ultra HD', 'Shorts & Videos', '1-Click Save']
+    tags: ['HD MP4 Video', 'Extract MP3 Audio', 'Shorts & Videos', 'No API Key']
   },
   {
     id: 'channel-analyzer',

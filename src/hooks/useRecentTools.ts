@@ -55,12 +55,12 @@ export const KNOWN_TOOLS: Record<string, ToolDefinition> = {
   },
   'thumbnail-downloader': {
     id: 'thumbnail-downloader',
-    title: 'Thumbnail Downloader',
-    description: 'Extract and download Ultra HD 4K, 1080p, and HD YouTube thumbnails.',
+    title: 'YouTube Downloader',
+    description: 'Download 1080p videos, extract premium MP3 audios, or save HD thumbnails.',
     category: 'youtube',
-    href: '/thumbnail-downloader',
+    href: '/youtube-downloader',
     icon: Youtube,
-    badge: '4K HD',
+    badge: 'VIDEO & MP3',
     badgeColor: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20',
     gradient: 'from-red-500/15 via-orange-500/10 to-transparent'
   },

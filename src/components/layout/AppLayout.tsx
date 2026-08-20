@@ -119,10 +119,10 @@ const CATEGORIZED_NAV: NavCategory[] = [
         badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400" 
       },
       { 
-        href: "/thumbnail-downloader", 
-        label: "Thumbnail Downloader", 
+        href: "/youtube-downloader", 
+        label: "YouTube Downloader", 
         icon: Youtube, 
-        badge: "HD", 
+        badge: "HD / MP3 ⚡", 
         badgeColor: "bg-red-500/15 text-red-600 dark:text-red-400" 
       },
       { 

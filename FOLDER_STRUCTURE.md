@@ -114,7 +114,8 @@ graph TD
 │   │   ├── aiService.ts      # Gemini AI client handler
 │   │   ├── facebookApi.ts    # Facebook Video & Reels extraction, stream proxy URLs, quality options (1080p/720p/480p/360p), and MP3 audio downloader helper
 │   │   ├── tiktokApi.ts      # TikTok Video & Audio extraction, format conversion (MP4/WebM/MP3/M4A/WAV), quality options (1080p/720p/480p/360p), and blob download API helper
-│   │   └── youtubeApi.ts     # YouTube Data API v3 helper functions
+│   │   ├── youtubeApi.ts     # YouTube Data API v3 helper functions
+│   │   └── youtubeDownload.ts # YouTube Video, Audio extraction, stream proxy, format conversion (MP4/WebM/MP3/M4A/WAV), and blob download helper
 │   │
 │   ├── pages/                # Application page views
 │   │   ├── Home.tsx              # Main Creator Studio Hub with categorized tool search & Recently Used section
@@ -129,7 +130,7 @@ graph TD
 │   │   ├── MenuDirectory.tsx     # Categorized Tools Directory (/menu, /tools)
 │   │   ├── ChannelAnalyzer.tsx   # YouTube Channel Analyzer & AI Audit
 │   │   ├── VideoAnalyzer.tsx     # YouTube Video & SEO Tag Inspector
-│   │   ├── YouTubeDownloader.tsx # YouTube HD Thumbnail Downloader
+│   │   ├── YouTubeDownloader.tsx # YouTube Video, Audio & HD Thumbnail Downloader with HQ options (1080p, 720p, MP3, M4A, WAV, and cover previews)
 │   │   ├── TitleGenerator.tsx    # AI YouTube Title Generator (High CTR, Viral Hooks)
 │   │   ├── DescriptionGenerator.tsx # AI Video Description Generator (Timestamps, SEO)
 │   │   ├── TextTools.tsx         # Text manipulation and format exporter
