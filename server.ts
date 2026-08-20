@@ -11,6 +11,17 @@ const PORT = 3000;
 
 app.use(express.json());
 
+// Enable CORS for all API endpoints to allow cross-origin requests from preview iframe or deployed domain
+app.use((req, res, next) => {
+  res.setHeader("Access-Control-Allow-Origin", "*");
+  res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With");
+  if (req.method === "OPTIONS") {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 // Server-side In-Memory Cache to save AI tokens on repeated requests
 const aiCache = new Map<string, { data: any; timestamp: number; estimatedTokens: number }>();
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours TTL
@@ -2215,6 +2226,50 @@ app.get(["/api/instagram/download", "/api/v1/instagram/download"], async (req, r
       return res.redirect(String(req.query.url));
     }
     return res.status(500).send("Download stream failed.");
+  }
+});
+
+// Route: Universal Server-side Media Proxy Endpoint (Bypasses CORS restrictions on preview & deployed sites)
+app.get(["/api/proxy/media", "/api/v1/proxy/media"], async (req, res) => {
+  try {
+    const mediaUrl = req.query.url as string;
+    if (!mediaUrl || typeof mediaUrl !== "string") {
+      return res.status(400).send("Query parameter 'url' is required.");
+    }
+
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "Accept": "*/*",
+    };
+
+    if (mediaUrl.includes("pinterest.com") || mediaUrl.includes("pinimg.com")) {
+      headers["Referer"] = "https://www.pinterest.com/";
+    } else if (mediaUrl.includes("instagram.com") || mediaUrl.includes("cdninstagram.com")) {
+      headers["Referer"] = "https://www.instagram.com/";
+    }
+
+    const response = await fetch(mediaUrl, { headers });
+    if (!response.ok || !response.body) {
+      return res.redirect(mediaUrl);
+    }
+
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", response.headers.get("content-type") || "video/mp4");
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    const len = response.headers.get("content-length");
+    if (len) {
+      res.setHeader("Content-Length", len);
+    }
+
+    const buffer = await response.arrayBuffer();
+    return res.send(Buffer.from(buffer));
+  } catch (err) {
+    console.error("Universal Media Proxy Error:", err);
+    if (req.query.url) {
+      return res.redirect(String(req.query.url));
+    }
+    return res.status(500).send("Proxy streaming failed.");
   }
 });
 
