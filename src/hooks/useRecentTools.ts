@@ -14,6 +14,7 @@ import {
   FolderSync,
   Music,
   Key,
+  Pin,
   LucideIcon
 } from 'lucide-react';
 
@@ -55,14 +56,25 @@ export const KNOWN_TOOLS: Record<string, ToolDefinition> = {
   },
   'thumbnail-downloader': {
     id: 'thumbnail-downloader',
-    title: 'YouTube Downloader',
-    description: 'Download 1080p videos, extract premium MP3 audios, or save HD thumbnails.',
+    title: 'Thumbnail Downloader',
+    description: 'Extract and download Ultra HD 4K, 1080p, and HD YouTube thumbnails.',
     category: 'youtube',
-    href: '/youtube-downloader',
+    href: '/thumbnail-downloader',
     icon: Youtube,
-    badge: 'VIDEO & MP3',
+    badge: '4K HD',
     badgeColor: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20',
     gradient: 'from-red-500/15 via-orange-500/10 to-transparent'
+  },
+  'pinterest-downloader': {
+    id: 'pinterest-downloader',
+    title: 'Pinterest Downloader',
+    description: 'Download Pinterest videos, reels, stories, or images in premium quality and extract audio.',
+    category: 'youtube',
+    href: '/pinterest-downloader',
+    icon: Pin,
+    badge: 'NEW HD 🚀',
+    badgeColor: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/20',
+    gradient: 'from-red-500/15 via-pink-500/10 to-transparent'
   },
   'image-compressor': {
     id: 'image-compressor',

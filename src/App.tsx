@@ -18,7 +18,8 @@ import HomePage from '@/pages/Home';
 const SmartBot = lazy(() => import('@/pages/SmartBot'));
 const YouTubeDownloader = lazy(() => import('@/pages/YouTubeDownloader'));
 const TikTokDownloader = lazy(() => import('@/pages/TikTokDownloader'));
-const FacebookDownloader = lazy(() => import('@/pages/FacebookDownloader'));
+const PinterestDownloader = lazy(() => import('@/pages/PinterestDownloader'));
+const InstagramDownloader = lazy(() => import('@/pages/InstagramDownloader'));
 const TitleGenerator = lazy(() => import('@/pages/TitleGenerator'));
 const DescriptionGenerator = lazy(() => import('@/pages/DescriptionGenerator'));
 const ChannelAnalyzer = lazy(() => import('@/pages/ChannelAnalyzer'));
@@ -65,19 +66,16 @@ function Router() {
           <Route path="/chatbot" component={SmartBot} />
           <Route path="/thumbnail-downloader" component={YouTubeDownloader} />
           <Route path="/youtube-thumbnail-downloader" component={YouTubeDownloader} />
-          <Route path="/youtube-downloader" component={YouTubeDownloader} />
-          <Route path="/youtube" component={YouTubeDownloader} />
-          <Route path="/yt-downloader" component={YouTubeDownloader} />
-          <Route path="/yt" component={YouTubeDownloader} />
           <Route path="/tiktok-downloader" component={TikTokDownloader} />
           <Route path="/tiktok" component={TikTokDownloader} />
           <Route path="/tiktok-video-downloader" component={TikTokDownloader} />
           <Route path="/tiktok-audio-downloader" component={TikTokDownloader} />
-          <Route path="/facebook-downloader" component={FacebookDownloader} />
-          <Route path="/facebook" component={FacebookDownloader} />
-          <Route path="/fb-downloader" component={FacebookDownloader} />
-          <Route path="/facebook-video-downloader" component={FacebookDownloader} />
-          <Route path="/fb" component={FacebookDownloader} />
+          <Route path="/pinterest-downloader" component={PinterestDownloader} />
+          <Route path="/pinterest" component={PinterestDownloader} />
+          <Route path="/pinterest-video-downloader" component={PinterestDownloader} />
+          <Route path="/instagram-downloader" component={InstagramDownloader} />
+          <Route path="/instagram" component={InstagramDownloader} />
+          <Route path="/instagram-video-downloader" component={InstagramDownloader} />
           <Route path="/prompts" component={PromptsHome} />
           <Route path="/prompts/:id" component={PromptDetail} />
           <Route path="/auth" component={AuthPage} />

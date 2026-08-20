@@ -26,7 +26,10 @@ import {
   FolderSync,
   Crop,
   Music,
-  Key
+  Key,
+  Pin,
+  Instagram,
+  Film
 } from "lucide-react";
 import { useTheme } from "@/components/theme-provider";
 import { motion, AnimatePresence } from "motion/react";
@@ -112,17 +115,24 @@ const CATEGORIZED_NAV: NavCategory[] = [
         badgeColor: "bg-pink-500/15 text-pink-600 dark:text-pink-400" 
       },
       { 
-        href: "/facebook-downloader", 
-        label: "Facebook Downloader", 
-        icon: Video, 
-        badge: "HD / MP3 ⚡", 
-        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400" 
+        href: "/pinterest-downloader", 
+        label: "Pinterest Downloader", 
+        icon: Pin, 
+        badge: "NEW ⚡", 
+        badgeColor: "bg-red-500/15 text-red-600 dark:text-red-400" 
       },
       { 
-        href: "/youtube-downloader", 
-        label: "YouTube Downloader", 
+        href: "/instagram-downloader", 
+        label: "Instagram Downloader", 
+        icon: Instagram, 
+        badge: "HOT 🔥", 
+        badgeColor: "bg-pink-500/15 text-pink-600 dark:text-pink-400" 
+      },
+      { 
+        href: "/thumbnail-downloader", 
+        label: "Thumbnail Downloader", 
         icon: Youtube, 
-        badge: "HD / MP3 ⚡", 
+        badge: "HD", 
         badgeColor: "bg-red-500/15 text-red-600 dark:text-red-400" 
       },
       { 

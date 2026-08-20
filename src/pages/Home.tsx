@@ -20,7 +20,9 @@ import {
   X,
   Layers,
   Music,
-  Key
+  Key,
+  Pin,
+  Instagram
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { sound } from '@/lib/sound';
@@ -75,26 +77,37 @@ const TOOLS_LIST: ToolItem[] = [
     tags: ['No Watermark', 'HD MP4 & MP3', 'Photo Slideshows']
   },
   {
-    id: 'facebook-downloader',
-    title: 'Facebook Video & Reels Downloader',
-    description: 'Download Facebook Reels, Watch videos, and Feed clips in 1080p Full HD & extract MP3 sound.',
+    id: 'pinterest-downloader',
+    title: 'Pinterest Video Downloader',
+    description: 'Download Pinterest videos, reels, stories, or standard pins in highest quality Full HD MP4 & MP3 audio.',
     category: 'youtube',
-    href: '/facebook-downloader',
-    icon: Video,
-    badge: 'NEW ⚡',
-    badgeType: 'primary',
-    tags: ['1080p Full HD', 'Reels & Watch', 'MP3 Extract', '100% Free']
+    href: '/pinterest-downloader',
+    icon: Pin,
+    badge: 'NEW 🚀',
+    badgeType: 'red',
+    tags: ['HD MP4', 'MP3 extract', 'Story & Reel', '100% Free']
+  },
+  {
+    id: 'instagram-downloader',
+    title: 'Instagram Downloader',
+    description: 'Download Instagram Videos, Reels, Photos, and carousel posts with 1-click real-time MP3 converter.',
+    category: 'youtube',
+    href: '/instagram-downloader',
+    icon: Instagram,
+    badge: 'HOT 🔥',
+    badgeType: 'purple',
+    tags: ['Reels & Posts', 'Multi-slide Carousel', 'Stereo MP3 Extract']
   },
   {
     id: 'thumbnail-downloader',
-    title: 'YouTube Video & MP3 Downloader',
-    description: 'Download YouTube videos in 1080p Full HD, extract high-quality MP3 audio tracks, and save HD thumbnails.',
+    title: 'YouTube Thumbnail Downloader',
+    description: 'Download MaxRes 4K, 1080p, and HD thumbnails from any YouTube video or Shorts link.',
     category: 'youtube',
-    href: '/youtube-downloader',
+    href: '/thumbnail-downloader',
     icon: Youtube,
-    badge: 'POPULAR ⚡',
+    badge: 'POPULAR',
     badgeType: 'red',
-    tags: ['HD MP4 Video', 'Extract MP3 Audio', 'Shorts & Videos', 'No API Key']
+    tags: ['4K Ultra HD', 'Shorts & Videos', '1-Click Save']
   },
   {
     id: 'channel-analyzer',

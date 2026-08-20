@@ -20,7 +20,8 @@ import {
   LayoutGrid,
   Crop,
   Music,
-  Key
+  Key,
+  Pin
 } from "lucide-react";
 import { motion } from "motion/react";
 import { sound } from "@/lib/sound";
@@ -118,19 +119,19 @@ const MENU_CATEGORIES: MenuCategory[] = [
         badgeColor: "bg-pink-500/15 text-pink-600 dark:text-pink-400"
       },
       {
-        href: "/facebook-downloader",
-        title: "Facebook Video Downloader",
-        desc: "Download Facebook Reels, Watch videos, and Feed clips in 1080p Full HD & MP3 audio.",
-        icon: Video,
-        badge: "HD / MP3 🚀",
-        badgeColor: "bg-blue-500/15 text-blue-600 dark:text-blue-400"
+        href: "/pinterest-downloader",
+        title: "Pinterest Downloader",
+        desc: "Download Pinterest videos, reels, stories, or images in premium quality and extract audio.",
+        icon: Pin,
+        badge: "NEW HD 🚀",
+        badgeColor: "bg-red-500/15 text-red-600 dark:text-red-400"
       },
       {
-        href: "/youtube-downloader",
-        title: "YouTube Downloader",
-        desc: "Download YouTube videos in 1080p, extract premium MP3 audio tracks, and save HD video thumbnails instantly without an API key.",
+        href: "/thumbnail-downloader",
+        title: "Thumbnail Downloader",
+        desc: "Download HD, 4K, and standard YouTube thumbnails instantly.",
         icon: Youtube,
-        badge: "VIDEO & MP3 ⚡",
+        badge: "MAX HD",
         badgeColor: "bg-red-500/15 text-red-600 dark:text-red-400"
       },
       {

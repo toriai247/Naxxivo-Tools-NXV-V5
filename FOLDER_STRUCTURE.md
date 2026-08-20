@@ -21,8 +21,9 @@ graph TD
     H --> RUT[src/components/RecentlyUsedTools.tsx - Horizontal Quick List]
     RUT --> REC
     
-    F -->|/facebook-downloader| FBD[pages/FacebookDownloader.tsx - Full HD 1080p Video & MP3 Downloader]
+    %% F -->|/facebook-downloader| FBD[pages/FacebookDownloader.tsx - Full HD 1080p Video & MP3 Downloader] (Hidden)
     F -->|/tiktok-downloader| TKD[pages/TikTokDownloader.tsx - No Watermark HD & MP3 Downloader]
+    F -->|/pinterest-downloader| PIN[pages/PinterestDownloader.tsx - Pinterest Video & MP3 Downloader]
     F -->|/smart-bot| SB[pages/SmartBot.tsx - All-in-One Smart AI Assistant]
     F -->|/sound-effects| SFX[pages/SoundEffectsLibrary.tsx - 60+ Royalty-Free SFX Studio Hub]
     F -->|/api-keys| KEYS[pages/ApiKeysDashboard.tsx - Developer API Keys & Live Sandbox]
@@ -114,13 +115,16 @@ graph TD
 │   │   ├── aiService.ts      # Gemini AI client handler
 │   │   ├── facebookApi.ts    # Facebook Video & Reels extraction, stream proxy URLs, quality options (1080p/720p/480p/360p), and MP3 audio downloader helper
 │   │   ├── tiktokApi.ts      # TikTok Video & Audio extraction, format conversion (MP4/WebM/MP3/M4A/WAV), quality options (1080p/720p/480p/360p), and blob download API helper
-│   │   ├── youtubeApi.ts     # YouTube Data API v3 helper functions
-│   │   └── youtubeDownload.ts # YouTube Video, Audio extraction, stream proxy, format conversion (MP4/WebM/MP3/M4A/WAV), and blob download helper
+│   │   ├── pinterestApi.ts   # Pinterest Video extraction and file blob download API helper
+│   │   ├── instagramApi.ts   # Instagram Video/Photo/Carousel extraction and download proxy helper
+│   │   └── youtubeApi.ts     # YouTube Data API v3 helper functions
 │   │
 │   ├── pages/                # Application page views
 │   │   ├── Home.tsx              # Main Creator Studio Hub with categorized tool search & Recently Used section
-│   │   ├── FacebookDownloader.tsx # Facebook Video & Reels Downloader with Full HD 1080p/720p/480p quality options, MP3 audio extraction, live stream progress, and thumbnail saver
+│   │   ├── FacebookDownloader.tsx # Facebook Video & Reels Downloader (Hidden/Disabled)
 │   │   ├── TikTokDownloader.tsx  # TikTok Video Downloader with Quality (1080p/720p/480p/360p) & Format (MP4/WebM/MP3/M4A/WAV) dropdown controls, watermark removal, audio preview, and cover extractor
+│   │   ├── PinterestDownloader.tsx # Pinterest Video & MP3 Audio Downloader page
+│   │   ├── InstagramDownloader.tsx # Instagram Video, Reel, Photo, and Carousel Downloader with MP3 on-the-fly extraction
 │   │   ├── SmartBot.tsx          # Full-screen Smart AI Bot & Automation chat
 │   │   ├── SoundEffectsLibrary.tsx # SFX Audio Studio Hub with 60+ previewable and downloadable WAV sound effects
 │   │   ├── ApiKeysDashboard.tsx  # Developer API Keys Hub, Code Generators (cURL, Python, JS, PHP), and Live Sandbox
@@ -130,7 +134,7 @@ graph TD
 │   │   ├── MenuDirectory.tsx     # Categorized Tools Directory (/menu, /tools)
 │   │   ├── ChannelAnalyzer.tsx   # YouTube Channel Analyzer & AI Audit
 │   │   ├── VideoAnalyzer.tsx     # YouTube Video & SEO Tag Inspector
-│   │   ├── YouTubeDownloader.tsx # YouTube Video, Audio & HD Thumbnail Downloader with HQ options (1080p, 720p, MP3, M4A, WAV, and cover previews)
+│   │   ├── YouTubeDownloader.tsx # YouTube HD Thumbnail Downloader
 │   │   ├── TitleGenerator.tsx    # AI YouTube Title Generator (High CTR, Viral Hooks)
 │   │   ├── DescriptionGenerator.tsx # AI Video Description Generator (Timestamps, SEO)
 │   │   ├── TextTools.tsx         # Text manipulation and format exporter
@@ -199,7 +203,7 @@ graph TD
 
 | File / Directory | Purpose & Functionality |
 | :--- | :--- |
-| **`src/pages/FacebookDownloader.tsx`** | Facebook Video & Reels Downloader tool supporting 1080p/720p Full HD video saving, MP3 audio extraction, HD cover image saving, and streaming download progress indicators. |
+| **`src/pages/FacebookDownloader.tsx`** | Facebook Video & Reels Downloader (Hidden/Disabled) |
 | **`src/api/facebookApi.ts`** | Facebook media extraction engine with direct HTML parser, JSON-LD meta inspector, fallback public API client, and stream progress blob downloader. |
 | **`src/context/TaskProgressContext.tsx`** | Global background task management context with streaming download progress reader (`ReadableStreamDefaultReader`), byte/speed calculation, task cancellation (`AbortController`), and task state updates. |
 | **`src/components/GlobalTopProgressBar.tsx`** | Global slim top-of-screen animated progress bar indicator for all active downloads, transcoding, and compression operations. |

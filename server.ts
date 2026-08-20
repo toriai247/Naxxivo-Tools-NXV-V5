@@ -3,6 +3,8 @@ import path from "path";
 import crypto from "crypto";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI, Type } from "@google/genai";
+import { spawn } from "child_process";
+import { snapsave } from "snapsave-media-downloader";
 
 const app = express();
 const PORT = 3000;
@@ -940,6 +942,44 @@ app.get(["/api/tiktok/download", "/api/v1/tiktok/download"], async (req, res) =>
       safeFilename = `${safeFilename}_${requestedQuality}${ext}`;
     }
 
+    if (requestedFormat === "mp3" || mediaType === "audio") {
+      res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`);
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "no-cache");
+
+      const headersString = [
+        "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Referer: https://www.tiktok.com/",
+        "Accept: */*"
+      ].join("\r\n") + "\r\n";
+
+      const ffmpegArgs = [
+        "-headers", headersString,
+        "-i", mediaUrl,
+        "-vn",
+        "-acodec", "libmp3lame",
+        "-ab", "128k",
+        "-ar", "44100",
+        "-f", "mp3",
+        "pipe:1"
+      ];
+
+      const ffmpegProcess = spawn("ffmpeg", ffmpegArgs);
+      ffmpegProcess.stdout.pipe(res);
+
+      ffmpegProcess.on("error", (err) => {
+        console.error("TikTok Audio extraction error:", err);
+        if (!res.headersSent) {
+          res.redirect(mediaUrl);
+        }
+      });
+
+      res.on("close", () => {
+        ffmpegProcess.kill("SIGKILL");
+      });
+      return;
+    }
+
     const headers: Record<string, string> = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
       "Referer": "https://www.tiktok.com/",
@@ -1343,6 +1383,44 @@ app.get(["/api/facebook/download", "/api/v1/facebook/download"], async (req, res
       safeFilename = `${safeFilename}_${requestedQuality}${ext}`;
     }
 
+    if (requestedFormat === "mp3" || mediaType === "audio") {
+      res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`);
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "no-cache");
+
+      const headersString = [
+        "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Referer: https://www.facebook.com/",
+        "Accept: */*"
+      ].join("\r\n") + "\r\n";
+
+      const ffmpegArgs = [
+        "-headers", headersString,
+        "-i", mediaUrl,
+        "-vn",
+        "-acodec", "libmp3lame",
+        "-ab", "128k",
+        "-ar", "44100",
+        "-f", "mp3",
+        "pipe:1"
+      ];
+
+      const ffmpegProcess = spawn("ffmpeg", ffmpegArgs);
+      ffmpegProcess.stdout.pipe(res);
+
+      ffmpegProcess.on("error", (err) => {
+        console.error("Facebook Audio extraction error:", err);
+        if (!res.headersSent) {
+          res.redirect(mediaUrl);
+        }
+      });
+
+      res.on("close", () => {
+        ffmpegProcess.kill("SIGKILL");
+      });
+      return;
+    }
+
     const headers: Record<string, string> = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
       "Referer": "https://www.facebook.com/",
@@ -1375,160 +1453,275 @@ app.get(["/api/facebook/download", "/api/v1/facebook/download"], async (req, res
   }
 });
 
-// Route: YouTube Video & Audio Extractor (CORS Bypass & API-Key-Free)
-app.post(["/api/youtube/extract", "/api/v1/youtube/extract-downloader"], async (req, res) => {
+// ==========================================
+// 📌 PINTEREST VIDEO EXTRACTION ENGINE
+// ==========================================
+
+async function fetchPinterestVideoData(url: string) {
+  let currentUrl = url.trim();
+  
+  if (currentUrl.includes("pin.it")) {
+    try {
+      const res = await fetch(currentUrl, {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        }
+      });
+      if (res.status === 301 || res.status === 302 || res.status === 307 || res.status === 308) {
+        const location = res.headers.get("location");
+        if (location) {
+          currentUrl = location;
+        }
+      }
+    } catch (e) {
+      console.warn("Failed resolving Pinterest short url redirect:", e);
+    }
+  }
+
+  const response = await fetch(currentUrl, {
+    headers: {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "Accept-Language": "en-US,en;q=0.9",
+    }
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to fetch Pinterest page (status: ${response.status})`);
+  }
+
+  const html = await response.text();
+
+  let title = "Pinterest Video";
+  let description = "Pinterest video downloaded via Naxxivo";
+  let videoUrl = "";
+  let thumbnailUrl = "";
+  let duration = 0;
+  let authorName = "Pinterest Creator";
+  let authorAvatar = "";
+
+  // 1. Try to parse application/ld+json script tags
+  try {
+    const ldJsonRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+    let match;
+    while ((match = ldJsonRegex.exec(html)) !== null) {
+      const content = match[1].trim();
+      try {
+        const parsed = JSON.parse(content);
+        const findVideoObject = (obj: any): any => {
+          if (!obj) return null;
+          if (obj["@type"] === "VideoObject") return obj;
+          if (Array.isArray(obj)) {
+            for (const item of obj) {
+              const res = findVideoObject(item);
+              if (res) return res;
+            }
+          }
+          if (typeof obj === "object") {
+            if (obj.video && obj.video["@type"] === "VideoObject") return obj.video;
+            for (const key of Object.keys(obj)) {
+              const res = findVideoObject(obj[key]);
+              if (res) return res;
+            }
+          }
+          return null;
+        };
+
+        const videoObj = findVideoObject(parsed);
+        if (videoObj) {
+          if (videoObj.contentUrl) videoUrl = videoObj.contentUrl;
+          if (videoObj.thumbnailUrl) thumbnailUrl = videoObj.thumbnailUrl;
+          if (videoObj.name) title = videoObj.name;
+          if (videoObj.description) description = videoObj.description;
+          if (videoObj.duration) {
+            const durMatch = videoObj.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+            if (durMatch) {
+              const h = parseInt(durMatch[1] || "0", 10);
+              const m = parseInt(durMatch[2] || "0", 10);
+              const s = parseInt(durMatch[3] || "0", 10);
+              duration = h * 3600 + m * 60 + s;
+            }
+          }
+          if (videoObj.author && videoObj.author.name) {
+            authorName = videoObj.author.name;
+          }
+        }
+      } catch (e) {
+        // Skip invalid tags
+      }
+    }
+  } catch (ldErr) {
+    console.warn("Pinterest ld+json parsing failed:", ldErr);
+  }
+
+  // 2. Try redux state parsing as backup
+  if (!videoUrl) {
+    try {
+      const reduxStoreRegex = /<script[^>]*id=["']__PINTEREST_REDUX_STORE__["'][^>]*>([\s\S]*?)<\/script>/gi;
+      const reduxMatch = reduxStoreRegex.exec(html);
+      if (reduxMatch) {
+        const storeContent = reduxMatch[1].trim();
+        const storeJson = JSON.parse(storeContent);
+        const searchForVideo = (obj: any): string | null => {
+          if (!obj) return null;
+          if (typeof obj === "object") {
+            if (obj.video_list) {
+              const keys = Object.keys(obj.video_list);
+              const mp4Keys = keys.filter(k => obj.video_list[k].url && obj.video_list[k].url.includes(".mp4"));
+              if (mp4Keys.length > 0) {
+                return obj.video_list[mp4Keys[mp4Keys.length - 1]].url;
+              }
+              const anyKeys = keys.filter(k => obj.video_list[k].url);
+              if (anyKeys.length > 0) return obj.video_list[anyKeys[0]].url;
+            }
+            if (obj.video_url && typeof obj.video_url === "string" && obj.video_url.endsWith(".mp4")) {
+              return obj.video_url;
+            }
+            for (const key of Object.keys(obj)) {
+              const url = searchForVideo(obj[key]);
+              if (url) return url;
+            }
+          }
+          return null;
+        };
+        const foundUrl = searchForVideo(storeJson);
+        if (foundUrl) videoUrl = foundUrl;
+      }
+    } catch (reduxErr) {
+      console.warn("Pinterest redux store parsing failed:", reduxErr);
+    }
+  }
+
+  // 3. Fallback regex match for v1.pinimg.com video url
+  if (!videoUrl) {
+    const mp4Regex = /"https?:\/\/v1\.pinimg\.com\/videos\/[^\s\"']*?\.mp4"/gi;
+    const mp4Match = html.match(mp4Regex);
+    if (mp4Match && mp4Match.length > 0) {
+      videoUrl = mp4Match[0].replace(/\"/g, "");
+    } else {
+      const generalMp4Regex = /https?:\/\/[^\s\"']*?pinimg\.com\/[^\s\"']*?\.mp4/gi;
+      const genMatch = html.match(generalMp4Regex);
+      if (genMatch && genMatch.length > 0) {
+        videoUrl = genMatch[0];
+      }
+    }
+  }
+
+  if (!thumbnailUrl) {
+    const imgRegex = /"https?:\/\/i\.pinimg\.com\/originals\/[^\s\"']*?\.(?:jpg|png|webp)"/gi;
+    const imgMatch = html.match(imgRegex);
+    if (imgMatch && imgMatch.length > 0) {
+      thumbnailUrl = imgMatch[0].replace(/\"/g, "");
+    } else {
+      const genImgRegex = /https?:\/\/i\.pinimg\.com\/[^\s\"']*?\.(?:jpg|png|webp)/gi;
+      const genImgMatch = html.match(genImgRegex);
+      if (genImgMatch && genImgMatch.length > 0) {
+        thumbnailUrl = genImgMatch[0];
+      }
+    }
+  }
+
+  if (!videoUrl) {
+    throw new Error("Unable to locate direct video stream. Make sure the Pin is a Video and is public.");
+  }
+
+  videoUrl = videoUrl.replace(/\\u002f/g, "/").replace(/\\\//g, "/");
+  thumbnailUrl = thumbnailUrl.replace(/\\u002f/g, "/").replace(/\\\//g, "/");
+
+  return {
+    id: String(Date.now()),
+    title: title.trim() || "Pinterest Video",
+    description: description.trim() || "Pinterest Video Downloader",
+    videoUrl,
+    thumbnailUrl: thumbnailUrl || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600",
+    duration,
+    author: {
+      name: authorName,
+      avatar: authorAvatar || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200",
+    },
+    sourceUrl: currentUrl,
+    fetchedAt: new Date().toISOString(),
+  };
+}
+
+// ==========================================
+// 📌 INSTAGRAM VIDEO EXTRACTION ENGINE
+// ==========================================
+
+async function fetchInstagramVideoData(url: string) {
+  const currentUrl = url.trim();
+  if (!currentUrl.toLowerCase().includes("instagram.com")) {
+    throw new Error("Invalid Instagram URL. Please provide a valid public Instagram Post or Reel link.");
+  }
+
+  const result = await snapsave(currentUrl);
+  if (!result || !result.success || !result.data || !result.data.media || result.data.media.length === 0) {
+    throw new Error(result?.message || "Failed to extract Instagram video. Make sure the Reel/Post is public.");
+  }
+
+  const mediaList = result.data.media;
+  const videoMedia = mediaList.find((m: any) => m.type === "video");
+  const bestMedia = videoMedia || mediaList[0];
+
+  if (!bestMedia || !bestMedia.url) {
+    throw new Error("No downloadable video or image found for this Instagram link.");
+  }
+
+  return {
+    id: String(Date.now()),
+    title: result.data.description || "Instagram Media",
+    description: result.data.description || "Instagram Video/Photo Downloader",
+    videoUrl: bestMedia.url,
+    thumbnailUrl: bestMedia.thumbnail || bestMedia.url || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=600",
+    duration: 0,
+    author: {
+      name: "Instagram Creator",
+      avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200",
+    },
+    sourceUrl: currentUrl,
+    fetchedAt: new Date().toISOString(),
+    mediaList: mediaList.map((m: any) => ({
+      url: m.url,
+      type: m.type,
+      resolution: m.resolution || "HD",
+      thumbnail: m.thumbnail || ""
+    }))
+  };
+}
+
+// Route: Extract Pinterest Video Details (JSON)
+app.post(["/api/pinterest/extract", "/api/v1/pinterest/extract"], async (req, res) => {
   try {
     const { url } = req.body || {};
     if (!url || typeof url !== "string" || !url.trim()) {
       return res.status(400).json({
         success: false,
-        error: "Please provide a valid YouTube URL (e.g., https://www.youtube.com/watch?v=...)",
+        error: "Please provide a valid Pinterest Pin URL (e.g., https://www.pinterest.com/pin/... or https://pin.it/...)",
       });
     }
 
-    // Parse video ID from URL
-    const regExp = /(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/|youtube\.com\/shorts\/)([^"&?\/\s]{11})/i;
-    const match = String(url).match(regExp);
-    const videoId = (match && match[1].length === 11) ? match[1] : null;
-
-    if (!videoId) {
-      return res.status(400).json({
-        success: false,
-        error: "Invalid YouTube URL format. Please paste a valid YouTube or Shorts link.",
-      });
-    }
-
-    // oEmbed fallback for details
-    let title = `YouTube Video #${videoId.slice(-4)}`;
-    let authorName = "YouTube Creator";
-    try {
-      const oembedRes = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
-      if (oembedRes.ok) {
-        const oembedData = await oembedRes.json();
-        title = oembedData.title || title;
-        authorName = oembedData.author_name || authorName;
-      }
-    } catch {
-      // ignore fallback
-    }
-
-    // 1. Try Cobalt API for High Quality MP4 Video Download Link
-    let videoStreamUrl = "";
-    try {
-      const cobaltRes = await fetch("https://api.cobalt.tools/", {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        },
-        body: JSON.stringify({
-          url: `https://www.youtube.com/watch?v=${videoId}`,
-          videoQuality: "1080",
-          downloadMode: "auto",
-          filenamePattern: "classic",
-        }),
-        signal: AbortSignal.timeout(5000)
-      });
-      if (cobaltRes.ok) {
-        const cobaltData = await cobaltRes.json();
-        if (cobaltData.url) {
-          videoStreamUrl = cobaltData.url;
-        }
-      }
-    } catch (err) {
-      console.warn("Cobalt YouTube video stream fetch failed:", err);
-    }
-
-    // 2. Try Cobalt API for high quality MP3 Audio Download Link
-    let audioStreamUrl = "";
-    try {
-      const cobaltAudioRes = await fetch("https://api.cobalt.tools/", {
-        method: "POST",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        },
-        body: JSON.stringify({
-          url: `https://www.youtube.com/watch?v=${videoId}`,
-          downloadMode: "audio",
-          audioFormat: "mp3"
-        }),
-        signal: AbortSignal.timeout(5000)
-      });
-      if (cobaltAudioRes.ok) {
-        const cobaltAudioData = await cobaltAudioRes.json();
-        if (cobaltAudioData.url) {
-          audioStreamUrl = cobaltAudioData.url;
-        }
-      }
-    } catch (err) {
-      console.warn("Cobalt YouTube audio stream fetch failed:", err);
-    }
-
-    // Fallbacks if cobalt is down
-    const simulatedHd = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-    const simulatedSd = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
-    const simulatedAudio = "https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3";
-
-    const finalVideoHd = videoStreamUrl || simulatedHd;
-    const finalVideoSd = videoStreamUrl || simulatedSd;
-    const finalAudio = audioStreamUrl || finalVideoSd || simulatedAudio;
-
+    const data = await fetchPinterestVideoData(url);
     return res.json({
       success: true,
-      data: {
-        id: videoId,
-        title,
-        description: `Successfully extracted high-speed stream options for ${url}`,
-        duration: 180, // estimated
-        thumbnail: `https://i.ytimg.com/vi/${videoId}/maxresdefault.jpg`,
-        videoHdUrl: finalVideoHd,
-        videoSdUrl: finalVideoSd,
-        audioUrl: finalAudio,
-        author: {
-          name: authorName,
-        },
-        sourceUrl: url,
-        isVideo: true,
-        qualityOptions: [
-          {
-            label: "HD 1080p (High-Speed Stream)",
-            resolution: "1080p",
-            url: finalVideoHd,
-            format: "mp4",
-            isHd: true,
-          },
-          {
-            label: "SD 720p (Compressed Stream)",
-            resolution: "720p",
-            url: finalVideoSd,
-            format: "mp4",
-            isHd: false,
-          }
-        ],
-        fetchedAt: new Date().toISOString(),
-      },
+      data,
     });
-
   } catch (error: any) {
-    console.error("YouTube Extraction API Error:", error?.message || error);
-    return res.status(500).json({
+    console.error("Pinterest Extraction API Error:", error?.message || error);
+    return res.status(400).json({
       success: false,
-      error: error?.message || "Failed to extract YouTube video. Please try again.",
+      error: error?.message || "Failed to extract Pinterest video. Please check the URL and try again.",
     });
   }
 });
 
-// Route: YouTube Video & Audio Direct Streaming Proxy for Clean Downloads
-app.get(["/api/youtube/download"], async (req, res) => {
+// Route: Pinterest Video Direct Streaming Proxy for 1-1 Clean Downloads
+app.get(["/api/pinterest/download", "/api/v1/pinterest/download"], async (req, res) => {
   try {
     const mediaUrl = req.query.url as string;
-    const requestedName = (req.query.filename as string) || "youtube_naxxivo_download";
+    const requestedName = (req.query.filename as string) || "pinterest_naxxivo_download";
     const mediaType = (req.query.type as string) || "video";
     const requestedFormat = ((req.query.format as string) || "").toLowerCase();
-    const requestedQuality = (req.query.quality as string) || "1080p";
 
     if (!mediaUrl) {
       return res.status(400).send("Media URL parameter 'url' is required.");
@@ -1537,24 +1730,12 @@ app.get(["/api/youtube/download"], async (req, res) => {
     let ext = ".mp4";
     let contentType = "video/mp4";
 
-    if (requestedFormat === "webm") {
-      ext = ".webm";
-      contentType = "video/webm";
-    } else if (requestedFormat === "mp3" || mediaType === "audio") {
+    if (requestedFormat === "mp3" || mediaType === "audio") {
       ext = ".mp3";
       contentType = "audio/mpeg";
-    } else if (requestedFormat === "m4a") {
-      ext = ".m4a";
-      contentType = "audio/mp4";
-    } else if (requestedFormat === "wav") {
-      ext = ".wav";
-      contentType = "audio/wav";
     } else if (requestedFormat === "jpg" || mediaType === "image") {
       ext = ".jpg";
       contentType = "image/jpeg";
-    } else {
-      ext = ".mp4";
-      contentType = "video/mp4";
     }
 
     let safeFilename = requestedName
@@ -1564,12 +1745,50 @@ app.get(["/api/youtube/download"], async (req, res) => {
 
     if (!safeFilename.toLowerCase().endsWith(ext)) {
       safeFilename = safeFilename.replace(/\.[a-zA-Z0-9]+$/i, "");
-      safeFilename = `${safeFilename}_${requestedQuality}${ext}`;
+      safeFilename = `${safeFilename}${ext}`;
+    }
+
+    if (requestedFormat === "mp3" || mediaType === "audio") {
+      res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`);
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "no-cache");
+
+      const headersString = [
+        "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Referer: https://www.pinterest.com/",
+        "Accept: */*"
+      ].join("\r\n") + "\r\n";
+
+      const ffmpegArgs = [
+        "-headers", headersString,
+        "-i", mediaUrl,
+        "-vn",
+        "-acodec", "libmp3lame",
+        "-ab", "128k",
+        "-ar", "44100",
+        "-f", "mp3",
+        "pipe:1"
+      ];
+
+      const ffmpegProcess = spawn("ffmpeg", ffmpegArgs);
+      ffmpegProcess.stdout.pipe(res);
+
+      ffmpegProcess.on("error", (err) => {
+        console.error("Pinterest Audio extraction error:", err);
+        if (!res.headersSent) {
+          res.redirect(mediaUrl);
+        }
+      });
+
+      res.on("close", () => {
+        ffmpegProcess.kill("SIGKILL");
+      });
+      return;
     }
 
     const headers: Record<string, string> = {
       "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-      "Referer": "https://www.youtube.com/",
+      "Referer": "https://www.pinterest.com/",
       "Accept": "*/*",
     };
 
@@ -1591,7 +1810,139 @@ app.get(["/api/youtube/download"], async (req, res) => {
     const arrayBuffer = await mediaRes.arrayBuffer();
     return res.send(Buffer.from(arrayBuffer));
   } catch (err: any) {
-    console.error("YouTube Download Proxy Error:", err);
+    console.error("Pinterest Download Proxy Error:", err);
+    if (req.query.url) {
+      return res.redirect(String(req.query.url));
+    }
+    return res.status(500).send("Download stream failed.");
+  }
+});
+
+// ==========================================
+// 📌 INSTAGRAM VIDEO EXTRACT & PROXY ROUTES
+// ==========================================
+
+// Route: Extract Instagram Video Details (JSON)
+app.post(["/api/instagram/extract", "/api/v1/instagram/extract"], async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== "string" || !url.trim()) {
+      return res.status(400).json({
+        success: false,
+        error: "Please provide a valid Instagram URL (e.g., https://www.instagram.com/reel/... or https://www.instagram.com/p/...)",
+      });
+    }
+
+    const data = await fetchInstagramVideoData(url);
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    console.error("Instagram Extraction API Error:", error?.message || error);
+    return res.status(400).json({
+      success: false,
+      error: error?.message || "Failed to extract Instagram video. Please check the URL and try again.",
+    });
+  }
+});
+
+// Route: Instagram Video Direct Streaming Proxy for 1-1 Clean Downloads & Audio Extraction
+app.get(["/api/instagram/download", "/api/v1/instagram/download"], async (req, res) => {
+  try {
+    const mediaUrl = req.query.url as string;
+    const requestedName = (req.query.filename as string) || "instagram_naxxivo_download";
+    const mediaType = (req.query.type as string) || "video";
+    const requestedFormat = ((req.query.format as string) || "").toLowerCase();
+
+    if (!mediaUrl) {
+      return res.status(400).send("Media URL parameter 'url' is required.");
+    }
+
+    let ext = ".mp4";
+    let contentType = "video/mp4";
+
+    if (requestedFormat === "mp3" || mediaType === "audio") {
+      ext = ".mp3";
+      contentType = "audio/mpeg";
+    } else if (requestedFormat === "jpg" || mediaType === "image") {
+      ext = ".jpg";
+      contentType = "image/jpeg";
+    }
+
+    let safeFilename = requestedName
+      .replace(/[^a-zA-Z0-9_\.-]/g, "_")
+      .replace(/_+/g, "_")
+      .slice(0, 80);
+
+    if (!safeFilename.toLowerCase().endsWith(ext)) {
+      safeFilename = safeFilename.replace(/\.[a-zA-Z0-9]+$/i, "");
+      safeFilename = `${safeFilename}${ext}`;
+    }
+
+    if (requestedFormat === "mp3" || mediaType === "audio") {
+      res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`);
+      res.setHeader("Content-Type", "audio/mpeg");
+      res.setHeader("Cache-Control", "no-cache");
+
+      const headersString = [
+        "User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Referer: https://www.instagram.com/",
+        "Accept: */*"
+      ].join("\r\n") + "\r\n";
+
+      const ffmpegArgs = [
+        "-headers", headersString,
+        "-i", mediaUrl,
+        "-vn",
+        "-acodec", "libmp3lame",
+        "-ab", "128k",
+        "-ar", "44100",
+        "-f", "mp3",
+        "pipe:1"
+      ];
+
+      const ffmpegProcess = spawn("ffmpeg", ffmpegArgs);
+      ffmpegProcess.stdout.pipe(res);
+
+      ffmpegProcess.on("error", (err) => {
+        console.error("Instagram Audio extraction error:", err);
+        if (!res.headersSent) {
+          res.redirect(mediaUrl);
+        }
+      });
+
+      res.on("close", () => {
+        ffmpegProcess.kill("SIGKILL");
+      });
+      return;
+    }
+
+    const headers: Record<string, string> = {
+      "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+      "Referer": "https://www.instagram.com/",
+      "Accept": "*/*",
+    };
+
+    const mediaRes = await fetch(mediaUrl, { headers });
+
+    if (!mediaRes.ok || !mediaRes.body) {
+      return res.redirect(mediaUrl);
+    }
+
+    res.setHeader("Content-Disposition", `attachment; filename="${safeFilename}"; filename*=UTF-8''${encodeURIComponent(safeFilename)}`);
+    res.setHeader("Content-Type", contentType);
+    res.setHeader("Cache-Control", "public, max-age=86400");
+
+    const contentLength = mediaRes.headers.get("content-length");
+    if (contentLength) {
+      res.setHeader("Content-Length", contentLength);
+    }
+
+    const arrayBuffer = await mediaRes.arrayBuffer();
+    return res.send(Buffer.from(arrayBuffer));
+  } catch (err: any) {
+    console.error("Instagram Download Proxy Error:", err);
     if (req.query.url) {
       return res.redirect(String(req.query.url));
     }
@@ -2261,6 +2612,30 @@ app.post("/api/v1/facebook/extract", verifyApiKey, async (req, res) => {
     }
 
     const data = await fetchFacebookVideoData(url);
+    return res.json({
+      success: true,
+      data,
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      error: "Extraction Failed",
+      message: error?.message || String(error),
+    });
+  }
+});
+
+// 10. Instagram Video Extractor API Endpoint (V1)
+app.post("/api/v1/instagram/extract", verifyApiKey, async (req, res) => {
+  try {
+    const { url } = req.body || {};
+    if (!url || typeof url !== "string") {
+      return res.status(400).json({
+        error: "Bad Request",
+        message: "Please provide a valid Instagram post or reel URL in the request body.",
+      });
+    }
+
+    const data = await fetchInstagramVideoData(url);
     return res.json({
       success: true,
       data,
