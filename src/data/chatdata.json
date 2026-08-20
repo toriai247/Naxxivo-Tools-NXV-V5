@@ -666,6 +666,34 @@
       ]
     },
     {
+      "id": "pinterest_downloader",
+      "category": "downloaders",
+      "keywords": [
+        "pinterest",
+        "পিন্টারেস্ট",
+        "pinterest video",
+        "pinterest download",
+        "pinterest downloader",
+        "download pinterest video",
+        "pinterest mp3",
+        "pinterest photo",
+        "pinterest image download",
+        "pin download",
+        "pin.it",
+        "pinterest link",
+        "pinterest thumbnail",
+        "pinterest video downloader",
+        "pinterest video download",
+        "পিন্টারেস্ট ভিডিও ডাউনলোড",
+        "how to download pinterest video",
+        "pinterest audio extract"
+      ],
+      "responses": [
+        "স্যার! Pinterest Public Pins বা Videos থেকে HD MP4, MP3 অডিও এবং Thumbnail Cover ইমেজ ১-ক্লিকে ডাউনলোড করতে Pinterest লিঙ্কটি চ্যাটে দিন।",
+        "Pinterest Pin লিঙ্কটি পেস্ট করলেই সরাসরি ফুল এইচডি ভিডিও, অডিও এবং কভার ফটো ডাউনলোড কার্ড রেডি হয়ে যাবে, স্যার!"
+      ]
+    },
+    {
       "id": "image_tools",
       "category": "images",
       "keywords": [

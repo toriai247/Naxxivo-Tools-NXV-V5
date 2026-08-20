@@ -135,3 +135,11 @@ export async function downloadInstagramFile(
     return false;
   }
 }
+
+// Validate Instagram URL
+export function isValidInstagramUrl(url: string): boolean {
+  if (!url || typeof url !== "string") return false;
+  const clean = url.trim();
+  const instagramRegex = /^(https?:\/\/)?((www|m)\.)?(instagram\.com|instagr\.am)\/.+$/i;
+  return instagramRegex.test(clean);
+}

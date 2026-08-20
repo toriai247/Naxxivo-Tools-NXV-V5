@@ -56,7 +56,8 @@ import {
   Facebook,
   ChevronDown,
   ChevronUp,
-  Pin
+  Pin,
+  Instagram
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useToast } from '@/hooks/use-toast';
@@ -65,8 +66,12 @@ import { generateTitleIdeas, generateDescriptionIdeas, sendAiChatMessage, ChatMe
 import { analyzeYouTubeVideo, analyzeYouTubeChannel, extractVideoId, parseChannelIdentifier } from '@/api/youtubeApi';
 import { extractTikTokVideo, isValidTikTokUrl, TikTokVideoData } from '@/api/tiktokApi';
 import { extractFacebookVideo, isValidFacebookUrl, FacebookVideoData } from '@/api/facebookApi';
+import { extractPinterestVideo, isValidPinterestUrl, PinterestVideoData } from '@/api/pinterestApi';
+import { extractInstagramVideo, isValidInstagramUrl, InstagramVideoData } from '@/api/instagramApi';
 import { TikTokBotCard } from '@/components/bot/TikTokBotCard';
 import { FacebookBotCard } from '@/components/bot/FacebookBotCard';
+import { PinterestBotCard } from '@/components/bot/PinterestBotCard';
+import { InstagramBotCard } from '@/components/bot/InstagramBotCard';
 import { 
   parseImageCommandLogic, 
   parseYouTubeCommandLogic, 
@@ -129,6 +134,8 @@ interface BotMessage {
       | 'youtube_channel_result' 
       | 'tiktok_video_result'
       | 'facebook_video_result'
+      | 'pinterest_video_result'
+      | 'instagram_video_result'
       | 'image_options' 
       | 'image_result' 
       | 'image_crop_workspace'
@@ -142,6 +149,8 @@ interface BotMessage {
     channelData?: ChannelAnalysisData;
     tiktokData?: TikTokVideoData;
     facebookData?: FacebookVideoData;
+    pinterestData?: PinterestVideoData;
+    instagramData?: InstagramVideoData;
     selectedAction?: string;
     actionResultData?: any;
     imageInfo?: {
@@ -176,6 +185,20 @@ interface BotMessage {
 
 const STARTER_PROMPTS = [
   {
+    icon: Instagram,
+    title: "Instagram Downloader",
+    desc: "Paste any Reel, Video or Photo link for HD MP4, MP3 audio & cover thumbnail",
+    action: "https://www.instagram.com/reel/C1234567890/",
+    color: "text-pink-500 bg-pink-500/10 border-pink-500/20"
+  },
+  {
+    icon: Pin,
+    title: "Pinterest Downloader",
+    desc: "Paste any Pinterest Pin link for HD MP4 video, MP3 audio & high-res thumbnail",
+    action: "https://www.pinterest.com/pin/1234567890/",
+    color: "text-red-500 bg-red-500/10 border-red-500/20"
+  },
+  {
     icon: Music2,
     title: "TikTok Video Downloader",
     desc: "Paste any TikTok link for No-Watermark HD video, MP3 audio & cover photo",
@@ -188,20 +211,6 @@ const STARTER_PROMPTS = [
     desc: "Paste any link to get tags, 1080p thumbnail, keywords & embed code",
     action: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
     color: "text-red-500 bg-red-500/10 border-red-500/20"
-  },
-  {
-    icon: Crop,
-    title: "Interactive Image Cropper",
-    desc: "Crop image to 1:1, 16:9, 9:16, 4:3, rotate, zoom & flip in chat",
-    action: "Crop image",
-    color: "text-amber-500 bg-amber-500/10 border-amber-500/20"
-  },
-  {
-    icon: ImageIcon,
-    title: "Image Converter & Compressor",
-    desc: "Upload image to convert to WebP, PNG or reduce file size",
-    action: "Upload Image",
-    color: "text-emerald-500 bg-emerald-500/10 border-emerald-500/20"
   }
 ];
 
@@ -328,7 +337,7 @@ export default function SmartBot() {
 
   // Dynamically analyze the messages array to extract key discussed tools and links
   const getChatSummaryContext = () => {
-    const links: { url: string; type: 'youtube' | 'tiktok' | 'facebook' | 'image' | 'document' | 'file'; title: string }[] = [];
+    const links: { url: string; type: 'youtube' | 'tiktok' | 'facebook' | 'pinterest' | 'instagram' | 'image' | 'document' | 'file'; title: string }[] = [];
     const tools = new Set<string>();
 
     messages.forEach((msg) => {
@@ -370,6 +379,24 @@ export default function SmartBot() {
             const url = msg.toolState.facebookData.videoUrl || '';
             if (url && !links.some(l => l.url === url)) {
               links.push({ url, type: 'facebook', title });
+            }
+          }
+        } else if (msg.toolState.type === 'pinterest_video_result') {
+          tools.add('Pinterest Video & Audio Downloader');
+          if (msg.toolState.pinterestData) {
+            const title = msg.toolState.pinterestData.title || 'Pinterest Pin';
+            const url = msg.toolState.pinterestData.videoUrl || '';
+            if (url && !links.some(l => l.url === url)) {
+              links.push({ url, type: 'pinterest', title });
+            }
+          }
+        } else if (msg.toolState.type === 'instagram_video_result') {
+          tools.add('Instagram Reels & Media Downloader');
+          if (msg.toolState.instagramData) {
+            const title = msg.toolState.instagramData.title || 'Instagram Media';
+            const url = msg.toolState.instagramData.videoUrl || '';
+            if (url && !links.some(l => l.url === url)) {
+              links.push({ url, type: 'instagram', title });
             }
           }
         } else if (msg.toolState.type === 'image_crop_workspace' || msg.toolState.type === 'image_crop_result') {
@@ -1467,6 +1494,98 @@ export default function SmartBot() {
       }
 
       // ─────────────────────────────────────────────────────────────
+      // 2.9 SCENARIO: Pinterest Pin Link
+      // ─────────────────────────────────────────────────────────────
+      if (isValidPinterestUrl(rawText) || rawText.includes('pinterest.com') || rawText.includes('pin.it')) {
+        sound.scan();
+        const extractRes = await extractPinterestVideo(rawText);
+        
+        if (extractRes.success && extractRes.data) {
+          sound.success();
+          const pinterestData = extractRes.data;
+          const botMsgId = `bot-${Date.now()}`;
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `📌 **Pinterest Media & Download Options Ready!**\n\n**"${pinterestData.title || pinterestData.description || 'Pinterest Pin'}"**\nBy **${pinterestData.author?.name || 'Pinterest Creator'}**\n\nChoose your 1-click download option below:`,
+            toolState: {
+              type: 'pinterest_video_result',
+              pinterestData: pinterestData,
+            }
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text,
+            toolType: 'pinterest_video_result',
+            metadata: { title: pinterestData.title }
+          });
+          setIsLoading(false);
+          return;
+        } else {
+          sound.error();
+          const botMsgId = `bot-${Date.now()}`;
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `⚠️ **Pinterest Extraction Error:** ${extractRes.error || 'Unable to extract Pinterest pin. Please make sure the Pin is public and the link is valid.'}`,
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
+      // 2.95 SCENARIO: Instagram Video / Post Link
+      // ─────────────────────────────────────────────────────────────
+      if (isValidInstagramUrl(rawText) || rawText.includes('instagram.com') || rawText.includes('instagr.am')) {
+        sound.scan();
+        const extractRes = await extractInstagramVideo(rawText);
+        
+        if (extractRes.success && extractRes.data) {
+          sound.success();
+          const instagramData = extractRes.data;
+          const botMsgId = `bot-${Date.now()}`;
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `📸 **Instagram Media & Download Options Ready!**\n\n**"${instagramData.title || instagramData.description || 'Instagram Post'}"**\nBy **${instagramData.author?.name || 'Instagram Creator'}**\n\nChoose your 1-click download option below:`,
+            toolState: {
+              type: 'instagram_video_result',
+              instagramData: instagramData,
+            }
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          saveUserSessionHistory({
+            id: botMsgId,
+            role: 'bot',
+            text: botResponseMsg.text,
+            toolType: 'instagram_video_result',
+            metadata: { title: instagramData.title }
+          });
+          setIsLoading(false);
+          return;
+        } else {
+          sound.error();
+          const botMsgId = `bot-${Date.now()}`;
+          const botResponseMsg: BotMessage = {
+            id: botMsgId,
+            sender: 'bot',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            text: `⚠️ **Instagram Extraction Error:** ${extractRes.error || 'Unable to extract Instagram video/photo. Please make sure the post is from a public account and the link is valid.'}`,
+          };
+          setMessages((prev) => [...prev, botResponseMsg]);
+          setIsLoading(false);
+          return;
+        }
+      }
+
+      // ─────────────────────────────────────────────────────────────
       // 3. SCENARIO C: User pasted a YouTube Video Link
       // ─────────────────────────────────────────────────────────────
       const videoId = extractVideoId(rawText);
@@ -2377,39 +2496,42 @@ Guidelines:
       </AnimatePresence>
 
       {/* ─── BOT APP HEADER ─────────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-3 md:px-6 py-2.5 md:py-3 border-b bg-card/95 backdrop-blur-md shrink-0 shadow-xs z-10">
-        <div className="flex items-center gap-2.5 sm:gap-3 min-w-0">
+      <div className="flex items-center justify-between px-3 md:px-5 py-2 sm:py-2.5 border-b bg-card/95 backdrop-blur-md shrink-0 z-10">
+        {/* Left: Identity */}
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           <div className="relative shrink-0">
-            <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-full bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-              <Bot className="w-5 h-5 sm:w-6 sm:h-6" />
+            <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gradient-to-tr from-emerald-500 via-teal-500 to-cyan-500 flex items-center justify-center text-white shadow-xs">
+              <Bot className="w-4 h-4 sm:w-5 sm:h-5" />
             </div>
-            <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-emerald-500 border-2 border-card rounded-full" />
+            <span className="absolute bottom-0 right-0 w-2 h-2 sm:w-2.5 sm:h-2.5 bg-emerald-500 border-2 border-card rounded-full" />
           </div>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              <h1 className="font-bold text-sm sm:text-base tracking-tight truncate text-foreground">Naxxivo Smart Bot</h1>
-              <span className="text-[9px] sm:text-[10px] font-semibold uppercase px-1.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0 flex items-center gap-1">
-                <Sparkles className="w-3 h-3 text-emerald-500" /> Gemini AI Active
+            <div className="flex items-center gap-1.5">
+              <h1 className="font-bold text-xs sm:text-sm md:text-base tracking-tight truncate text-foreground">Naxxivo Smart Bot</h1>
+              <span className="inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 shrink-0">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                <span className="hidden xs:inline">Active</span>
               </span>
             </div>
-            <p className="text-[11px] text-muted-foreground truncate">
-              YouTube Automation, Persistent Brain & Media Converter
+            <p className="text-[10px] text-muted-foreground truncate hidden sm:block">
+              AI Utility Assistant & Downloader
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-1 sm:gap-2 shrink-0">
-          {/* Bot Brain Memory Trigger Button */}
+        {/* Right: Actions */}
+        <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          {/* Single Brain Memory Trigger Button */}
           <button
             onClick={() => {
               sound.click();
               setShowMemoryModal(true);
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/30 transition-all shadow-xs"
-            title="Open AI Brain Memory & YouTube Database Storage"
+            className="flex items-center gap-1 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 transition-all shadow-xs"
+            title="Open AI Brain Memory & Saved Storage"
           >
-            <Brain className="w-4 h-4 text-cyan-500" />
-            <span className="hidden sm:inline">Bot Brain</span>
+            <Brain className="w-3.5 h-3.5 text-cyan-500" />
+            <span className="hidden md:inline">Brain</span>
             {savedChannels.length > 0 && (
               <span className="text-[9px] bg-cyan-500 text-white font-bold px-1.5 py-0.2 rounded-full">
                 {savedChannels.length}
@@ -2417,20 +2539,21 @@ Guidelines:
             )}
           </button>
 
+          {/* Command History */}
           {commandHistory.length > 0 && (
             <div className="relative">
               <button
                 onClick={() => setShowHistorySheet(!showHistorySheet)}
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors border ${
+                className={`flex items-center gap-1 p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-medium transition-colors border ${
                   showHistorySheet 
                     ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30' 
-                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent hover:border-border'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/80 border-transparent'
                 }`}
                 title="Recent Commands History"
               >
-                <History className="w-4 h-4" />
-                <span className="hidden sm:inline">History</span>
-                <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground">
+                <History className="w-3.5 h-3.5" />
+                <span className="hidden lg:inline">History</span>
+                <span className="text-[9px] font-bold px-1.5 py-0.2 rounded-full bg-muted text-muted-foreground">
                   {commandHistory.length}
                 </span>
               </button>
@@ -2504,25 +2627,13 @@ Guidelines:
             </div>
           )}
 
-          {/* Brain Memory & Channels Database Button */}
-          <button
-            onClick={() => setShowMemoryModal(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 hover:bg-cyan-500/20 border border-cyan-500/20 transition-all shadow-xs"
-            title="Bot Brain Memory & Saved Channels Database"
-          >
-            <Brain className="w-4 h-4 text-cyan-500" />
-            <span className="hidden sm:inline">Brain Memory</span>
-            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded-full bg-cyan-500/20 text-cyan-700 dark:text-cyan-300">
-              {savedChannels.length}
-            </span>
-          </button>
-
+          {/* Context Panel Toggle */}
           <button
             onClick={() => {
               sound.click();
               setShowContextCard(!showContextCard);
             }}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`flex items-center gap-1 p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               showContextCard 
                 ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' 
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent'
@@ -2530,15 +2641,16 @@ Guidelines:
             title="Toggle Smart Context Card at Top of Chat"
           >
             <Pin className={`w-3.5 h-3.5 ${showContextCard ? 'rotate-45 text-emerald-500' : 'text-muted-foreground'}`} />
-            <span className="hidden sm:inline">Context Panel</span>
+            <span className="hidden lg:inline">Context</span>
           </button>
 
+          {/* Metrics Toggle */}
           <button
             onClick={() => {
               sound.click();
               setShowMetricsDashboard(!showMetricsDashboard);
             }}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+            className={`flex items-center gap-1 p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-semibold border transition-all ${
               showMetricsDashboard 
                 ? 'bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20' 
                 : 'text-muted-foreground hover:text-foreground hover:bg-muted border-transparent'
@@ -2546,16 +2658,17 @@ Guidelines:
             title="Toggle Live AI Chat Metrics & Analytics"
           >
             <BarChart3 className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Metrics</span>
+            <span className="hidden lg:inline">Metrics</span>
           </button>
 
+          {/* Clear Chat */}
           <button
             onClick={handleClearChat}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent hover:border-destructive/20"
+            className="flex items-center gap-1 p-1.5 sm:px-2 sm:py-1.5 rounded-lg text-xs font-medium text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors border border-transparent"
             title="Clear Chat History"
           >
-            <Trash2 className="w-4 h-4" />
-            <span className="hidden sm:inline">Clear</span>
+            <Trash2 className="w-3.5 h-3.5" />
+            <span className="hidden lg:inline">Clear</span>
           </button>
         </div>
       </div>
@@ -3082,6 +3195,16 @@ Guidelines:
                 {/* Facebook Video Downloader Result Card */}
                 {msg.toolState?.type === 'facebook_video_result' && msg.toolState.facebookData && (
                   <FacebookBotCard facebookData={msg.toolState.facebookData} />
+                )}
+
+                {/* Pinterest Video Downloader Result Card */}
+                {msg.toolState?.type === 'pinterest_video_result' && msg.toolState.pinterestData && (
+                  <PinterestBotCard pinterestData={msg.toolState.pinterestData} />
+                )}
+
+                {/* Instagram Video Downloader Result Card */}
+                {msg.toolState?.type === 'instagram_video_result' && msg.toolState.instagramData && (
+                  <InstagramBotCard instagramData={msg.toolState.instagramData} />
                 )}
 
                 {/* 1. YouTube Video Action Options */}
@@ -4337,12 +4460,17 @@ Guidelines:
                     </div>
                   ) : (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                      {Object.entries(memoryFacts).map(([k, v]) => (
-                        <div key={k} className="p-2.5 rounded-xl border bg-muted/20 text-xs flex items-center justify-between">
-                          <span className="font-semibold text-muted-foreground capitalize">{k.replace('_', ' ')}:</span>
-                          <span className="font-bold text-foreground truncate ml-2">{v}</span>
-                        </div>
-                      ))}
+                      {Object.entries(memoryFacts).map(([k, v]) => {
+                        const displayVal = typeof v === 'object' && v !== null && 'value' in v
+                          ? (typeof v.value === 'object' ? JSON.stringify(v.value) : String(v.value))
+                          : String(v);
+                        return (
+                          <div key={k} className="p-2.5 rounded-xl border bg-muted/20 text-xs flex items-center justify-between">
+                            <span className="font-semibold text-muted-foreground capitalize">{k.replace('_', ' ')}:</span>
+                            <span className="font-bold text-foreground truncate ml-2">{displayVal}</span>
+                          </div>
+                        );
+                      })}
                     </div>
                   )}
                 </div>
