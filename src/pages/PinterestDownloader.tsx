@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 import { sound } from "@/lib/sound";
 import { useTaskProgress } from "@/context/TaskProgressContext";
 import { TaskProgressCard } from "@/components/TaskProgressCard";
+import { VersionBadge } from "@/components/VersionBadge";
 import { 
   extractPinterestVideo, 
   downloadPinterestFile, 
@@ -289,7 +290,12 @@ export default function PinterestDownloader() {
   };
 
   return (
-    <div className="w-full max-w-5xl mx-auto px-4 py-8 space-y-8" id="pinterest-downloader-container">
+    <div className="w-full max-w-5xl mx-auto px-4 py-8 space-y-8 relative" id="pinterest-downloader-container">
+      {/* Top Right Version Badge */}
+      <div className="absolute top-2 right-4 z-10">
+        <VersionBadge version="v1.02" />
+      </div>
+
       {/* Hero Header */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center justify-center p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full mb-1">

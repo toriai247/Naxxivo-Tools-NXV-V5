@@ -4,6 +4,7 @@ import { Copy, Trash2, Undo, CheckCircle2, Download, ChevronDown, X } from "luci
 import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { VersionBadge } from "@/components/VersionBadge";
 
 type HistoryState = { text: string };
 
@@ -213,12 +214,15 @@ export default function TextTools() {
   };
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Text Case Converter & Utility</h1>
-        <p className="text-muted-foreground">
-          Format text, fix case, structure lines, and download in 6 formats — all instantly in your browser.
-        </p>
+    <div className="space-y-8 relative">
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Text Case Converter & Utility</h1>
+          <p className="text-muted-foreground">
+            Format text, fix case, structure lines, and download in 6 formats — all instantly in your browser.
+          </p>
+        </div>
+        <VersionBadge version="v1.02" />
       </div>
 
       <div className="bg-card border rounded-xl overflow-hidden shadow-sm flex flex-col">

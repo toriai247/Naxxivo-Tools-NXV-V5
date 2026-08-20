@@ -27,6 +27,7 @@ import { saveGeneratedTitlesToDb } from "@/lib/youtubeDb";
 import { useToast } from "@/hooks/use-toast";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { VersionBadge } from "@/components/VersionBadge";
 
 const PRESET_TEMPLATES = [
   { topic: "iPhone 16 Pro Review after 30 Days", category: "Tech & Gadgets", tone: "High CTR & Viral" },
@@ -209,9 +210,12 @@ export default function TitleGenerator() {
   }) || [];
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-5xl mx-auto relative">
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900/30 via-card to-purple-900/30 border border-indigo-500/20 p-6 md:p-10 shadow-xl">
+        <div className="absolute top-4 right-4 z-20">
+          <VersionBadge version="v1.02" />
+        </div>
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2 max-w-2xl">

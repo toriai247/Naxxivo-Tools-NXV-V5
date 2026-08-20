@@ -1,10 +1,12 @@
 import React, { useState } from "react";
-import { Download, AlertCircle, Image as ImageIcon, Check } from "lucide-react";
+import { Download, AlertCircle, Image as ImageIcon, Check, Copy } from "lucide-react";
 import { SeoContentYouTube } from "@/components/seo/SeoContentYouTube";
 import { FaqSection } from "@/components/seo/FaqSection";
 import { motion } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { useToast } from "@/hooks/use-toast";
+import { VersionBadge } from "@/components/VersionBadge";
 
 interface Thumbnail {
   quality: string;
@@ -18,7 +20,9 @@ export default function YouTubeDownloader() {
   const [videoId, setVideoId] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [downloadingId, setDownloadingId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const { addHistoryItem } = useHistory();
+  const { toast } = useToast();
 
   const extractVideoId = (input: string) => {
     // Matches youtu.be/ID, youtube.com/watch?v=ID, youtube.com/shorts/ID, youtube.com/embed/ID
@@ -49,6 +53,17 @@ export default function YouTubeDownloader() {
     }
   };
 
+  const handleCopyLink = (thumbnail: Thumbnail) => {
+    sound.copy();
+    navigator.clipboard.writeText(thumbnail.url);
+    setCopiedId(thumbnail.quality);
+    toast({
+      title: "Copied to Clipboard!",
+      description: `${thumbnail.quality} thumbnail link copied.`,
+    });
+    setTimeout(() => setCopiedId(null), 2000);
+  };
+
   const handleDownload = async (thumbnail: Thumbnail) => {
     try {
       sound.download();
@@ -75,7 +90,11 @@ export default function YouTubeDownloader() {
     } catch (err) {
       console.error(err);
       sound.error();
-      alert("Failed to download image. It might not be available in this resolution or there's a cross-origin restriction.");
+      toast({
+        title: "Download Failed",
+        description: "Failed to download image due to network or cross-origin restrictions.",
+        variant: "destructive",
+      });
     } finally {
       setTimeout(() => setDownloadingId(null), 1000); // Keep checkmark briefly
     }
@@ -89,10 +108,13 @@ export default function YouTubeDownloader() {
   ] : [];
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">YouTube Thumbnail Downloader</h1>
-        <p className="text-muted-foreground">Extract and download high-quality thumbnails from any YouTube video instantly.</p>
+    <div className="space-y-8 relative">
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">YouTube Thumbnail Downloader</h1>
+          <p className="text-muted-foreground">Extract and download high-quality thumbnails from any YouTube video instantly.</p>
+        </div>
+        <VersionBadge version="v1.02" />
       </div>
 
       <div className="bg-card border rounded-xl p-6 shadow-sm relative overflow-hidden">
@@ -159,20 +181,40 @@ export default function YouTubeDownloader() {
                     </div>
                   </div>
                   
-                  <button
-                    onClick={() => handleDownload(thumb)}
-                    className="mt-4 w-full bg-primary text-primary-foreground hover:bg-primary/90 py-2.5 rounded-md font-medium transition-colors flex items-center justify-center gap-2 shadow-sm"
-                  >
-                    {downloadingId === thumb.quality ? (
-                      <>
-                        <Check className="w-4 h-4 animate-in zoom-in" /> Downloaded
-                      </>
-                    ) : (
-                      <>
-                        <Download className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" /> Download Image
-                      </>
-                    )}
-                  </button>
+                  <div className="mt-4 flex items-center gap-2">
+                    <button
+                      onClick={() => handleDownload(thumb)}
+                      className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 py-2.5 px-3 rounded-md font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-2 shadow-sm"
+                    >
+                      {downloadingId === thumb.quality ? (
+                        <>
+                          <Check className="w-4 h-4 animate-in zoom-in" /> Downloaded
+                        </>
+                      ) : (
+                        <>
+                          <Download className="w-4 h-4 group-hover:-translate-y-0.5 transition-transform" /> Download Image
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => handleCopyLink(thumb)}
+                      title="Copy Thumbnail Direct Link"
+                      className="px-3.5 py-2.5 rounded-md border border-input bg-background hover:bg-muted font-medium text-xs sm:text-sm transition-colors flex items-center justify-center gap-1.5 shrink-0"
+                    >
+                      {copiedId === thumb.quality ? (
+                        <>
+                          <Check className="w-4 h-4 text-emerald-500 animate-in zoom-in" />
+                          <span className="hidden sm:inline text-emerald-500 font-semibold">Copied</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-4 h-4" />
+                          <span className="hidden sm:inline">Copy Link</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
                 </div>
               </motion.div>
             ))}

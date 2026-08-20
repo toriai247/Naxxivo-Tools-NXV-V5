@@ -39,6 +39,7 @@ import { useToast } from "@/hooks/use-toast";
 import { sound } from "@/lib/sound";
 import { useTaskProgress } from "@/context/TaskProgressContext";
 import { TaskProgressCard } from "@/components/TaskProgressCard";
+import { VersionBadge } from "@/components/VersionBadge";
 import {
   extractInstagramVideo,
   downloadInstagramFile,
@@ -289,6 +290,11 @@ export default function InstagramDownloader() {
 
   return (
     <div className="w-full max-w-5xl mx-auto px-4 py-8 relative" id="instagram-downloader-container">
+      {/* Top Right Version Badge */}
+      <div className="absolute top-2 right-4 z-10">
+        <VersionBadge version="v1.02" />
+      </div>
+
       {/* Premium Elegant Header */}
       <div className="text-center mb-10" id="ig-header-block">
         <div className="inline-flex items-center justify-center p-3.5 bg-pink-500/10 dark:bg-pink-500/15 rounded-2xl mb-4 text-pink-600 dark:text-pink-400 border border-pink-500/20" id="ig-icon-p">

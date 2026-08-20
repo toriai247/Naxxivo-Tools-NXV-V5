@@ -8,6 +8,7 @@ import { generateDescriptionIdeas, DescriptionGeneratorResult } from "@/api/aiSe
 import { saveGeneratedDescriptionToDb } from "@/lib/youtubeDb";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { VersionBadge } from "@/components/VersionBadge";
 
 const presetIdeas = [
   { label: "iPhone 16 Pro Review & Unboxing", type: "video" as const, tone: "Clicky & Energetic" },
@@ -118,9 +119,12 @@ export default function DescriptionGenerator() {
   const wordCount = result ? result.fullDescription.trim().split(/\s+/).filter(Boolean).length : 0;
 
   return (
-    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8">
+    <div className="max-w-6xl mx-auto px-4 py-8 space-y-8 relative">
         {/* Header Hero Section */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/10 via-teal-500/10 to-indigo-600/10 dark:from-emerald-900/30 dark:via-teal-900/30 dark:to-indigo-900/30 border border-emerald-500/20 p-8 text-center sm:text-left">
+          <div className="absolute top-4 right-4 z-20">
+            <VersionBadge version="v1.02" />
+          </div>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
             <div className="space-y-3 max-w-2xl">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-600 dark:text-emerald-400 text-xs font-semibold uppercase tracking-wider">

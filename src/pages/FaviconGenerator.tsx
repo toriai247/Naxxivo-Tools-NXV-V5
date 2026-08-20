@@ -1,8 +1,10 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
-import { Download, Palette, Upload, RefreshCw, Image as ImageIcon } from "lucide-react";
+import { Download, Palette, Upload, RefreshCw, Image as ImageIcon, Copy, Check } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { useToast } from "@/hooks/use-toast";
+import { VersionBadge } from "@/components/VersionBadge";
 
 const SIZES = [16, 32, 48, 64, 128, 180, 192, 512];
 
@@ -128,6 +130,20 @@ function saveBlob(blob: Blob, name: string) {
 export default function FaviconGenerator() {
   const [tab, setTab] = useState<"text" | "image">("text");
   const { addHistoryItem } = useHistory();
+  const { toast } = useToast();
+  const [copiedHtmlSnippet, setCopiedHtmlSnippet] = useState(false);
+
+  const handleCopyHtmlSnippet = () => {
+    const htmlCode = `<link rel="icon" type="image/x-icon" href="/favicon.ico">\n<link rel="apple-touch-icon" sizes="180x180" href="/favicon-180x180.png">`;
+    sound.copy();
+    navigator.clipboard.writeText(htmlCode);
+    setCopiedHtmlSnippet(true);
+    toast({
+      title: "Favicon HTML Snippet Copied!",
+      description: "Paste it directly into the <head> of your website.",
+    });
+    setTimeout(() => setCopiedHtmlSnippet(false), 2000);
+  };
 
   // Text favicon state
   const [faviconText, setFaviconText] = useState("N");
@@ -235,12 +251,15 @@ export default function FaviconGenerator() {
   const isReady = tab === "text" ? faviconText.trim().length > 0 : uploadedImage !== null;
 
   return (
-    <div className="space-y-8">
-      <div className="space-y-2">
-        <h1 className="text-3xl font-bold tracking-tight">Favicon Generator</h1>
-        <p className="text-muted-foreground">
-          Create pixel-perfect favicons from text or images. Download as PNG (all sizes) + .ico — ready to drop into any website.
-        </p>
+    <div className="space-y-8 relative">
+      <div className="flex items-center justify-between gap-4">
+        <div className="space-y-2">
+          <h1 className="text-3xl font-bold tracking-tight">Favicon Generator</h1>
+          <p className="text-muted-foreground">
+            Create pixel-perfect favicons from text or images. Download as PNG (all sizes) + .ico — ready to drop into any website.
+          </p>
+        </div>
+        <VersionBadge version="v1.02" />
       </div>
 
       {/* Tab switcher */}
@@ -503,10 +522,21 @@ export default function FaviconGenerator() {
               ))}
             </div>
 
-            <p className="text-xs text-muted-foreground">
-              💡 Put <code className="bg-muted px-1 rounded">favicon.ico</code> in your site root. Add{" "}
-              <code className="bg-muted px-1 rounded">{"<link rel=\"apple-touch-icon\" href=\"/favicon-180x180.png\">"}</code> for iOS.
-            </p>
+            <div className="pt-2 border-t flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground flex-1">
+                💡 Put <code className="bg-muted px-1 rounded">favicon.ico</code> in your site root. Add{" "}
+                <code className="bg-muted px-1 rounded">{"<link rel=\"apple-touch-icon\" href=\"/favicon-180x180.png\">"}</code> for iOS.
+              </p>
+
+              <button
+                type="button"
+                onClick={handleCopyHtmlSnippet}
+                className="px-3 py-2 rounded-lg border bg-background hover:bg-muted text-xs font-semibold flex items-center gap-1.5 transition-colors shrink-0"
+              >
+                {copiedHtmlSnippet ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>{copiedHtmlSnippet ? "Copied HTML!" : "Copy HTML Snippet"}</span>
+              </button>
+            </div>
           </div>
         </div>
       </div>

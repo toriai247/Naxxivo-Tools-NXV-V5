@@ -9,12 +9,15 @@ import {
   ChevronDown,
   Sparkles,
   Zap,
-  CheckCircle2
+  CheckCircle2,
+  Copy,
+  Check
 } from "lucide-react";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { useToast } from "@/hooks/use-toast";
 import { useTaskProgress } from "@/context/TaskProgressContext";
 import { TaskProgressCard } from "@/components/TaskProgressCard";
 import { convertImage } from "@/lib/imageProcessor";
@@ -117,10 +120,24 @@ export function ImageConverter() {
   const [result, setResult] = useState<ConvertedResult | null>(null);
   const [processError, setProcessError] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [copiedDataUrl, setCopiedDataUrl] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addHistoryItem } = useHistory();
+  const { toast } = useToast();
   const { startTask, updateTask, completeTask, failTask } = useTaskProgress();
+
+  const handleCopyDataUrl = () => {
+    if (!result?.dataUrl) return;
+    sound.copy();
+    navigator.clipboard.writeText(result.dataUrl);
+    setCopiedDataUrl(true);
+    toast({
+      title: "Image Data Copied!",
+      description: "Converted image Data URL has been copied to your clipboard.",
+    });
+    setTimeout(() => setCopiedDataUrl(false), 2000);
+  };
 
   const convertImageUsingCanvas = useCallback(
     async (
@@ -506,17 +523,26 @@ export function ImageConverter() {
                     </div>
                   </div>
 
-                  {/* Download Button */}
-                  <div className="pt-2">
+                  {/* Action Buttons: Download + Copy */}
+                  <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
                     <a
                       href={result.blobUrl || result.dataUrl}
                       onClick={() => sound.download()}
                       download={`converted-${file.name.replace(/\.[^/.]+$/, "")}.${result.extension}`}
-                      className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 text-sm sm:text-base text-center cursor-pointer"
+                      className="flex-1 w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 text-sm sm:text-base text-center cursor-pointer"
                     >
                       <Download className="w-5 h-5" />
                       <span>Download {result.formatLabel} Image</span>
                     </a>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyDataUrl}
+                      className="w-full sm:w-auto px-5 py-3 rounded-xl border border-border bg-card hover:bg-muted font-bold text-sm flex items-center justify-center gap-2 transition-all shrink-0"
+                    >
+                      {copiedDataUrl ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiedDataUrl ? "Copied Data URL!" : "Copy Data URL"}</span>
+                    </button>
                   </div>
                 </div>
               )}

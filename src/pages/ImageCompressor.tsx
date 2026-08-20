@@ -8,15 +8,19 @@ import {
   Sliders, 
   Sparkles,
   CheckCircle2,
-  Zap
+  Zap,
+  Copy,
+  Check
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useHistory } from "@/hooks/useHistory";
 import { sound } from "@/lib/sound";
+import { useToast } from "@/hooks/use-toast";
 import { useTaskProgress } from "@/context/TaskProgressContext";
 import { TaskProgressCard } from "@/components/TaskProgressCard";
 import { SeoContentImage } from "@/components/seo/SeoContentImage";
 import { convertImage } from "@/lib/imageProcessor";
+import { VersionBadge } from "@/components/VersionBadge";
 
 interface CompressedImageResult {
   originalSize: number;
@@ -48,10 +52,24 @@ export function ImageCompressor() {
   } | null>(null);
   const [result, setResult] = useState<CompressedImageResult | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [copiedDataUrl, setCopiedDataUrl] = useState(false);
   
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { addHistoryItem } = useHistory();
+  const { toast } = useToast();
   const { startTask, updateTask, completeTask, failTask } = useTaskProgress();
+
+  const handleCopyDataUrl = () => {
+    if (!result?.dataUrl) return;
+    sound.copy();
+    navigator.clipboard.writeText(result.dataUrl);
+    setCopiedDataUrl(true);
+    toast({
+      title: "Compressed Image Data Copied!",
+      description: "Data URL has been copied to your clipboard.",
+    });
+    setTimeout(() => setCopiedDataUrl(false), 2000);
+  };
 
   const compressImage = useCallback(
     async (
@@ -279,9 +297,12 @@ export function ImageCompressor() {
   };
 
   return (
-    <div className="space-y-8 max-w-5xl mx-auto">
+    <div className="space-y-8 max-w-5xl mx-auto relative">
       {/* Header Section */}
-      <div className="space-y-2 text-center sm:text-left">
+      <div className="space-y-2 text-center sm:text-left relative">
+        <div className="absolute top-0 right-0">
+          <VersionBadge version="v1.02" />
+        </div>
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
           <Zap className="w-3.5 h-3.5" />
           <span>Image Compressor</span>
@@ -489,17 +510,26 @@ export function ImageCompressor() {
                     </div>
                   </div>
 
-                  {/* 1-Click Download Button */}
+                  {/* Action Buttons: Download + Copy */}
                   <div className="pt-2 flex flex-col sm:flex-row items-center gap-3">
                     <a
                       href={result.dataUrl}
                       onClick={() => sound.download()}
                       download={`compressed-${file.name.replace(/\.[^/.]+$/, "")}.${result.extension}`}
-                      className="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 text-sm sm:text-base text-center"
+                      className="flex-1 w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold py-3 px-6 rounded-xl transition-all shadow-md shadow-emerald-500/20 flex items-center justify-center gap-2 text-sm sm:text-base text-center"
                     >
                       <Download className="w-5 h-5" />
                       <span>Download Compressed Image</span>
                     </a>
+
+                    <button
+                      type="button"
+                      onClick={handleCopyDataUrl}
+                      className="w-full sm:w-auto px-5 py-3 rounded-xl border border-border bg-card hover:bg-muted font-bold text-sm flex items-center justify-center gap-2 transition-all shrink-0"
+                    >
+                      {copiedDataUrl ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4" />}
+                      <span>{copiedDataUrl ? "Copied Data URL!" : "Copy Data URL"}</span>
+                    </button>
                   </div>
                 </div>
               )}

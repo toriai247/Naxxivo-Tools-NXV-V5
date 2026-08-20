@@ -37,6 +37,7 @@ import { useToast } from "@/hooks/use-toast";
 import { sound } from "@/lib/sound";
 import { useTaskProgress } from "@/context/TaskProgressContext";
 import { TaskProgressCard } from "@/components/TaskProgressCard";
+import { VersionBadge } from "@/components/VersionBadge";
 import { 
   extractTikTokVideo, 
   downloadTikTokFile, 
@@ -161,6 +162,20 @@ export default function TikTokDownloader() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Copy media direct download link
+  const [copiedMediaLink, setCopiedMediaLink] = useState(false);
+
+  const handleCopyMediaLink = (mediaUrl: string, label: string) => {
+    sound.copy();
+    navigator.clipboard.writeText(mediaUrl);
+    setCopiedMediaLink(true);
+    toast({
+      title: "Link Copied!",
+      description: `${label} direct download URL copied to clipboard.`,
+    });
+    setTimeout(() => setCopiedMediaLink(false), 2000);
   };
 
   // Paste from clipboard
@@ -327,7 +342,12 @@ export default function TikTokDownloader() {
   };
 
   return (
-    <div className="w-full max-w-6xl mx-auto px-4 py-8 md:py-12 space-y-10" id="tiktok-downloader-page">
+    <div className="w-full max-w-6xl mx-auto px-4 py-8 md:py-12 space-y-10 relative" id="tiktok-downloader-page">
+      {/* Top Right Version Badge */}
+      <div className="absolute top-2 right-4 z-10">
+        <VersionBadge version="v1.02" />
+      </div>
+
       {/* 🚀 Hero Header */}
       <div className="text-center space-y-4">
         <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full text-xs font-semibold bg-gradient-to-r from-pink-500/10 via-rose-500/10 to-cyan-500/10 border border-pink-500/20 text-pink-600 dark:text-pink-400">
@@ -723,24 +743,44 @@ export default function TikTokDownloader() {
                     </div>
                   </div>
 
-                  {/* Primary Download Trigger for Custom Dropdown Selection */}
-                  <Button
-                    size="lg"
-                    onClick={() => {
-                      const isAudio = targetFormat === "mp3" || targetFormat === "m4a" || targetFormat === "wav";
-                      const mediaUrl = isAudio 
-                        ? (videoData.audioUrl || videoData.videoUrl) 
-                        : (targetQuality === "1080p" && videoData.videoHdUrl ? videoData.videoHdUrl : videoData.videoUrl);
-                      handleDownload(mediaUrl, `${targetQuality}_${targetFormat}`, isAudio ? "audio" : "video", targetFormat, targetQuality);
-                    }}
-                    disabled={downloadingType === `${targetQuality}_${targetFormat}`}
-                    className="w-full h-12 rounded-xl font-bold bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white shadow-lg shadow-pink-500/20 flex items-center justify-center gap-2"
-                  >
-                    <Download className="w-4 h-4" />
-                    <span>
-                      Download as {targetQuality.toUpperCase()} ({targetFormat.toUpperCase()})
-                    </span>
-                  </Button>
+                  {/* Primary Download Trigger & Copy Link */}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      size="lg"
+                      onClick={() => {
+                        const isAudio = targetFormat === "mp3" || targetFormat === "m4a" || targetFormat === "wav";
+                        const mediaUrl = isAudio 
+                          ? (videoData.audioUrl || videoData.videoUrl) 
+                          : (targetQuality === "1080p" && videoData.videoHdUrl ? videoData.videoHdUrl : videoData.videoUrl);
+                        handleDownload(mediaUrl, `${targetQuality}_${targetFormat}`, isAudio ? "audio" : "video", targetFormat, targetQuality);
+                      }}
+                      disabled={downloadingType === `${targetQuality}_${targetFormat}`}
+                      className="flex-1 h-12 rounded-xl font-bold bg-gradient-to-r from-pink-500 via-purple-600 to-indigo-600 hover:from-pink-600 hover:to-indigo-700 text-white shadow-lg shadow-pink-500/20 flex items-center justify-center gap-2"
+                    >
+                      <Download className="w-4 h-4" />
+                      <span>
+                        Download {targetQuality.toUpperCase()} ({targetFormat.toUpperCase()})
+                      </span>
+                    </Button>
+
+                    <Button
+                      type="button"
+                      size="lg"
+                      variant="outline"
+                      onClick={() => {
+                        const isAudio = targetFormat === "mp3" || targetFormat === "m4a" || targetFormat === "wav";
+                        const mediaUrl = isAudio 
+                          ? (videoData.audioUrl || videoData.videoUrl) 
+                          : (targetQuality === "1080p" && videoData.videoHdUrl ? videoData.videoHdUrl : videoData.videoUrl);
+                        handleCopyMediaLink(mediaUrl, `${targetQuality} ${targetFormat.toUpperCase()}`);
+                      }}
+                      title="Copy direct download link to clipboard"
+                      className="h-12 px-4 rounded-xl font-bold border-pink-500/30 hover:bg-pink-500/10 flex items-center justify-center gap-1.5 shrink-0"
+                    >
+                      {copiedMediaLink ? <Check className="w-4 h-4 text-emerald-500" /> : <Copy className="w-4 h-4 text-pink-500" />}
+                      <span className="hidden sm:inline">{copiedMediaLink ? "Copied" : "Copy Link"}</span>
+                    </Button>
+                  </div>
                 </Card>
 
                 {/* 🎯 Quick Action Download Presets Grid */}

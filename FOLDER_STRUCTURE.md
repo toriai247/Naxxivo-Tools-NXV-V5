@@ -135,10 +135,10 @@ graph TD
 │   │   ├── ChannelAnalyzer.tsx   # YouTube Channel Analyzer & AI Audit
 │   │   ├── VideoAnalyzer.tsx     # YouTube Video & SEO Tag Inspector
 │   │   ├── YouTubeDownloader.tsx # YouTube HD Thumbnail Downloader
-│   │   ├── TitleGenerator.tsx    # AI YouTube Title Generator (High CTR, Viral Hooks)
-│   │   ├── DescriptionGenerator.tsx # AI Video Description Generator (Timestamps, SEO)
-│   │   ├── TextTools.tsx         # Text manipulation and format exporter
-│   │   ├── FaviconGenerator.tsx  # Multi-resolution Favicon Generator (.ico)
+│   │   ├── TitleGenerator.tsx    # AI YouTube Title Generator (High CTR, Viral Hooks) with 1-Click Copy
+│   │   ├── DescriptionGenerator.tsx # AI Video Description Generator with 1-Click Copy Description
+│   │   ├── TextTools.tsx         # Text manipulation tool with 1-Click Copy Transformed Text
+│   │   ├── FaviconGenerator.tsx  # Multi-resolution Favicon Generator (.ico) with 1-Click Copy HTML Snippet
 │   │   ├── PromptsHome.tsx       # AI Image Prompts Hub
 │   │   ├── PromptDetail.tsx      # Prompt Detail and 1-Click Copy View
 │   │   ├── Auth.tsx              # Supabase Authentication View
@@ -150,6 +150,7 @@ graph TD
 │   │   └── not-found.tsx         # 404 error page
 │   │
 │   ├── components/           # Reusable UI components
+│   │   ├── VersionBadge.tsx         # Universal tool version indicator badge (e.g. v1.02) with live status pulse
 │   │   ├── GlobalTopProgressBar.tsx # Global slim top-of-screen progress bar indicator for running tasks
 │   │   ├── GlobalTaskHUD.tsx        # Floating interactive task HUD panel showing active/completed downloads and processing jobs
 │   │   ├── TaskProgressCard.tsx     # Reusable animated progress card with byte metrics, speeds, and step descriptions
@@ -207,6 +208,7 @@ graph TD
 | :--- | :--- |
 | **`src/pages/FacebookDownloader.tsx`** | Facebook Video & Reels Downloader (Hidden/Disabled) |
 | **`src/api/facebookApi.ts`** | Facebook media extraction engine with direct HTML parser, JSON-LD meta inspector, fallback public API client, and stream progress blob downloader. |
+| **`src/components/VersionBadge.tsx`** | Universal tool version badge (e.g. `v1.02`) with emerald status pulse indicator, monospace typography, and subtle border styling. |
 | **`src/context/TaskProgressContext.tsx`** | Global background task management context with streaming download progress reader (`ReadableStreamDefaultReader`), byte/speed calculation, task cancellation (`AbortController`), and task state updates. |
 | **`src/components/GlobalTopProgressBar.tsx`** | Global slim top-of-screen animated progress bar indicator for all active downloads, transcoding, and compression operations. |
 | **`src/components/GlobalTaskHUD.tsx`** | Interactive floating bottom-right task monitor HUD providing live progress bars, speed metrics, cancel buttons, and auto-dismissing completed task notifications. |
