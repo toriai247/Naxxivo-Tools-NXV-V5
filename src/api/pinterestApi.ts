@@ -44,25 +44,10 @@ export async function extractPinterestVideo(url: string): Promise<PinterestExtra
         return { success: false, error: json.error };
       }
     } else {
-      // Fallback for production server resilience if Vercel endpoint encounters transient issues
-      const pinIdMatch = cleanUrl.match(/\/pin\/([0-9]+)/) || cleanUrl.match(/pin\.it\/([a-zA-Z0-9]+)/);
-      const pinId = pinIdMatch ? pinIdMatch[1] : String(Date.now());
+      const errorJson = await res.json().catch(() => null);
       return {
-        success: true,
-        data: {
-          id: pinId,
-          title: `Pinterest HD Video Pin #${pinId.slice(-6)}`,
-          description: "High quality Pinterest video stream extracted successfully",
-          videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-          thumbnailUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=800",
-          duration: 30,
-          author: {
-            name: "Pinterest Creator",
-            avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200",
-          },
-          sourceUrl: cleanUrl,
-          fetchedAt: new Date().toISOString(),
-        }
+        success: false,
+        error: errorJson?.error || 'Failed to extract Pinterest video. Please check the URL and try again.',
       };
     }
   } catch (err: any) {

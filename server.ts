@@ -1493,37 +1493,49 @@ app.get(["/api/facebook/download", "/api/v1/facebook/download"], async (req, res
 // ==========================================
 // 📌 PINTEREST VIDEO EXTRACTION ENGINE
 // ==========================================
+// 📌 PINTEREST VIDEO EXTRACTION ENGINE (HD Direct Streams)
+// ==========================================
 
 async function resolvePinterestUrl(inputUrl: string): Promise<string> {
   let currentUrl = inputUrl.trim();
   
-  if (!currentUrl.includes("pin.it") && !currentUrl.includes("pinterest.com/offsite")) {
+  if (!currentUrl.includes("pin.it") && !currentUrl.includes("pinterest.com/offsite") && !currentUrl.includes("/sent/")) {
     return currentUrl;
   }
 
-  try {
-    const res = await fetch(currentUrl, {
-      method: "GET",
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-      },
-      signal: getTimeoutSignal(6000),
-    });
+  // Follow manual redirects to capture the real pin location
+  for (let hop = 0; hop < 6; hop++) {
+    try {
+      const res = await fetch(currentUrl, {
+        method: "GET",
+        redirect: "manual",
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+          "Accept-Language": "en-US,en;q=0.9",
+        },
+        signal: getTimeoutSignal(6000),
+      });
 
-    if (res.url && res.url !== currentUrl && res.url.includes("/pin/")) {
-      return res.url;
+      const location = res.headers.get("location");
+      if (location) {
+        currentUrl = new URL(location, currentUrl).toString();
+        const pinMatch = currentUrl.match(/\/pin\/([0-9]+)/);
+        if (pinMatch && pinMatch[1]) {
+          return `https://www.pinterest.com/pin/${pinMatch[1]}/`;
+        }
+      } else {
+        break;
+      }
+    } catch (e) {
+      console.warn("Error resolving Pinterest short URL:", e);
+      break;
     }
+  }
 
-    const html = await res.text();
-    const ogUrlMatch = html.match(/<meta\s+property=["']og:url["']\s+content=["']([^"']+)["']/i) ||
-                       html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:url["']/i) ||
-                       html.match(/<link\s+rel=["']canonical["']\s+href=["']([^"']+)["']/i);
-    if (ogUrlMatch && ogUrlMatch[1] && ogUrlMatch[1].includes("/pin/")) {
-      return ogUrlMatch[1];
-    }
-  } catch (e) {
-    console.warn("Error resolving Pinterest short URL:", e);
+  const pinMatch = currentUrl.match(/\/pin\/([0-9]+)/);
+  if (pinMatch && pinMatch[1]) {
+    return `https://www.pinterest.com/pin/${pinMatch[1]}/`;
   }
 
   return currentUrl;
@@ -1535,14 +1547,17 @@ async function fetchPinterestVideoData(rawUrl: string) {
     throw new Error("Please provide a valid Pinterest URL.");
   }
 
-  // 1. Resolve redirect for shortlinks (pin.it / offsite redirect)
-  const currentUrl = await resolvePinterestUrl(cleanUrl);
+  // 1. Resolve redirect for shortlinks (pin.it / offsite redirect / sent invite URLs)
+  let currentUrl = await resolvePinterestUrl(cleanUrl);
 
-  // Extract Pin ID if present
+  // Extract Pin ID
   let pinId = "";
-  const pinIdMatch = currentUrl.match(/\/pin\/([0-9]+)/) || cleanUrl.match(/pin\.it\/([a-zA-Z0-9]+)/);
+  const pinIdMatch = currentUrl.match(/\/pin\/([0-9]+)/) || cleanUrl.match(/\/pin\/([0-9]+)/) || cleanUrl.match(/pin\.it\/([a-zA-Z0-9]+)/);
   if (pinIdMatch && pinIdMatch[1]) {
     pinId = pinIdMatch[1];
+    if (/^[0-9]+$/.test(pinId)) {
+      currentUrl = `https://www.pinterest.com/pin/${pinId}/`;
+    }
   }
 
   let title = "Pinterest Video";
@@ -1557,145 +1572,119 @@ async function fetchPinterestVideoData(rawUrl: string) {
   try {
     const response = await fetch(currentUrl, {
       headers: {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
         "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
         "Accept-Language": "en-US,en;q=0.9",
-        "sec-ch-ua": '"Chromium";v="122", "Not(A:Brand";v="24", "Google Chrome";v="122"',
+        "sec-ch-ua": '"Chromium";v="124", "Not-A.Brand";v="99", "Google Chrome";v="124"',
         "sec-ch-ua-mobile": "?0",
         "sec-ch-ua-platform": '"Windows"',
-      }
+      },
+      signal: getTimeoutSignal(8000),
     });
 
     if (response.ok) {
       const html = await response.text();
+      const cleanSource = html
+        .replace(/\\u002F/g, "/")
+        .replace(/\\u0026/g, "&")
+        .replace(/\\"/g, '"')
+        .replace(/\\\//g, "/");
 
-      // A. Try application/ld+json script tags
-      try {
-        const ldJsonRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-        let match;
-        while ((match = ldJsonRegex.exec(html)) !== null) {
-          const content = match[1].trim();
-          try {
-            const parsed = JSON.parse(content);
-            const findVideoObject = (obj: any): any => {
-              if (!obj) return null;
-              if (obj["@type"] === "VideoObject") return obj;
-              if (Array.isArray(obj)) {
-                for (const item of obj) {
-                  const res = findVideoObject(item);
-                  if (res) return res;
-                }
-              }
-              if (typeof obj === "object") {
-                if (obj.video && obj.video["@type"] === "VideoObject") return obj.video;
-                for (const key of Object.keys(obj)) {
-                  const res = findVideoObject(obj[key]);
-                  if (res) return res;
-                }
-              }
-              return null;
-            };
+      // A. Direct unescaped MP4 search for v1.pinimg.com video stream
+      const rawMp4Regex = /https?:\/\/[^\s"'<>\\]*?pinimg\.com\/videos\/[^\s"'<>\\]+?\.mp4/gi;
+      const mp4Matches = cleanSource.match(rawMp4Regex) || [];
 
-            const videoObj = findVideoObject(parsed);
-            if (videoObj) {
-              if (videoObj.contentUrl) videoUrl = videoObj.contentUrl;
-              if (videoObj.thumbnailUrl) thumbnailUrl = videoObj.thumbnailUrl;
-              if (videoObj.name) title = videoObj.name;
-              if (videoObj.description) description = videoObj.description;
-              if (videoObj.duration) {
-                const durMatch = videoObj.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
-                if (durMatch) {
-                  const h = parseInt(durMatch[1] || "0", 10);
-                  const m = parseInt(durMatch[2] || "0", 10);
-                  const s = parseInt(durMatch[3] || "0", 10);
-                  duration = h * 3600 + m * 60 + s;
-                }
-              }
-              if (videoObj.author && videoObj.author.name) {
-                authorName = videoObj.author.name;
-              }
-            }
-          } catch (e) {
-            // Skip invalid tags
-          }
-        }
-      } catch (ldErr) {
-        console.warn("Pinterest ld+json parsing failed:", ldErr);
+      // Also search URL-encoded mp4s (e.g. %2Fvideos%2F...mp4)
+      const encodedMp4Regex = /https?(?:%3A%2F%2F|:\/\/)[^\s"'<>\\]*?pinimg\.com[^\s"'<>\\]+?\.mp4/gi;
+      const encodedMatches = (html.match(encodedMp4Regex) || []).map((s) => {
+        try { return decodeURIComponent(s); } catch { return s; }
+      });
+
+      const allMp4s = Array.from(new Set([...mp4Matches, ...encodedMatches]));
+      if (allMp4s.length > 0) {
+        // Choose the highest quality (720w or 1080w or last found)
+        const hdMatch = allMp4s.find(u => u.includes("720w") || u.includes("1080w") || u.includes("expMp4")) || allMp4s[0];
+        videoUrl = hdMatch;
       }
 
-      // B. Try Redux store parsing
+      // B. Try application/ld+json script tags
       if (!videoUrl) {
         try {
-          const reduxStoreRegex = /<script[^>]*id=["']__PINTEREST_REDUX_STORE__["'][^>]*>([\s\S]*?)<\/script>/gi;
-          const reduxMatch = reduxStoreRegex.exec(html);
-          if (reduxMatch) {
-            const storeContent = reduxMatch[1].trim();
-            const storeJson = JSON.parse(storeContent);
-            const searchForVideo = (obj: any): string | null => {
-              if (!obj) return null;
-              if (typeof obj === "object") {
-                if (obj.video_list) {
-                  const keys = Object.keys(obj.video_list);
-                  const mp4Keys = keys.filter(k => obj.video_list[k].url && obj.video_list[k].url.includes(".mp4"));
-                  if (mp4Keys.length > 0) {
-                    return obj.video_list[mp4Keys[mp4Keys.length - 1]].url;
+          const ldJsonRegex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
+          let match;
+          while ((match = ldJsonRegex.exec(html)) !== null) {
+            const content = match[1].trim();
+            try {
+              const parsed = JSON.parse(content);
+              const findVideoObject = (obj: any): any => {
+                if (!obj) return null;
+                if (obj["@type"] === "VideoObject") return obj;
+                if (Array.isArray(obj)) {
+                  for (const item of obj) {
+                    const res = findVideoObject(item);
+                    if (res) return res;
                   }
-                  const anyKeys = keys.filter(k => obj.video_list[k].url);
-                  if (anyKeys.length > 0) return obj.video_list[anyKeys[0]].url;
                 }
-                if (obj.video_url && typeof obj.video_url === "string" && obj.video_url.endsWith(".mp4")) {
-                  return obj.video_url;
+                if (typeof obj === "object") {
+                  if (obj.video && obj.video["@type"] === "VideoObject") return obj.video;
+                  for (const key of Object.keys(obj)) {
+                    const res = findVideoObject(obj[key]);
+                    if (res) return res;
+                  }
                 }
-                for (const key of Object.keys(obj)) {
-                  const url = searchForVideo(obj[key]);
-                  if (url) return url;
+                return null;
+              };
+
+              const videoObj = findVideoObject(parsed);
+              if (videoObj) {
+                if (videoObj.contentUrl) videoUrl = videoObj.contentUrl;
+                if (videoObj.thumbnailUrl) thumbnailUrl = videoObj.thumbnailUrl;
+                if (videoObj.name) title = videoObj.name;
+                if (videoObj.description) description = videoObj.description;
+                if (videoObj.duration) {
+                  const durMatch = videoObj.duration.match(/PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?/);
+                  if (durMatch) {
+                    const h = parseInt(durMatch[1] || "0", 10);
+                    const m = parseInt(durMatch[2] || "0", 10);
+                    const s = parseInt(durMatch[3] || "0", 10);
+                    duration = h * 3600 + m * 60 + s;
+                  }
+                }
+                if (videoObj.author && videoObj.author.name) {
+                  authorName = videoObj.author.name;
                 }
               }
-              return null;
-            };
-            const foundUrl = searchForVideo(storeJson);
-            if (foundUrl) videoUrl = foundUrl;
+            } catch {
+              // Skip invalid json
+            }
           }
-        } catch (reduxErr) {
-          console.warn("Pinterest redux store parsing failed:", reduxErr);
+        } catch (ldErr) {
+          console.warn("Pinterest ld+json parsing failed:", ldErr);
         }
       }
 
-      // C. Regex fallback for v1.pinimg.com video url in page source
-      if (!videoUrl) {
-        const mp4Regex = /"https?:\/\/v1\.pinimg\.com\/videos\/[^\s\"']*?\.mp4"/gi;
-        const mp4Match = html.match(mp4Regex);
-        if (mp4Match && mp4Match.length > 0) {
-          videoUrl = mp4Match[0].replace(/\"/g, "");
-        } else {
-          const generalMp4Regex = /https?:\/\/[^\s\"']*?pinimg\.com\/[^\s\"']*?\.mp4/gi;
-          const genMatch = html.match(generalMp4Regex);
-          if (genMatch && genMatch.length > 0) {
-            videoUrl = genMatch[0];
-          }
-        }
-      }
-
-      // D. Thumbnail fallback
+      // C. Thumbnail extraction
       if (!thumbnailUrl) {
+        const thumbMatches = cleanSource.match(/https?:\/\/i\.pinimg\.com\/(?:videos\/thumbnails\/|originals\/|736x\/)[^\s"'<>\\]+?\.(?:jpg|png|webp|jpeg)/gi) || [];
         const ogImgMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i);
-        if (ogImgMatch && ogImgMatch[1]) {
+        if (thumbMatches.length > 0) {
+          thumbnailUrl = thumbMatches[0];
+        } else if (ogImgMatch && ogImgMatch[1]) {
           thumbnailUrl = ogImgMatch[1];
-        } else {
-          const genImgRegex = /https?:\/\/i\.pinimg\.com\/[^\s\"']*?\.(?:jpg|png|webp)/gi;
-          const genImgMatch = html.match(genImgRegex);
-          if (genImgMatch && genImgMatch.length > 0) {
-            thumbnailUrl = genImgMatch[0];
-          }
         }
       }
 
-      // E. Title / Description fallback
-      const ogTitle = html.match(/<meta\s+property=["']og:title["']\s+content=["']([^"']+)["']/i);
-      if (ogTitle && ogTitle[1]) title = ogTitle[1].replace(/\s*\|\s*Pinterest$/i, "").trim();
+      // D. Title extraction
+      const titleTag = html.match(/<title>([^<]+)<\/title>/i);
+      if (titleTag && titleTag[1]) {
+        title = titleTag[1].replace(/\s*\|\s*Pinterest$/i, "").trim();
+      }
 
-      const ogDesc = html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
-      if (ogDesc && ogDesc[1]) description = ogDesc[1].trim();
+      const ogDesc = html.match(/<meta\s+name=["']description["']\s+content=["']([^"']+)["']/i) ||
+                     html.match(/<meta\s+property=["']og:description["']\s+content=["']([^"']+)["']/i);
+      if (ogDesc && ogDesc[1]) {
+        description = ogDesc[1].trim();
+      }
     }
   } catch (directErr) {
     console.warn("Direct Pinterest page fetch failed:", directErr);
@@ -1735,19 +1724,8 @@ async function fetchPinterestVideoData(rawUrl: string) {
     }
   }
 
-  // 4. Smart Fallback Engine (Ensures deployed app on Vercel/CloudRun NEVER fails with 500)
-  const isPinterestUrl = /pinterest\.com|pin\.it/i.test(cleanUrl) || Boolean(pinId);
-  if (!videoUrl && isPinterestUrl) {
-    console.log("Activating Smart Simulation Fallback for Pinterest URL:", cleanUrl);
-    const safePinId = pinId || "pin_" + Math.random().toString(36).substr(2, 8);
-    videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4";
-    thumbnailUrl = thumbnailUrl || "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=800";
-    title = title !== "Pinterest Video" ? title : `Pinterest HD Video Pin #${safePinId.slice(-6)}`;
-    description = description !== "Pinterest video downloaded via Naxxivo" ? description : `High quality video stream extracted for Pin ${safePinId}`;
-  }
-
   if (!videoUrl) {
-    throw new Error("Unable to locate direct video stream. Make sure the Pin is a Video and is public.");
+    throw new Error("Unable to locate direct video stream. Make sure the Pinterest Pin is a Video and is publicly accessible.");
   }
 
   videoUrl = videoUrl.replace(/\\u002f/g, "/").replace(/\\\//g, "/");
@@ -1996,26 +1974,9 @@ app.post(["/api/pinterest/extract", "/api/v1/pinterest/extract"], async (req, re
     });
   } catch (error: any) {
     console.error("Pinterest Extraction API Error:", error?.message || error);
-    const targetUrl = getReqUrl(req) || "https://pin.it/demo";
-    const pinMatch = targetUrl.match(/\/pin\/([0-9]+)/) || targetUrl.match(/pin\.it\/([a-zA-Z0-9]+)/);
-    const pinId = pinMatch ? pinMatch[1] : String(Date.now());
-
-    return res.json({
-      success: true,
-      data: {
-        id: pinId,
-        title: `Pinterest HD Video Pin #${pinId.slice(-6)}`,
-        description: "High quality video stream extracted for Pinterest Pin",
-        videoUrl: "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-        thumbnailUrl: "https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?q=80&w=800",
-        duration: 30,
-        author: {
-          name: "Pinterest Creator",
-          avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?q=80&w=200",
-        },
-        sourceUrl: targetUrl,
-        fetchedAt: new Date().toISOString(),
-      },
+    return res.status(400).json({
+      success: false,
+      error: error?.message || "Failed to extract Pinterest video stream. Please check if the Pin is public and contains a video.",
     });
   }
 });
