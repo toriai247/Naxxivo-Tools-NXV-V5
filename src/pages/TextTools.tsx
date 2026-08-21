@@ -222,7 +222,7 @@ export default function TextTools() {
             Format text, fix case, structure lines, and download in 6 formats — all instantly in your browser.
           </p>
         </div>
-        <VersionBadge version="v1.02" />
+        <VersionBadge />
       </div>
 
       <div className="bg-card border rounded-xl overflow-hidden shadow-sm flex flex-col">

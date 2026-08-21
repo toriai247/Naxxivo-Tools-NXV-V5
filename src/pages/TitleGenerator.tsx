@@ -214,7 +214,7 @@ export default function TitleGenerator() {
       {/* Header Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-900/30 via-card to-purple-900/30 border border-indigo-500/20 p-6 md:p-10 shadow-xl">
         <div className="absolute top-4 right-4 z-20">
-          <VersionBadge version="v1.02" />
+          <VersionBadge />
         </div>
         <div className="absolute -top-24 -right-24 w-72 h-72 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">

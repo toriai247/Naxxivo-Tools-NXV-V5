@@ -345,7 +345,7 @@ export default function TikTokDownloader() {
     <div className="w-full max-w-6xl mx-auto px-4 py-8 md:py-12 space-y-10 relative" id="tiktok-downloader-page">
       {/* Top Right Version Badge */}
       <div className="absolute top-2 right-4 z-10">
-        <VersionBadge version="v1.02" />
+        <VersionBadge />
       </div>
 
       {/* 🚀 Hero Header */}

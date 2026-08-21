@@ -259,7 +259,7 @@ export default function FaviconGenerator() {
             Create pixel-perfect favicons from text or images. Download as PNG (all sizes) + .ico — ready to drop into any website.
           </p>
         </div>
-        <VersionBadge version="v1.02" />
+        <VersionBadge />
       </div>
 
       {/* Tab switcher */}

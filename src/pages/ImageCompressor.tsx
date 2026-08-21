@@ -301,7 +301,7 @@ export function ImageCompressor() {
       {/* Header Section */}
       <div className="space-y-2 text-center sm:text-left relative">
         <div className="absolute top-0 right-0">
-          <VersionBadge version="v1.02" />
+          <VersionBadge />
         </div>
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 text-xs font-semibold">
           <Zap className="w-3.5 h-3.5" />

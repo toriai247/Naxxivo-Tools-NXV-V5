@@ -114,7 +114,7 @@ export default function YouTubeDownloader() {
           <h1 className="text-3xl font-bold tracking-tight">YouTube Thumbnail Downloader</h1>
           <p className="text-muted-foreground">Extract and download high-quality thumbnails from any YouTube video instantly.</p>
         </div>
-        <VersionBadge version="v1.02" />
+        <VersionBadge />
       </div>
 
       <div className="bg-card border rounded-xl p-6 shadow-sm relative overflow-hidden">

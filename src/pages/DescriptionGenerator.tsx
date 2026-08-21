@@ -123,7 +123,7 @@ export default function DescriptionGenerator() {
         {/* Header Hero Section */}
         <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-emerald-600/10 via-teal-500/10 to-indigo-600/10 dark:from-emerald-900/30 dark:via-teal-900/30 dark:to-indigo-900/30 border border-emerald-500/20 p-8 text-center sm:text-left">
           <div className="absolute top-4 right-4 z-20">
-            <VersionBadge version="v1.02" />
+            <VersionBadge />
           </div>
           <div className="flex flex-col sm:flex-row items-center justify-between gap-6 relative z-10">
             <div className="space-y-3 max-w-2xl">

@@ -292,7 +292,7 @@ export default function InstagramDownloader() {
     <div className="w-full max-w-5xl mx-auto px-4 py-8 relative" id="instagram-downloader-container">
       {/* Top Right Version Badge */}
       <div className="absolute top-2 right-4 z-10">
-        <VersionBadge version="v1.02" />
+        <VersionBadge />
       </div>
 
       {/* Premium Elegant Header */}
