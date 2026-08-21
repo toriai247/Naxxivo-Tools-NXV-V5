@@ -150,10 +150,10 @@ graph TD
 │   │   └── not-found.tsx         # 404 error page
 │   │
 │   ├── config/               # Application & Tool configuration
-│   │   └── version.ts        # Single source of truth for App & Tools Version Code (v1.03), incremented on every update
+│   │   └── version.ts        # Single source of truth for App & Tools Version Code (v1.04), incremented on every update
 │   │
 │   ├── components/           # Reusable UI components
-│   │   ├── VersionBadge.tsx         # Universal tool version indicator badge (e.g. v1.03) with live status pulse
+│   │   ├── VersionBadge.tsx         # Universal tool version indicator badge (e.g. v1.04) with live status pulse
 │   │   ├── GlobalTopProgressBar.tsx # Global slim top-of-screen progress bar indicator for running tasks
 │   │   ├── GlobalTaskHUD.tsx        # Floating interactive task HUD panel showing active/completed downloads and processing jobs
 │   │   ├── TaskProgressCard.tsx     # Reusable animated progress card with byte metrics, speeds, and step descriptions
@@ -211,8 +211,8 @@ graph TD
 | :--- | :--- |
 | **`src/pages/FacebookDownloader.tsx`** | Facebook Video & Reels Downloader (Hidden/Disabled) |
 | **`src/api/facebookApi.ts`** | Facebook media extraction engine with direct HTML parser, JSON-LD meta inspector, fallback public API client, and stream progress blob downloader. |
-| **`src/config/version.ts`** | Central single-source-of-truth version configuration (`v1.03`). Incremented automatically on every tool modification, feature addition, or bugfix. |
-| **`src/components/VersionBadge.tsx`** | Universal tool version badge (e.g. `v1.03`) with emerald status pulse indicator, monospace typography, and subtle border styling. |
+| **`src/config/version.ts`** | Central single-source-of-truth version configuration (`v1.04`). Incremented automatically on every tool modification, feature addition, or bugfix. |
+| **`src/components/VersionBadge.tsx`** | Universal tool version badge (e.g. `v1.04`) with emerald status pulse indicator, monospace typography, and subtle border styling. |
 | **`src/context/TaskProgressContext.tsx`** | Global background task management context with streaming download progress reader (`ReadableStreamDefaultReader`), byte/speed calculation, task cancellation (`AbortController`), and task state updates. |
 | **`src/components/GlobalTopProgressBar.tsx`** | Global slim top-of-screen animated progress bar indicator for all active downloads, transcoding, and compression operations. |
 | **`src/components/GlobalTaskHUD.tsx`** | Interactive floating bottom-right task monitor HUD providing live progress bars, speed metrics, cancel buttons, and auto-dismissing completed task notifications. |

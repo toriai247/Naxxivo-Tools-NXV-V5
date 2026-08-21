@@ -1502,33 +1502,64 @@ async function resolvePinterestUrl(inputUrl: string): Promise<string> {
     return currentUrl;
   }
 
-  // Follow manual redirects to capture the real pin location
-  for (let hop = 0; hop < 6; hop++) {
-    try {
-      const res = await fetch(currentUrl, {
-        method: "GET",
-        redirect: "manual",
-        headers: {
-          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
-          "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-          "Accept-Language": "en-US,en;q=0.9",
-        },
-        signal: getTimeoutSignal(6000),
-      });
+  // Follow manual redirects with realistic headers to capture the real pin location
+  const userAgents = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile/15E148 Safari/604.1",
+  ];
 
-      const location = res.headers.get("location");
-      if (location) {
-        currentUrl = new URL(location, currentUrl).toString();
-        const pinMatch = currentUrl.match(/\/pin\/([0-9]+)/);
-        if (pinMatch && pinMatch[1]) {
-          return `https://www.pinterest.com/pin/${pinMatch[1]}/`;
+  for (const ua of userAgents) {
+    let hopUrl = currentUrl;
+    for (let hop = 0; hop < 6; hop++) {
+      try {
+        const res = await fetch(hopUrl, {
+          method: "GET",
+          redirect: "manual",
+          headers: {
+            "User-Agent": ua,
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Sec-Fetch-Dest": "document",
+            "Sec-Fetch-Mode": "navigate",
+            "Sec-Fetch-Site": "none",
+          },
+          signal: getTimeoutSignal(5000),
+        });
+
+        const location = res.headers.get("location");
+        if (location) {
+          hopUrl = new URL(location, hopUrl).toString();
+          const pinMatch = hopUrl.match(/\/pin\/([0-9]+)/);
+          if (pinMatch && pinMatch[1]) {
+            return `https://www.pinterest.com/pin/${pinMatch[1]}/`;
+          }
+        } else {
+          break;
         }
-      } else {
+      } catch {
         break;
       }
-    } catch (e) {
-      console.warn("Error resolving Pinterest short URL:", e);
-      break;
+    }
+  }
+
+  // Fallback: try unshortener API if still shortlink
+  if (currentUrl.includes("pin.it")) {
+    try {
+      const unshortRes = await fetch(`https://unshorten.me/json/${encodeURIComponent(currentUrl)}`, {
+        signal: getTimeoutSignal(4000),
+      });
+      if (unshortRes.ok) {
+        const unshortJson: any = await unshortRes.json();
+        if (unshortJson?.resolved_url && unshortJson.resolved_url.includes("/pin/")) {
+          const pinMatch = unshortJson.resolved_url.match(/\/pin\/([0-9]+)/);
+          if (pinMatch && pinMatch[1]) {
+            return `https://www.pinterest.com/pin/${pinMatch[1]}/`;
+          }
+          return unshortJson.resolved_url;
+        }
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -1548,6 +1579,11 @@ async function fetchPinterestVideoData(rawUrl: string) {
 
   // 1. Resolve redirect for shortlinks (pin.it / offsite redirect / sent invite URLs)
   let currentUrl = await resolvePinterestUrl(cleanUrl);
+
+  // If redirect lands on home page, the pin was either deleted or restricted
+  if (currentUrl === "https://www.pinterest.com/" || currentUrl === "https://www.pinterest.com") {
+    throw new Error("Pinterest redirected this link to the home page. The Pin may be deleted, private, or expired. Please open the Pin directly in Pinterest and copy the full URL (e.g. pinterest.com/pin/123456...).");
+  }
 
   // Extract Pin ID
   let pinId = "";
@@ -1724,7 +1760,7 @@ async function fetchPinterestVideoData(rawUrl: string) {
   }
 
   if (!videoUrl) {
-    throw new Error("Unable to locate direct video stream. Make sure the Pinterest Pin is a Video and is publicly accessible.");
+    throw new Error("Unable to locate a video stream for this Pin. Make sure this Pin contains a Video (not a static image) and is publicly accessible.");
   }
 
   videoUrl = videoUrl.replace(/\\u002f/g, "/").replace(/\\\//g, "/");
