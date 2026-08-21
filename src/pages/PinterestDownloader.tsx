@@ -296,6 +296,29 @@ export default function PinterestDownloader() {
         <VersionBadge />
       </div>
 
+      {/* Temporary Maintenance Notice */}
+      <div className="p-4 rounded-2xl bg-amber-500/10 dark:bg-amber-500/15 border border-amber-500/30 flex flex-col sm:flex-row items-center justify-between gap-4 text-amber-900 dark:text-amber-200">
+        <div className="flex items-center gap-3">
+          <div className="p-2 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 shrink-0">
+            <AlertCircle className="w-5 h-5" />
+          </div>
+          <div>
+            <p className="text-sm font-bold">Tool Temporarily Offline for Server Maintenance</p>
+            <p className="text-xs text-amber-700 dark:text-amber-300/90">
+              The Pinterest Downloader backend is undergoing upgrades. Please check back later or use our TikTok Downloader.
+            </p>
+          </div>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => window.location.href = "/tiktok-downloader"}
+          className="border-amber-500/40 text-amber-900 dark:text-amber-200 hover:bg-amber-500/20 shrink-0 text-xs font-semibold rounded-xl"
+        >
+          Try TikTok Downloader →
+        </Button>
+      </div>
+
       {/* Hero Header */}
       <div className="text-center space-y-3">
         <div className="inline-flex items-center justify-center p-3 bg-red-500/10 text-red-600 dark:text-red-400 rounded-full mb-1">

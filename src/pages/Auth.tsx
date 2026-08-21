@@ -105,8 +105,8 @@ export default function AuthPage() {
         </h1>
         <p className="text-sm text-muted-foreground">
           {isLogin 
-            ? 'Access your prompt history, saved favorites, and creator profile.' 
-            : 'Join the community to publish and bookmark AI prompts.'}
+            ? 'Access your tool history, saved preferences, and creator profile.' 
+            : 'Join Naxxivo to sync settings, API keys, and custom tool preferences.'}
         </p>
       </div>
 

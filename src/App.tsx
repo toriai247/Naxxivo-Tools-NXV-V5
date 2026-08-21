@@ -9,6 +9,7 @@ import { GlobalTopProgressBar } from '@/components/GlobalTopProgressBar';
 import { GlobalTaskHUD } from '@/components/GlobalTaskHUD';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { NotificationBanner } from '@/components/NotificationBanner';
+import { WebsiteTourTrigger } from '@/components/tour/WebsiteTourTrigger';
 import { initNotifications } from '@/lib/notifications';
 
 // Eager load Home for instant LCP on root
@@ -34,8 +35,8 @@ const AboutUs = lazy(() => import('@/pages/AboutUs'));
 const ContactUs = lazy(() => import('@/pages/ContactUs'));
 const PrivacyPolicy = lazy(() => import('@/pages/PrivacyPolicy'));
 const History = lazy(() => import('@/pages/History'));
-const PromptsHome = lazy(() => import('@/pages/PromptsHome'));
-const PromptDetail = lazy(() => import('@/pages/PromptDetail'));
+const ReelsFeed = lazy(() => import('@/pages/ReelsFeed'));
+const PromptDetailsPage = lazy(() => import('@/pages/PromptDetailsPage'));
 const SoundEffectsLibrary = lazy(() => import('@/pages/SoundEffectsLibrary'));
 const ApiKeysDashboard = lazy(() => import('@/pages/ApiKeysDashboard'));
 const AuthPage = lazy(() => import('@/pages/Auth'));
@@ -76,8 +77,9 @@ function Router() {
           <Route path="/instagram-downloader" component={InstagramDownloader} />
           <Route path="/instagram" component={InstagramDownloader} />
           <Route path="/instagram-video-downloader" component={InstagramDownloader} />
-          <Route path="/prompts" component={PromptsHome} />
-          <Route path="/prompts/:id" component={PromptDetail} />
+          <Route path="/reels" component={ReelsFeed} />
+          <Route path="/reels-feed" component={ReelsFeed} />
+          <Route path="/prompt/:id" component={PromptDetailsPage} />
           <Route path="/auth" component={AuthPage} />
           <Route path="/profile" component={ProfilePage} />
           <Route path="/title-generator" component={TitleGenerator} />
@@ -134,6 +136,7 @@ function App() {
               <NotificationBanner />
             </WouterRouter>
             <GlobalTaskHUD />
+            <WebsiteTourTrigger />
             <Toaster />
           </TaskProgressProvider>
         </TooltipProvider>

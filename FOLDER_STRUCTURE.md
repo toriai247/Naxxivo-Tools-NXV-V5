@@ -126,6 +126,8 @@ graph TD
 │   │   ├── PinterestDownloader.tsx # Pinterest Video & MP3 Audio Downloader page
 │   │   ├── InstagramDownloader.tsx # Instagram Video, Reel, Photo, and Carousel Downloader with MP3 on-the-fly extraction
 │   │   ├── SmartBot.tsx          # Full-screen Smart AI Bot & Automation chat
+│   │   ├── ReelsFeed.tsx         # Full-Screen TikTok UI Reels & Prompts Feed: Top Overlay Bar (Back Icon, Video Edit/Prompt/Explore Tabs, Search/Upload), Auto-Aspect 9:16/16:9 Player, Photo Background Music, 1-Click PTCopy Prompt, Live Counters, Creator Avatar, Follow Badge & Spinning Vinyl Disc
+│   │   ├── PromptDetailsPage.tsx # Dedicated Full-Screen Prompt Details View (/prompt/:id): High-res media preview, 1-click PTCopy prompt, Open & Generate in Smart AI Bot button, Midjourney/FLUX parameter badges, and creator profile
 │   │   ├── SoundEffectsLibrary.tsx # SFX Audio Studio Hub with 60+ previewable and downloadable WAV sound effects
 │   │   ├── ApiKeysDashboard.tsx  # Developer API Keys Hub, Code Generators (cURL, Python, JS, PHP), and Live Sandbox
 │   │   ├── ImageCompressor.tsx   # Image Compressor (10MB max, Quality slider 10-100)
@@ -139,8 +141,6 @@ graph TD
 │   │   ├── DescriptionGenerator.tsx # AI Video Description Generator with 1-Click Copy Description
 │   │   ├── TextTools.tsx         # Text manipulation tool with 1-Click Copy Transformed Text
 │   │   ├── FaviconGenerator.tsx  # Multi-resolution Favicon Generator (.ico) with 1-Click Copy HTML Snippet
-│   │   ├── PromptsHome.tsx       # AI Image Prompts Hub
-│   │   ├── PromptDetail.tsx      # Prompt Detail and 1-Click Copy View
 │   │   ├── Auth.tsx              # Supabase Authentication View
 │   │   ├── Profile.tsx           # User Profile View
 │   │   ├── History.tsx           # Action and Download History Tracker
@@ -150,10 +150,13 @@ graph TD
 │   │   └── not-found.tsx         # 404 error page
 │   │
 │   ├── config/               # Application & Tool configuration
-│   │   └── version.ts        # Single source of truth for App & Tools Version Code (v1.04), incremented on every update
+│   │   └── version.ts        # Single source of truth for App & Tools Version Code (v1.15), incremented on every update
 │   │
 │   ├── components/           # Reusable UI components
-│   │   ├── VersionBadge.tsx         # Universal tool version indicator badge (e.g. v1.04) with live status pulse
+│   │   ├── VersionBadge.tsx         # Universal tool version indicator badge (e.g. v1.15) with live status pulse
+│   │   ├── tour/             # Universal Interactive Website Tour system
+│   │   │   ├── WebsiteTourModal.tsx # Multi-step interactive spotlight modal with step indicators, Framer Motion animations & feature previews
+│   │   │   └── WebsiteTourTrigger.tsx # Global event listener & auto-launch trigger hook for first-time visitors and header tour triggers
 │   │   ├── GlobalTopProgressBar.tsx # Global slim top-of-screen progress bar indicator for running tasks
 │   │   ├── GlobalTaskHUD.tsx        # Floating interactive task HUD panel showing active/completed downloads and processing jobs
 │   │   ├── TaskProgressCard.tsx     # Reusable animated progress card with byte metrics, speeds, and step descriptions
@@ -163,6 +166,13 @@ graph TD
 │   │   ├── NotificationBanner.tsx # Push notification permission banner
 │   │   ├── AiOptimizerCard.tsx # Gemini AI optimization card
 │   │   ├── WorkflowScanner.tsx # YouTube inspection progress animation
+│   │   ├── auth/             # Authentication & Gating Modals
+│   │   │   └── AuthRequiredModal.tsx # Dynamic account creation & login modal for gated actions (Upload Reel, Copy Prompt, Follow Creator)
+│   │   ├── reels/            # Custom TikTok Reels & Prompts Feed components
+│   │   │   ├── ReelCustomPlayer.tsx # TikTok full-screen player with seamless auto-play on scroll, audio policy fallback, 1-tap unmute badge, auto-aspect adjustment (9:16 vertical cover, 16:9 landscape centering with letterbox & ambient blur, photo slideshow background audio playback, animated playhead scrubber)
+│   │   │   ├── ReelSideActions.tsx  # TikTok right-side action column with Creator Avatar & Follow badge, 1-Click Copy Prompt (PTCopy with Auth gate), live counts, like button, prompt info modal, share & spinning vinyl record with floating notes
+│   │   │   ├── ReelInfoModal.tsx    # Full prompt text viewer, Auth-gated copy button, copy count sync and instructions modal
+│   │   │   └── UploadReelModal.tsx  # Creator modal with duplicate URL prevention, TikTok clean extraction, category selection, and 1-click prompt publishing
 │   │   ├── bot/              # SmartBot dedicated chat components
 │   │   │   ├── InChatCropper.tsx # Interactive in-chat cropper with aspect ratio presets, zoom, rotate, flip & export
 │   │   │   ├── TikTokBotCard.tsx # TikTok video/audio downloader result card for SmartBot with 1080p No-Watermark, MP3 preview & download controls
@@ -185,11 +195,14 @@ graph TD
 │   │   └── TaskProgressContext.tsx # Global background task state, streaming download progress tracking, and task cancellation
 │   │
 │   ├── hooks/                # Custom React hooks
+│   │   ├── useAuthUser.ts    # Real-time Supabase authentication state hook
+│   │   ├── useFollowSystem.ts# Creator follow/unfollow system hook with Supabase & LocalStorage sync
 │   │   ├── useRecentTools.ts # Tracks interacted tools, timestamps, and localStorage persistence
 │   │   ├── useHistory.ts     # Action and download history tracker
 │   │   └── useToast.ts       # Toast notification hook
 │   │
 │   └── lib/                  # Helper utilities
+│       ├── reelsDeduplication.ts # URL normalization, media ID extraction, duplicate detection and feed deduplication engine
 │       ├── youtubeDb.ts      # YouTube persistent cache & knowledge base engine (Supabase & Local storage)
 │       ├── smartBotMemory.ts # SmartBot persistent Local Memory engine for storing & retrieving user links, YouTube/TikTok/Facebook URLs, uploaded images, and chatdata.json queries
 │       ├── imageProcessor.ts # Universal in-browser image decoding, format conversion & compression engine
@@ -210,9 +223,18 @@ graph TD
 | File / Directory | Purpose & Functionality |
 | :--- | :--- |
 | **`src/pages/FacebookDownloader.tsx`** | Facebook Video & Reels Downloader (Hidden/Disabled) |
+| **`src/pages/PinterestDownloader.tsx`** | Pinterest Video Downloader (Temporarily Disabled / Under Maintenance) |
+| **`src/pages/InstagramDownloader.tsx`** | Instagram Video Downloader (Temporarily Disabled / Under Maintenance) |
 | **`src/api/facebookApi.ts`** | Facebook media extraction engine with direct HTML parser, JSON-LD meta inspector, fallback public API client, and stream progress blob downloader. |
-| **`src/config/version.ts`** | Central single-source-of-truth version configuration (`v1.04`). Incremented automatically on every tool modification, feature addition, or bugfix. |
-| **`src/components/VersionBadge.tsx`** | Universal tool version badge (e.g. `v1.04`) with emerald status pulse indicator, monospace typography, and subtle border styling. |
+| **`src/config/version.ts`** | Central single-source-of-truth version configuration (`v1.14`). Incremented automatically on every tool modification, feature addition, or bugfix. |
+| **`src/components/VersionBadge.tsx`** | Universal tool version badge (e.g. `v1.14`) with emerald status pulse indicator, monospace typography, and subtle border styling. |
+| **`src/components/tour/WebsiteTourModal.tsx`** | Interactive responsive Website Tour system guiding users through Naxxivo tools, AI Bot, TikTok Reels & Prompts (PTCopy), Media Downloaders, Image Compressor & 60+ SFX. |
+| **`src/components/tour/WebsiteTourTrigger.tsx`** | Global trigger manager auto-starting Website Tour for first-time visitors (`localStorage`), with visible UI tour icons removed from header. |
+| **`src/lib/reelsDeduplication.ts`** | URL normalization, media ID extractor, and anti-duplicate prevention engine preventing duplicate TikTok URLs across LocalStorage, Supabase, and Seed data. |
+| **`src/pages/ReelsFeed.tsx`** | TikTok-style Reels & Prompts Feed featuring clean 9:16 vertical player, zero UI clutter on video, category filtering, search, snap scrolling, 1-Click Prompt Copy, and automatic feed deduplication. |
+| **`src/components/reels/ReelCustomPlayer.tsx`** | Custom 9:16 video/photo player with instant auto-play on scroll, unmuted/muted browser policy fallback, floating 1-tap sound unmuting, auto-hiding controls, animated play/pause indicator, seek timeline, double-tap to like, volume, speed, and loop toggles. |
+| **`src/components/reels/ReelSideActions.tsx`** | Floating side action bar with 1-Click Prompt Copy (PTCopy) button with animated checkmark, live copy counter, like button, creator follow toggle, and full prompt modal trigger. |
+| **`src/components/reels/UploadReelModal.tsx`** | Upload & Publish modal with duplicate URL prevention, clean TikTok extraction, category selection, prompt text, and live publishing. |
 | **`src/context/TaskProgressContext.tsx`** | Global background task management context with streaming download progress reader (`ReadableStreamDefaultReader`), byte/speed calculation, task cancellation (`AbortController`), and task state updates. |
 | **`src/components/GlobalTopProgressBar.tsx`** | Global slim top-of-screen animated progress bar indicator for all active downloads, transcoding, and compression operations. |
 | **`src/components/GlobalTaskHUD.tsx`** | Interactive floating bottom-right task monitor HUD providing live progress bars, speed metrics, cancel buttons, and auto-dismissing completed task notifications. |

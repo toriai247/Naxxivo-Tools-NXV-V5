@@ -22,7 +22,8 @@ import {
   Music,
   Key,
   Pin,
-  Instagram
+  Instagram,
+  Film
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { sound } from '@/lib/sound';
@@ -44,6 +45,17 @@ interface ToolItem {
 
 const TOOLS_LIST: ToolItem[] = [
   {
+    id: 'reels-feed',
+    title: 'TikTok Reels & Prompts Feed',
+    description: 'Clean 9:16 video player with zero clutter, direct video stream, and 1-Click Prompt / Formula Copying.',
+    category: 'ai',
+    href: '/reels',
+    icon: Film,
+    badge: 'NEW 🔥',
+    badgeType: 'purple',
+    tags: ['Clean 9:16 Player', '1-Click Copy', 'AI & Video Edit']
+  },
+  {
     id: 'smart-bot',
     title: 'Smart AI Bot & Automation',
     description: 'Auto-detects YouTube links for tags & thumbnails, converts images, and answers with persistent memory.',
@@ -55,17 +67,6 @@ const TOOLS_LIST: ToolItem[] = [
     tags: ['YouTube Link Detect', 'Image Converter', 'Memory']
   },
   {
-    id: 'prompts',
-    title: 'AI Image Prompts Hub',
-    description: 'Explore, preview, and 1-click copy verified prompts for Midjourney v6, FLUX.1, and DALL-E 3.',
-    category: 'ai',
-    href: '/prompts',
-    icon: Sparkles,
-    badge: 'HOT 🔥',
-    badgeType: 'purple',
-    tags: ['FLUX.1 & Midjourney', '1-Click Copy', 'Negative Prompts']
-  },
-  {
     id: 'tiktok-downloader',
     title: 'TikTok Video Downloader (No Watermark)',
     description: 'Download TikTok videos without watermark in Full HD, extract MP3 background music and HD cover photos.',
@@ -75,28 +76,6 @@ const TOOLS_LIST: ToolItem[] = [
     badge: 'HOT 🔥',
     badgeType: 'emerald',
     tags: ['No Watermark', 'HD MP4 & MP3', 'Photo Slideshows']
-  },
-  {
-    id: 'pinterest-downloader',
-    title: 'Pinterest Video Downloader',
-    description: 'Download Pinterest videos, reels, stories, or standard pins in highest quality Full HD MP4 & MP3 audio.',
-    category: 'youtube',
-    href: '/pinterest-downloader',
-    icon: Pin,
-    badge: 'NEW 🚀',
-    badgeType: 'red',
-    tags: ['HD MP4', 'MP3 extract', 'Story & Reel', '100% Free']
-  },
-  {
-    id: 'instagram-downloader',
-    title: 'Instagram Downloader',
-    description: 'Download Instagram Videos, Reels, Photos, and carousel posts with 1-click real-time MP3 converter.',
-    category: 'youtube',
-    href: '/instagram-downloader',
-    icon: Instagram,
-    badge: 'HOT 🔥',
-    badgeType: 'purple',
-    tags: ['Reels & Posts', 'Multi-slide Carousel', 'Stereo MP3 Extract']
   },
   {
     id: 'thumbnail-downloader',
@@ -221,7 +200,7 @@ const TOOLS_LIST: ToolItem[] = [
   {
     id: 'history',
     title: 'Activity & History Tracker',
-    description: 'Review your recent analysis, downloaded thumbnails, and favorite prompts privately.',
+    description: 'Review your recent analysis, downloaded media, and tool usage logs privately.',
     category: 'utility',
     href: '/history',
     icon: History,
@@ -304,7 +283,7 @@ export default function HomePage() {
               <TourReplayButton onClick={() => setIsTourManualOpen(true)} />
             </div>
             <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
-              Fast, lightweight creator tools for YouTube, AI image prompts, and graphics.
+              Fast, lightweight creator tools for YouTube, media automation, and graphics.
             </p>
           </div>
 
@@ -326,7 +305,7 @@ export default function HomePage() {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <input
             type="text"
-            placeholder="Search tools (e.g. thumbnail, prompts, crop, tags, title)..."
+            placeholder="Search tools (e.g. thumbnail, tiktok, crop, tags, title)..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full pl-10 pr-9 py-2.5 text-xs sm:text-sm rounded-xl bg-background border text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"

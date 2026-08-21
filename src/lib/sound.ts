@@ -978,3 +978,6 @@ export const sound = {
   isEnabled: () => soundManager.isEnabled(),
   setVolume: (v: number) => soundManager.setVolume(v)
 };
+
+export const soundEffects = sound;
+

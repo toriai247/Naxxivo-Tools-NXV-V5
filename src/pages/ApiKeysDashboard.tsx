@@ -120,28 +120,6 @@ const ENDPOINT_DOCS = [
     }
   },
   {
-    id: 'prompts_list',
-    name: 'AI Prompts Catalog',
-    method: 'GET',
-    path: '/api/v1/prompts?category=Anime&limit=10',
-    description: 'Retrieve curated, high-converting AI art generation prompts with tags, negative prompts, and aspect ratios.',
-    defaultPayload: '',
-    sampleResponse: {
-      success: true,
-      total: 5,
-      count: 2,
-      data: [
-        {
-          id: "p_cyberpunk_samurai",
-          title: "Cyberpunk Ronin in Neon Rain",
-          prompt: "Cyberpunk futuristic ronin in neon rain street of Neo Tokyo...",
-          model: "Midjourney v6",
-          category: "Cyberpunk"
-        }
-      ]
-    }
-  },
-  {
     id: 'sfx_library',
     name: 'Royalty-Free SFX Audio Library',
     method: 'GET',

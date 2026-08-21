@@ -21,7 +21,8 @@ import {
   Crop,
   Music,
   Key,
-  Pin
+  Pin,
+  Film
 } from "lucide-react";
 import { motion } from "motion/react";
 import { sound } from "@/lib/sound";
@@ -119,14 +120,6 @@ const MENU_CATEGORIES: MenuCategory[] = [
         badgeColor: "bg-pink-500/15 text-pink-600 dark:text-pink-400"
       },
       {
-        href: "/pinterest-downloader",
-        title: "Pinterest Downloader",
-        desc: "Download Pinterest videos, reels, stories, or images in premium quality and extract audio.",
-        icon: Pin,
-        badge: "NEW HD 🚀",
-        badgeColor: "bg-red-500/15 text-red-600 dark:text-red-400"
-      },
-      {
         href: "/thumbnail-downloader",
         title: "Thumbnail Downloader",
         desc: "Download HD, 4K, and standard YouTube thumbnails instantly.",
@@ -154,12 +147,20 @@ const MENU_CATEGORIES: MenuCategory[] = [
   },
   {
     id: "ai-hub",
-    name: "AI & Prompts",
-    description: "Local automation assistant and AI image prompt library",
-    icon: Bot,
+    name: "AI & Reels",
+    description: "In-browser smart AI assistant, clean 9:16 reels, and 1-click prompt copying",
+    icon: Film,
     color: "text-purple-500",
     badgeBg: "bg-purple-500/10 text-purple-600 dark:text-purple-400 border-purple-500/20",
     items: [
+      {
+        href: "/reels",
+        title: "Reels & Prompts Feed",
+        desc: "Watch clean 9:16 TikTok videos/photos with 1-click prompt copying.",
+        icon: Film,
+        badge: "HOT 🔥",
+        badgeColor: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400"
+      },
       {
         href: "/smart-bot",
         title: "Smart AI Bot",
@@ -167,14 +168,6 @@ const MENU_CATEGORIES: MenuCategory[] = [
         icon: Bot,
         badge: "LIVE BOT ⚡",
         badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400"
-      },
-      {
-        href: "/prompts",
-        title: "AI Image Prompts",
-        desc: "Curated Midjourney & Stable Diffusion prompts with 1-click copy.",
-        icon: ImageIcon,
-        badge: "PROMPTS HUB",
-        badgeColor: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400"
       }
     ]
   },
@@ -234,7 +227,7 @@ export default function MenuDirectory() {
   return (
     <div className="space-y-10 max-w-5xl mx-auto pb-12">
       {/* Header */}
-      <div className="space-y-3 text-center sm:text-left">
+      <div className="space-y-3 text-center sm:text-left border-b border-border/60 pb-6">
         <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-semibold">
           <Layers className="w-3.5 h-3.5" />
           <span>Categorized Menu Directory</span>

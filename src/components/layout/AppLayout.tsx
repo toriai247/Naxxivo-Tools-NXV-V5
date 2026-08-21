@@ -115,20 +115,6 @@ const CATEGORIZED_NAV: NavCategory[] = [
         badgeColor: "bg-pink-500/15 text-pink-600 dark:text-pink-400" 
       },
       { 
-        href: "/pinterest-downloader", 
-        label: "Pinterest Downloader", 
-        icon: Pin, 
-        badge: "NEW ⚡", 
-        badgeColor: "bg-red-500/15 text-red-600 dark:text-red-400" 
-      },
-      { 
-        href: "/instagram-downloader", 
-        label: "Instagram Downloader", 
-        icon: Instagram, 
-        badge: "HOT 🔥", 
-        badgeColor: "bg-pink-500/15 text-pink-600 dark:text-pink-400" 
-      },
-      { 
         href: "/thumbnail-downloader", 
         label: "Thumbnail Downloader", 
         icon: Youtube, 
@@ -149,23 +135,23 @@ const CATEGORIZED_NAV: NavCategory[] = [
   },
   {
     id: "ai-creative",
-    name: "AI & Prompts",
+    name: "AI & Reels",
     icon: Wand2,
     color: "text-purple-500",
     items: [
+      { 
+        href: "/reels", 
+        label: "Reels & Prompts", 
+        icon: Film, 
+        badge: "HOT 🔥", 
+        badgeColor: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" 
+      },
       { 
         href: "/smart-bot", 
         label: "Smart AI Bot", 
         icon: Bot, 
         badge: "Live ⚡", 
         badgeColor: "bg-purple-500/15 text-purple-600 dark:text-purple-400" 
-      },
-      { 
-        href: "/prompts", 
-        label: "AI Image Prompts", 
-        icon: ImageIcon, 
-        badge: "Hub", 
-        badgeColor: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" 
       },
     ]
   },
@@ -234,69 +220,80 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return location.startsWith(href);
   };
 
+  const isFullScreenPage = 
+    location === "/smart-bot" || 
+    location === "/ai-bot" || 
+    location === "/chatbot" || 
+    location === "/reels" || 
+    location === "/reels-feed" || 
+    location.startsWith("/reels");
+
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row overflow-hidden">
-      {/* Mobile Top Header */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b bg-card z-20 shrink-0">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              sound.click();
-              setMobileMenuOpen(true);
-            }}
-            className="p-2 -ml-2 rounded-xl hover:bg-muted/80 active:scale-95 transition-all text-foreground flex items-center gap-1.5 font-medium text-xs border border-border/60 shadow-2xs"
-            aria-label="Open categorized menu"
-          >
-            <Menu className="w-5 h-5 text-primary" />
-            <span className="font-bold">Menu</span>
-          </button>
+      {/* Mobile Top Header (Hidden on immersive full-screen pages like Reels & Chatbot) */}
+      {!isFullScreenPage && (
+        <header className="md:hidden flex items-center justify-between p-4 border-b bg-card z-20 shrink-0">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => {
+                sound.click();
+                setMobileMenuOpen(true);
+              }}
+              className="p-2 -ml-2 rounded-xl hover:bg-muted/80 active:scale-95 transition-all text-foreground flex items-center gap-1.5 font-medium text-xs border border-border/60 shadow-2xs"
+              aria-label="Open categorized menu"
+            >
+              <Menu className="w-5 h-5 text-primary" />
+              <span className="font-bold">Menu</span>
+            </button>
 
-          <Link href="/" className="flex items-center gap-2.5">
-            <img
-              src="/favicon.svg"
-              alt="Naxxivo Logo"
-              width="28"
-              height="28"
-              className="w-7 h-7 rounded-lg shadow-xs"
-              referrerPolicy="no-referrer"
-            />
-            <span className="font-bold text-lg tracking-tight">Naxxivo</span>
-          </Link>
-        </div>
+            <Link href="/" className="flex items-center gap-2.5">
+              <img
+                src="/favicon.svg"
+                alt="Naxxivo Logo"
+                width="28"
+                height="28"
+                className="w-7 h-7 rounded-lg shadow-xs"
+                referrerPolicy="no-referrer"
+              />
+              <span className="font-bold text-lg tracking-tight">Naxxivo</span>
+            </Link>
+          </div>
 
-        <div className="flex items-center gap-1.5">
-          {/* 1-Click Bot Mode Button */}
-          <Link
-            href="/smart-bot"
-            onClick={() => sound.click()}
-            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs ${
-              location === "/smart-bot"
-                ? "bg-primary text-primary-foreground border-primary shadow-xs"
-                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 active:scale-95"
-            }`}
-            title="Smart AI Bot Mode (1-Click)"
-          >
-            <Bot className="w-4 h-4 text-emerald-500 shrink-0" />
-            <span className="font-bold text-xs">AI Bot</span>
-            <span className="relative flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
-            </span>
-          </Link>
+          <div className="flex items-center gap-1.5">
+            {/* 1-Click Bot Mode Button */}
+            <Link
+              href="/smart-bot"
+              onClick={() => sound.click()}
+              className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-bold transition-all shadow-2xs ${
+                location === "/smart-bot"
+                  ? "bg-primary text-primary-foreground border-primary shadow-xs"
+                  : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/30 hover:bg-emerald-500/20 active:scale-95"
+              }`}
+              title="Smart AI Bot Mode (1-Click)"
+            >
+              <Bot className="w-4 h-4 text-emerald-500 shrink-0" />
+              <span className="font-bold text-xs">AI Bot</span>
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+              </span>
+            </Link>
 
-          <SoundToggleBtn />
-          <button
-            onClick={() => {
-              sound.theme();
-              setTheme(theme === "light" ? "dark" : "light");
-            }}
-            className="p-2 rounded-xl hover:bg-muted transition-colors border border-border/50 shadow-2xs"
-            title="Toggle theme"
-          >
-            {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
-          </button>
-        </div>
-      </header>
+            <SoundToggleBtn />
+            <button
+              onClick={() => {
+                sound.theme();
+                setTheme(theme === "light" ? "dark" : "light");
+              }}
+              className="p-2 rounded-xl hover:bg-muted transition-colors border border-border/50 shadow-2xs"
+              title="Toggle theme"
+            >
+              {theme === "light" ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+            </button>
+          </div>
+        </header>
+      )}
+
 
       {/* Mobile Categorized Sidebar Drawer */}
       <AnimatePresence>
@@ -439,7 +436,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
               {/* Drawer Footer */}
               <div className="p-3.5 border-t bg-muted/20 flex flex-col gap-2">
-                <div className="flex items-center justify-between text-xs text-muted-foreground px-1">
+                <div className="flex items-center justify-between text-xs text-muted-foreground px-1 pt-1">
                   <span>Theme & Sound</span>
                   <div className="flex items-center gap-1.5">
                     <SoundToggleBtn />
@@ -657,8 +654,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </header>
 
-        {/* If SmartBot page, render full screen clean chat UI without ads or footer */}
-        {location === "/smart-bot" || location === "/ai-bot" || location === "/chatbot" ? (
+        {/* If SmartBot or Reels page, render full screen clean UI without ads or footer */}
+        {isFullScreenPage ? (
           <div className="flex-1 h-full w-full overflow-hidden p-0 m-0">
             <AnimatePresence mode="wait">
               <motion.div

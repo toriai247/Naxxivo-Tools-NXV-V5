@@ -1,4 +1,5 @@
 // Universal Application & Tools Version Control
 // Update this version whenever tools, pages, bugfixes, or features are modified
-export const APP_VERSION = "v1.04";
+export const APP_VERSION = "v1.15";
 export const APP_BUILD_DATE = "2026-08-21";
+

@@ -1494,95 +1494,37 @@ export default function SmartBot() {
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 2.9 SCENARIO: Pinterest Pin Link
+      // 2.9 SCENARIO: Pinterest Pin Link (Temporarily Offline)
       // ─────────────────────────────────────────────────────────────
       if (isValidPinterestUrl(rawText) || rawText.includes('pinterest.com') || rawText.includes('pin.it')) {
-        sound.scan();
-        const extractRes = await extractPinterestVideo(rawText);
-        
-        if (extractRes.success && extractRes.data) {
-          sound.success();
-          const pinterestData = extractRes.data;
-          const botMsgId = `bot-${Date.now()}`;
-          const botResponseMsg: BotMessage = {
-            id: botMsgId,
-            sender: 'bot',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            text: `📌 **Pinterest Media & Download Options Ready!**\n\n**"${pinterestData.title || pinterestData.description || 'Pinterest Pin'}"**\nBy **${pinterestData.author?.name || 'Pinterest Creator'}**\n\nChoose your 1-click download option below:`,
-            toolState: {
-              type: 'pinterest_video_result',
-              pinterestData: pinterestData,
-            }
-          };
-          setMessages((prev) => [...prev, botResponseMsg]);
-          saveUserSessionHistory({
-            id: botMsgId,
-            role: 'bot',
-            text: botResponseMsg.text,
-            toolType: 'pinterest_video_result',
-            metadata: { title: pinterestData.title }
-          });
-          setIsLoading(false);
-          return;
-        } else {
-          sound.error();
-          const botMsgId = `bot-${Date.now()}`;
-          const botResponseMsg: BotMessage = {
-            id: botMsgId,
-            sender: 'bot',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            text: `⚠️ **Pinterest Extraction Error:** ${extractRes.error || 'Unable to extract Pinterest pin. Please make sure the Pin is public and the link is valid.'}`,
-          };
-          setMessages((prev) => [...prev, botResponseMsg]);
-          setIsLoading(false);
-          return;
-        }
+        sound.click();
+        const botMsgId = `bot-${Date.now()}`;
+        const botResponseMsg: BotMessage = {
+          id: botMsgId,
+          sender: 'bot',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: `🔧 **Pinterest Downloader is Temporarily Offline for Server Maintenance**\n\nWe are currently upgrading our media extraction infrastructure for Pinterest.\n\nIn the meantime, you can use our **[TikTok Video Downloader](/tiktok-downloader)** (No Watermark HD) or **[YouTube Thumbnail Downloader](/thumbnail-downloader)**!`,
+        };
+        setMessages((prev) => [...prev, botResponseMsg]);
+        setIsLoading(false);
+        return;
       }
 
       // ─────────────────────────────────────────────────────────────
-      // 2.95 SCENARIO: Instagram Video / Post Link
+      // 2.95 SCENARIO: Instagram Video / Post Link (Temporarily Offline)
       // ─────────────────────────────────────────────────────────────
       if (isValidInstagramUrl(rawText) || rawText.includes('instagram.com') || rawText.includes('instagr.am')) {
-        sound.scan();
-        const extractRes = await extractInstagramVideo(rawText);
-        
-        if (extractRes.success && extractRes.data) {
-          sound.success();
-          const instagramData = extractRes.data;
-          const botMsgId = `bot-${Date.now()}`;
-          const botResponseMsg: BotMessage = {
-            id: botMsgId,
-            sender: 'bot',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            text: `📸 **Instagram Media & Download Options Ready!**\n\n**"${instagramData.title || instagramData.description || 'Instagram Post'}"**\nBy **${instagramData.author?.name || 'Instagram Creator'}**\n\nChoose your 1-click download option below:`,
-            toolState: {
-              type: 'instagram_video_result',
-              instagramData: instagramData,
-            }
-          };
-          setMessages((prev) => [...prev, botResponseMsg]);
-          saveUserSessionHistory({
-            id: botMsgId,
-            role: 'bot',
-            text: botResponseMsg.text,
-            toolType: 'instagram_video_result',
-            metadata: { title: instagramData.title }
-          });
-          setIsLoading(false);
-          return;
-        } else {
-          sound.error();
-          const botMsgId = `bot-${Date.now()}`;
-          const botResponseMsg: BotMessage = {
-            id: botMsgId,
-            sender: 'bot',
-            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-            text: `⚠️ **Instagram Extraction Error:** ${extractRes.error || 'Unable to extract Instagram video/photo. Please make sure the post is from a public account and the link is valid.'}`,
-          };
-          setMessages((prev) => [...prev, botResponseMsg]);
-          setIsLoading(false);
-          return;
-        }
+        sound.click();
+        const botMsgId = `bot-${Date.now()}`;
+        const botResponseMsg: BotMessage = {
+          id: botMsgId,
+          sender: 'bot',
+          timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: `🔧 **Instagram Downloader is Temporarily Offline for Server Maintenance**\n\nWe are currently upgrading our media extraction infrastructure for Instagram.\n\nIn the meantime, you can use our **[TikTok Video Downloader](/tiktok-downloader)** (No Watermark HD) or **[YouTube Thumbnail Downloader](/thumbnail-downloader)**!`,
+        };
+        setMessages((prev) => [...prev, botResponseMsg]);
+        setIsLoading(false);
+        return;
       }
 
       // ─────────────────────────────────────────────────────────────

@@ -151,7 +151,7 @@ export default function ProfilePage() {
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-foreground">Sign In to View Profile</h2>
           <p className="text-sm text-muted-foreground">
-            Please log in or create an account to manage your creator profile and saved prompts.
+            Please log in or create an account to manage your creator profile and preferences.
           </p>
         </div>
         <Link href="/auth">

@@ -15,6 +15,7 @@ import {
   Music,
   Key,
   Pin,
+  Film,
   LucideIcon
 } from 'lucide-react';
 
@@ -32,6 +33,17 @@ export interface ToolDefinition {
 }
 
 export const KNOWN_TOOLS: Record<string, ToolDefinition> = {
+  'reels': {
+    id: 'reels',
+    title: 'Reels & Prompts Feed',
+    description: 'Clean 9:16 video player with zero clutter and 1-click prompt copying.',
+    category: 'ai',
+    href: '/reels',
+    icon: Film,
+    badge: 'NEW 🔥',
+    badgeColor: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/20',
+    gradient: 'from-cyan-500/15 via-blue-500/10 to-transparent'
+  },
   'smart-bot': {
     id: 'smart-bot',
     title: 'Smart AI Bot & Hub',
@@ -86,17 +98,6 @@ export const KNOWN_TOOLS: Record<string, ToolDefinition> = {
     badge: '10MB ⚡',
     badgeColor: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/20',
     gradient: 'from-emerald-500/15 via-teal-500/10 to-transparent'
-  },
-  'prompts': {
-    id: 'prompts',
-    title: 'AI Image Prompts',
-    description: 'Curated prompts for Midjourney v6, FLUX.1, DALL-E 3 with 1-click copy.',
-    category: 'ai',
-    href: '/prompts',
-    icon: ImageIcon,
-    badge: 'PROMPTS 🔥',
-    badgeColor: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/20',
-    gradient: 'from-purple-500/15 via-pink-500/10 to-transparent'
   },
   'channel-analyzer': {
     id: 'channel-analyzer',
@@ -200,7 +201,7 @@ export const KNOWN_TOOLS: Record<string, ToolDefinition> = {
   'history': {
     id: 'history',
     title: 'Activity History',
-    description: 'Review your analyzed videos, saved prompts, and action logs.',
+    description: 'Review your analyzed videos, downloaded media, and action logs.',
     category: 'utility',
     href: '/history',
     icon: History,

@@ -1093,13 +1093,13 @@ Smart Bot আপনার ব্রাউজারে ক্লায়েন�
     };
   }
 
-  // Prompts Directory Inquiry
-  const isPromptInquiry = ['prompt', 'prompts', 'midjourney', 'flux prompt', 'ai prompt', 'প্রম্পট'].some(w => norm.includes(w));
-  if (isPromptInquiry) {
+  // Reels & Prompts Feed Inquiry
+  const isReelsInquiry = ['reel', 'reels', 'reels feed', 'tiktok reel', 'prompt copy', 'video edit prompt', 'ক্লিন রিলস', 'রিল'].some(w => norm.includes(w));
+  if (isReelsInquiry) {
     return {
       matched: true,
       intent: 'greeting',
-      replyText: `✨ **Curated AI Prompts Hub:**\n\nMidjourney v6, FLUX.1, DALL-E 3 এবং ChatGPT এর জন্য শতাধিক কিউরেটেড প্রম্পট লাইব্রেরি প্রস্তুত রয়েছে।\n\n👉 **মেন্যু থেকে "/prompts" পেজে গিয়ে পছন্দমতো প্রম্পট কপি করুন!**`
+      replyText: `🎬 **Naxxivo Reels & Prompts Feed:**\n\nটিকটক ও শর্ট ফর্ম ভিডিওর কোনো ওয়াটারমার্ক বা ডিসক্রিপশন ছাড়া পিউর ৯:১৬ প্লেয়ারে দেখুন এবং স্ক্রিনের ১-ক্লিক বাটন দিয়ে এডিটিং কোড ও এআই প্রম্পট কপি করুন!\n\n👉 **মেন্যু থেকে "/reels" পেজে যান অথবা নতুন রিলস আপলোড করুন!**`
     };
   }
 
