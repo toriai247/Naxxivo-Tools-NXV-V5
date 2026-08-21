@@ -150,10 +150,16 @@ graph TD
 │   │   └── not-found.tsx         # 404 error page
 │   │
 │   ├── config/               # Application & Tool configuration
-│   │   └── version.ts        # Single source of truth for App & Tools Version Code (v1.15), incremented on every update
+│   │   └── version.ts        # Single source of truth for App & Tools Version Code (v1.16), incremented on every update
 │   │
 │   ├── components/           # Reusable UI components
-│   │   ├── VersionBadge.tsx         # Universal tool version indicator badge (e.g. v1.15) with live status pulse
+│   │   ├── VersionBadge.tsx         # Universal tool version indicator badge (e.g. v1.16) with live status pulse
+│   │   ├── reels/            # Reels & Prompts Feed Components
+│   │   │   ├── ReelCustomPlayer.tsx # Custom TikTok video/photo player with auto-aspect ratio, music playback, and double-tap heart animations
+│   │   │   ├── ReelSideActions.tsx  # Right side TikTok action column (1-Click PTCopy, Like counter, Prompt details, Share & Download, Spinning music vinyl)
+│   │   │   ├── ReelShareSheetModal.tsx # TikTok-Style Share & Media Download Bottom Sheet Drawer (MP4 Video, MP3 Song, Cover Image, Social Shares)
+│   │   │   ├── ReelInfoModal.tsx    # Full prompt details modal with 1-click copy & Smart Bot launch
+│   │   │   └── UploadReelModal.tsx  # Create/Upload Reel modal with custom video, audio, prompt formula, and preview
 │   │   ├── tour/             # Universal Interactive Website Tour system
 │   │   │   ├── WebsiteTourModal.tsx # Multi-step interactive spotlight modal with step indicators, Framer Motion animations & feature previews
 │   │   │   └── WebsiteTourTrigger.tsx # Global event listener & auto-launch trigger hook for first-time visitors and header tour triggers

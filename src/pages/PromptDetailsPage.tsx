@@ -25,6 +25,7 @@ import { soundEffects } from '@/lib/sound';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { AuthRequiredModal } from '@/components/auth/AuthRequiredModal';
+import { ReelShareSheetModal } from '@/components/reels/ReelShareSheetModal';
 import { supabase } from '@/lib/supabase';
 
 export default function PromptDetailsPage() {
@@ -41,6 +42,7 @@ export default function PromptDetailsPage() {
   const [likesCount, setLikesCount] = useState<number>(0);
   const [copiesCount, setCopiesCount] = useState<number>(0);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
+  const [shareSheetOpen, setShareSheetOpen] = useState<boolean>(false);
 
   useEffect(() => {
     if (!promptId) return;
@@ -161,31 +163,9 @@ export default function PromptDetailsPage() {
     setLocation(`/smart-bot?prompt=${encoded}`);
   };
 
-  const handleShare = async () => {
-    const url = window.location.href;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: reel.title,
-          text: `Check out this AI Prompt formula by @${creatorName} on Naxxivo!`,
-          url,
-        });
-        soundEffects.play('chime');
-        return;
-      } catch {
-        // Fallback
-      }
-    }
-    try {
-      await navigator.clipboard.writeText(url);
-      soundEffects.play('chime');
-      toast({
-        title: "Prompt Link Copied! 🔗",
-        description: "Direct link copied to clipboard.",
-      });
-    } catch {
-      // Ignored
-    }
+  const handleShare = () => {
+    soundEffects.play('pop');
+    setShareSheetOpen(true);
   };
 
   return (
@@ -368,6 +348,13 @@ export default function PromptDetailsPage() {
           </div>
         </div>
       </div>
+
+      {/* Share & Media Download Bottom Sheet */}
+      <ReelShareSheetModal
+        reel={reel}
+        isOpen={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+      />
 
       {/* Auth Modal */}
       <AuthRequiredModal

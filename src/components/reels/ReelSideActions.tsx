@@ -17,6 +17,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { useFollowSystem } from '@/hooks/useFollowSystem';
 import { AuthRequiredModal, AuthModalMode } from '@/components/auth/AuthRequiredModal';
+import { ReelShareSheetModal } from '@/components/reels/ReelShareSheetModal';
 
 interface ReelSideActionsProps {
   reel: ReelPost;
@@ -50,6 +51,7 @@ export const ReelSideActions: React.FC<ReelSideActionsProps> = ({
   // Auth gate modal state
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
   const [authModalMode, setAuthModalMode] = useState<AuthModalMode>('copy_prompt');
+  const [shareSheetOpen, setShareSheetOpen] = useState<boolean>(false);
 
   // Combined Total Likes = Original TikTok Likes + User Like
   const totalLikes = baseLikes + (userLiked ? 1 : 0);
@@ -142,35 +144,11 @@ export const ReelSideActions: React.FC<ReelSideActionsProps> = ({
     }
   };
 
-  // Handle Share Link
-  const handleShare = async (e: React.MouseEvent) => {
+  // Handle Share Link (Opens TikTok-Style Share & Download Bottom Drawer)
+  const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareUrl = `${window.location.origin}/prompt/${reel.id}`;
-
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: reel.title,
-          text: `Check out this ${reel.category} prompt by @${creatorName} on Naxxivo!`,
-          url: shareUrl,
-        });
-        soundEffects.play('chime');
-        return;
-      } catch {
-        // Fallback
-      }
-    }
-
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      soundEffects.play('chime');
-      toast({
-        title: "Link Copied! 🔗",
-        description: "Prompt direct link copied to clipboard.",
-      });
-    } catch {
-      // Ignored
-    }
+    soundEffects.play('pop');
+    setShareSheetOpen(true);
   };
 
   // Open Full Screen Prompt Details Page
@@ -312,6 +290,14 @@ export const ReelSideActions: React.FC<ReelSideActionsProps> = ({
           </div>
         </div>
       </div>
+
+      {/* TikTok-Style Share & Media Download Bottom Drawer */}
+      <ReelShareSheetModal
+        reel={reel}
+        isOpen={shareSheetOpen}
+        onClose={() => setShareSheetOpen(false)}
+        onCopySuccess={onCopySuccess}
+      />
 
       {/* Auth Gate Modal */}
       <AuthRequiredModal

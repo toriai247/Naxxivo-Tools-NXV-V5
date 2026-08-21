@@ -20,6 +20,7 @@ import { soundEffects } from '@/lib/sound';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthUser } from '@/hooks/useAuthUser';
 import { AuthRequiredModal } from '@/components/auth/AuthRequiredModal';
+import { ReelShareSheetModal } from '@/components/reels/ReelShareSheetModal';
 
 interface ReelInfoModalProps {
   reel: ReelPost | null;
@@ -39,6 +40,7 @@ export const ReelInfoModal: React.FC<ReelInfoModalProps> = ({
   const { isAuthenticated } = useAuthUser();
   const [copied, setCopied] = useState<boolean>(false);
   const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
+  const [showShareSheet, setShowShareSheet] = useState<boolean>(false);
 
   if (!isOpen || !reel) return null;
 
@@ -109,6 +111,18 @@ export const ReelInfoModal: React.FC<ReelInfoModalProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={() => {
+                  soundEffects.play('pop');
+                  setShowShareSheet(true);
+                }}
+                className="p-2 rounded-xl bg-cyan-500/20 hover:bg-cyan-500/30 text-cyan-400 border border-cyan-500/30 text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
+                title="Share & Download Media"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline">Share & Download</span>
+              </button>
+
               <button
                 onClick={handleGoToFullPage}
                 className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/20 text-white text-xs font-bold flex items-center gap-1.5 transition-all active:scale-95"
@@ -222,6 +236,14 @@ export const ReelInfoModal: React.FC<ReelInfoModalProps> = ({
           </div>
         </div>
       </div>
+
+      {/* TikTok-Style Share & Download Bottom Sheet */}
+      <ReelShareSheetModal
+        reel={reel}
+        isOpen={showShareSheet}
+        onClose={() => setShowShareSheet(false)}
+        onCopySuccess={onCopySuccess}
+      />
 
       {/* Auth Modal */}
       <AuthRequiredModal
